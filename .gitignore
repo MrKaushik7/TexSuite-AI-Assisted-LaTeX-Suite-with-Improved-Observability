@@ -1,0 +1,26 @@
+# Local human/agent notes
+/notes/
+/research.md
+/AGENTS.md
+/design.md
+/plan.md
+/*/plan.md
+
+# Build and release outputs
+/target/
+/dist/
+
+# TexSuite runtime data and local configuration
+/.tex-suite/
+*.env
+.env*
+
+# Private or machine-specific fixtures
+/private-fixtures/
+/local-fixtures/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.iml
