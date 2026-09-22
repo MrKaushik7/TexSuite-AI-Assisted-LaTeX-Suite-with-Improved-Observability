@@ -20,3 +20,5 @@ jobs:
           cache: maven
       - name: Verify
         run: ./mvnw --batch-mode verify
+      - name: Verify launcher diagnostics
+        run: sh scripts/test-install.sh
