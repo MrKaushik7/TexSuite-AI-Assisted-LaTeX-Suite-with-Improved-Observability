@@ -1,7 +1,12 @@
 package texsuite;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -14,17 +19,32 @@ import picocli.CommandLine.Model.CommandSpec;
         mixinStandardHelpOptions = true,
         version = "TexSuite 0.1.0-SNAPSHOT")
 public final class TexSuiteCli implements Callable<Integer> {
-    @Parameters(
-            index = "0",
-            arity = "0..1",
-            paramLabel = "FILE",
+    @Parameters(index = "0", arity = "0..1", paramLabel = "FILE",
             description = "Root LaTeX file to open.")
-    private Path file;
+    private String file;
 
     @Spec
     private CommandSpec commandSpec;
 
+    private final BufferedReader input;
+    private final boolean interactive;
+    private final Path workingDirectory;
+    private final RecentFolders recentFolders;
+    private final Supplier<Optional<Path>> filePicker;
+
     TexSuiteCli() {
+        this(new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)),
+                System.console() != null, Path.of("").toAbsolutePath(),
+                RecentFolders.defaultStorage(), DocumentInput::openNativePicker);
+    }
+
+    TexSuiteCli(BufferedReader input, boolean interactive, Path workingDirectory,
+            Path recentFolderStorage, Supplier<Optional<Path>> filePicker) {
+        this.input = input;
+        this.interactive = interactive;
+        this.workingDirectory = workingDirectory;
+        this.recentFolders = new RecentFolders(recentFolderStorage);
+        this.filePicker = filePicker;
     }
 
     public static void main(String[] args) {
@@ -34,14 +54,21 @@ public final class TexSuiteCli implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        if (file == null) {
-            commandSpec.commandLine().getOut().println(
-                    "TexSuite is installed. The guided document workflow is the next implementation slice.");
-            return CommandLine.ExitCode.OK;
+        DocumentInput documentInput = new DocumentInput(input, interactive, workingDirectory,
+                recentFolders, filePicker, commandSpec.commandLine().getOut(),
+                commandSpec.commandLine().getErr());
+        Optional<Path> selectedFile = documentInput.select(file);
+        if (selectedFile.isEmpty()) {
+            return documentInput.wasCancelledByUser()
+                    ? CommandLine.ExitCode.OK : CommandLine.ExitCode.USAGE;
         }
 
-        commandSpec.commandLine().getErr().printf(
-                "Document selection is not implemented yet; no file was read or changed: %s%n", file);
-        return CommandLine.ExitCode.USAGE;
+        commandSpec.commandLine().getOut().printf("Selected: %s%n",
+                DocumentInput.safeDisplay(selectedFile.get()));
+        commandSpec.commandLine().getOut().printf("Project root: %s%n",
+                DocumentInput.safeDisplay(selectedFile.get().getParent()));
+        commandSpec.commandLine().getOut().println(
+                "Document input validated (UTF-8). Document loading and editing are not implemented yet; no source file was changed.");
+        return CommandLine.ExitCode.OK;
     }
 }
