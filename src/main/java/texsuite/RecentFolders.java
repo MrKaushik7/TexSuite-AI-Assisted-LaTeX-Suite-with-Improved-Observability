@@ -111,7 +111,7 @@ final class RecentFolders {
         Properties properties = new Properties();
         try (InputStream stream = Files.newInputStream(storage)) {
             properties.load(stream);
-        } catch (IOException exception) {
+        } catch (IOException | IllegalArgumentException exception) {
             return List.of();
         }
         List<Path> folders = new ArrayList<>();
@@ -130,7 +130,8 @@ final class RecentFolders {
 
     private String basename(String enteredPath) {
         try {
-            return Path.of(enteredPath).getFileName().toString();
+            Path name = Path.of(enteredPath).getFileName();
+            return name == null ? "" : name.toString();
         } catch (InvalidPathException exception) {
             return enteredPath;
         }

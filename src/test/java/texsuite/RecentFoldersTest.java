@@ -45,4 +45,16 @@ final class RecentFoldersTest {
 
         assertTrue(suggestions.isEmpty());
     }
+
+    @Test
+    void corruptPropertiesDoNotPreventRememberingOrSuggesting() throws Exception {
+        Path storage = temporaryDirectory.resolve("recent.properties");
+        Files.writeString(storage, "0=\\uBROKEN");
+        Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), "$n$");
+        RecentFolders recentFolders = new RecentFolders(storage);
+
+        assertEquals(List.of(source), recentFolders.suggest("papr.tex", temporaryDirectory));
+        recentFolders.remember(temporaryDirectory);
+        assertTrue(Files.readString(storage).contains(temporaryDirectory.toString()));
+    }
 }
