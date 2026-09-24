@@ -53,7 +53,7 @@ final class TexSuiteCliTest {
     }
 
     @Test
-    void relativeAndAbsolutePathsReachOnlyTheStub() throws Exception {
+    void relativeAndAbsolutePathsProduceReadOnlySnapshot() throws Exception {
         Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), "\\documentclass{article}\n");
         String original = Files.readString(source);
 
@@ -63,7 +63,39 @@ final class TexSuiteCliTest {
         assertEquals(CommandLine.ExitCode.OK, relative.exitCode());
         assertEquals(CommandLine.ExitCode.OK, absolute.exitCode());
         assertTrue(relative.output().contains("Selected: " + source.toRealPath()));
-        assertTrue(relative.output().contains("Document loading and editing are not implemented"));
+        assertTrue(relative.output().contains("Snapshot: 1 source file(s)"));
+        assertTrue(relative.output().contains("Read-only snapshot finished"));
+        assertEquals(original, Files.readString(source));
+    }
+
+    @Test
+    void developmentDebugShowsSnapshotMetadataWithoutCandidatesAndCanBeDisabled()
+            throws Exception {
+        Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"),
+                "$n$ % n\n\\input{chapter}\n\\includegraphics{figure.pdf}\n");
+        Files.writeString(temporaryDirectory.resolve("chapter.tex"), "$n$");
+        Files.write(temporaryDirectory.resolve("figure.pdf"), new byte[] {1, 2});
+        String original = Files.readString(source);
+
+        RunResult defaultDebug = run(false, "", Optional::empty, "paper.tex");
+        RunResult concise = run(false, "", Optional::empty, "--no-debug", "paper.tex");
+
+        assertEquals(CommandLine.ExitCode.OK, defaultDebug.exitCode());
+        assertEquals(CommandLine.ExitCode.OK, concise.exitCode());
+        assertTrue(defaultDebug.output().contains("Debug snapshot (development)"));
+        assertTrue(defaultDebug.output().contains("source paper.tex sha256="));
+        assertTrue(defaultDebug.output().contains("source chapter.tex sha256="));
+        assertTrue(defaultDebug.output().contains("include paper.tex:"));
+        assertTrue(defaultDebug.output().contains("asset paper.tex:"));
+        assertTrue(defaultDebug.output().contains("target=figure.pdf"));
+        assertTrue(defaultDebug.output().contains("protected paper.tex bytes["));
+        assertTrue(defaultDebug.output().contains("reason=COMMENT"));
+        assertFalse(defaultDebug.output().contains("\\includegraphics{figure.pdf}"));
+        assertFalse(defaultDebug.output().contains("CANDIDATE"));
+        assertFalse(defaultDebug.output().contains("Literal n inventory:"));
+        assertFalse(concise.output().contains("Literal n inventory:"));
+        assertFalse(concise.output().contains("Debug snapshot"));
+        assertFalse(concise.output().contains("target=figure.pdf"));
         assertEquals(original, Files.readString(source));
     }
 
@@ -158,7 +190,7 @@ final class TexSuiteCliTest {
     }
 
     @Test
-    void malformedUtf8CannotReachDocumentLoadingStub() throws Exception {
+    void malformedUtf8CannotReachDocumentSnapshot() throws Exception {
         Files.write(temporaryDirectory.resolve("bad.tex"),
                 new byte[] {(byte) 0xC3, (byte) 0x28});
 
@@ -166,7 +198,7 @@ final class TexSuiteCliTest {
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.errors().contains("not valid UTF-8"));
-        assertFalse(result.output().contains("Document loading"));
+        assertFalse(result.output().contains("Snapshot:"));
     }
 
     @Test
@@ -175,6 +207,38 @@ final class TexSuiteCliTest {
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.errors().contains("Input ended"));
+    }
+
+    @Test
+    void filesystemRootSelectionReturnsToRecoveryWithoutCrashing() {
+        RunResult result = run(true, "n\nquit\n", Optional::empty,
+                temporaryDirectory.getRoot().toString());
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertTrue(result.errors().contains("this is a directory"));
+        assertTrue(result.output().contains("Document selection cancelled"));
+    }
+
+    @Test
+    void snapshotDiagnosticsAndLoadErrorsEscapeControlCharactersInPaths() throws Exception {
+        String filename = "bad\u001b[31m.tex";
+        Path source = Files.writeString(temporaryDirectory.resolve(filename), "$n");
+        RunResult diagnostic = run(false, "", Optional::empty, "--no-debug", filename);
+
+        assertEquals(CommandLine.ExitCode.OK, diagnostic.exitCode());
+        assertTrue(diagnostic.output().contains("bad?[31m.tex"));
+        assertFalse(diagnostic.output().contains("\u001b"));
+
+        Files.writeString(source, "\\input{missing}");
+        Files.writeString(temporaryDirectory.resolve("main.tex"),
+                "\\input{linked}");
+        Files.createSymbolicLink(temporaryDirectory.resolve("linked.tex"), source);
+        Files.writeString(source, "\\input{../outside}");
+        RunResult failure = run(false, "", Optional::empty, "main.tex");
+
+        assertEquals(CommandLine.ExitCode.USAGE, failure.exitCode());
+        assertTrue(failure.errors().contains("bad?[31m.tex"));
+        assertFalse(failure.errors().contains("\u001b"));
     }
 
     private RunResult run(boolean interactive, String answers,
