@@ -649,7 +649,46 @@ final class TexSuiteCliTest {
     }
 
     @Test
-    void namedEditorCanBeSelectedAndOpenedFromSettings() throws Exception {
+    @org.junit.jupiter.api.condition.EnabledOnOs(org.junit.jupiter.api.condition.OS.MAC)
+    void enablingAutomaticOpeningImmediatelyUsesPreferredEditor() throws Exception {
+        Path app = EditorApplicationTest.application(temporaryDirectory);
+        Path source = Files.writeString(temporaryDirectory.resolve("editor.tex"), "hello").toRealPath();
+        Path storage = temporaryDirectory.resolve("editor.properties");
+        EditorPreferences preferences = new EditorPreferences(storage);
+        preferences.setApplication(app.toString());
+        preferences.setAutomatic(false);
+        preferences.save();
+
+        TexSuiteCli cli = new TexSuiteCli(new BufferedReader(new StringReader("5\n2\n2\n2\n6\n6\n")),
+                true, temporaryDirectory, temporaryDirectory.resolve("recent.properties"), Optional::empty);
+        java.util.List<String> launches = new java.util.ArrayList<>();
+        cli.setDependenciesForTests((file, application) -> {
+            assertEquals(source, file);
+            launches.add(application);
+            return Optional.of("Test launch failure");
+        }, TexCompileGate::new);
+        StringWriter output = new StringWriter();
+        StringWriter errors = new StringWriter();
+        CommandLine command = new CommandLine(cli);
+        command.setOut(new PrintWriter(output, true));
+        command.setErr(new PrintWriter(errors, true));
+
+        assertEquals(CommandLine.ExitCode.OK, command.execute("--no-debug", "editor.tex"));
+        assertEquals(java.util.List.of(app.toString(), app.toString()), launches);
+        assertTrue(errors.toString().contains("Test launch failure"));
+        preferences.load();
+        assertTrue(preferences.automatic());
+        assertEquals(app.toString(), preferences.application());
+        assertTrue(output.toString().contains(String.join(System.lineSeparator(),
+                "Settings:", "  1. Diagnostics", "  2. Toggle automatic opening",
+                "  3. Browse for editor…", "  4. Open file now", "  5. Reset editor",
+                "  6. Back", "  7. Recover interrupted edits")));
+    }
+
+    @Test
+    @org.junit.jupiter.api.condition.EnabledOnOs(org.junit.jupiter.api.condition.OS.MAC)
+    void browsedEditorCanBeSelectedAndOpenedFromSettings() throws Exception {
+        Path app = EditorApplicationTest.application(temporaryDirectory);
         Files.writeString(temporaryDirectory.resolve("editor.tex"), "hello");
         java.util.List<String> applications = new java.util.ArrayList<>();
         EditorLauncher launcher = (file, application) -> {
@@ -658,12 +697,23 @@ final class TexSuiteCliTest {
         };
         Path recent = temporaryDirectory.resolve("recent.properties");
         TexSuiteCli first = new TexSuiteCli(new BufferedReader(new StringReader(
-                "5\n3\nTextEdit\n4\n6\n6\n")), true, temporaryDirectory, recent,
+                "5\n3\n4\n6\n6\n")), true, temporaryDirectory, recent,
                 Optional::empty);
         first.setDependenciesForTests(launcher, TexCompileGate::new);
+        int[] selections = {0};
+        first.setEditorPickerForTests(() -> {
+            selections[0]++;
+            return Optional.of(app);
+        });
+        StringWriter output = new StringWriter();
+        CommandLine command = new CommandLine(first);
+        command.setOut(new PrintWriter(output, true));
 
-        assertEquals(CommandLine.ExitCode.OK,
-                new CommandLine(first).execute("--no-debug", "editor.tex"));
+        assertEquals(CommandLine.ExitCode.OK, command.execute("--no-debug", "editor.tex"));
+        assertEquals(1, selections[0]);
+        assertTrue(output.toString().contains("Browse for editor"));
+        assertFalse(output.toString().contains("Application name"));
+        assertTrue(output.toString().contains(app.toString()));
 
         TexSuiteCli second = new TexSuiteCli(new BufferedReader(new StringReader("6\n")),
                 true, temporaryDirectory, recent, Optional::empty);
@@ -671,7 +721,64 @@ final class TexSuiteCliTest {
 
         assertEquals(CommandLine.ExitCode.OK,
                 new CommandLine(second).execute("--no-debug", "editor.tex"));
-        assertEquals(java.util.Arrays.asList(null, "TextEdit", "TextEdit"), applications);
+        assertEquals(java.util.Arrays.asList(null, app.toString(), app.toString()), applications);
+    }
+
+    @Test
+    void invalidSettingsInputAndCancelledOrFailedPickerPreservePreferences() throws Exception {
+        Files.writeString(temporaryDirectory.resolve("editor.tex"), "hello");
+        Path storage = temporaryDirectory.resolve("editor.properties");
+        String saved = "automatic=false\napplication=\n";
+        for (EditorPicker picker : java.util.List.<EditorPicker>of(
+                Optional::empty,
+                () -> { throw new java.io.IOException("Picker unavailable"); },
+                () -> { throw new java.io.IOException("Picker timed out"); },
+                () -> Optional.of(Path.of("hel")))) {
+            Files.writeString(storage, saved);
+            TexSuiteCli cli = new TexSuiteCli(new BufferedReader(new StringReader(
+                    "5\nhel\n\t2\n2\u001b\n\u202e2\n3\n\n6\n")), true,
+                    temporaryDirectory, temporaryDirectory.resolve("recent.properties"), Optional::empty);
+            cli.setEditorPickerForTests(picker);
+            StringWriter output = new StringWriter();
+            CommandLine command = new CommandLine(cli);
+            command.setOut(new PrintWriter(output, true));
+            command.setErr(new PrintWriter(output, true));
+
+            assertEquals(CommandLine.ExitCode.OK, command.execute("--no-debug", "editor.tex"));
+            assertEquals(saved, Files.readString(storage));
+            assertTrue(output.toString().contains("control characters are not allowed"));
+            assertFalse(output.toString().contains("Application name"));
+        }
+    }
+
+    @Test
+    @org.junit.jupiter.api.condition.EnabledOnOs(org.junit.jupiter.api.condition.OS.MAC)
+    void cancellingOrRejectingANewAppKeepsThePreviouslyChosenEditor() throws Exception {
+        Path app = EditorApplicationTest.application(temporaryDirectory);
+        Files.writeString(temporaryDirectory.resolve("editor.tex"), "hello");
+        Path storage = temporaryDirectory.resolve("editor.properties");
+        EditorPreferences preferences = new EditorPreferences(storage);
+        preferences.setApplication(app.toString());
+        preferences.setAutomatic(false);
+        preferences.save();
+        String saved = Files.readString(storage);
+
+        for (EditorPicker picker : java.util.List.<EditorPicker>of(Optional::empty,
+                () -> Optional.of(temporaryDirectory),
+                () -> { throw new java.io.IOException("Unavailable"); })) {
+            TexSuiteCli cli = new TexSuiteCli(new BufferedReader(new StringReader("5\n3\n4\n6\n6\n")),
+                    true, temporaryDirectory, temporaryDirectory.resolve("recent.properties"), Optional::empty);
+            cli.setEditorPickerForTests(picker);
+            java.util.List<String> launches = new java.util.ArrayList<>();
+            cli.setDependenciesForTests((file, application) -> {
+                launches.add(application);
+                return Optional.empty();
+            }, TexCompileGate::new);
+
+            assertEquals(CommandLine.ExitCode.OK, new CommandLine(cli).execute("--no-debug", "editor.tex"));
+            assertEquals(java.util.List.of(app.toString()), launches);
+            assertEquals(saved, Files.readString(storage));
+        }
     }
 
     @Test

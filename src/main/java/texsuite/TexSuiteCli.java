@@ -46,6 +46,7 @@ public final class TexSuiteCli implements Callable<Integer> {
     private final Supplier<Optional<Path>> filePicker;
     private final EditorPreferences editorPreferences;
     private EditorLauncher editorLauncher;
+    private EditorPicker editorPicker;
     private java.util.function.BiFunction<Boolean, Path, TexCompileGate> compileGate;
 
     TexSuiteCli() {
@@ -60,6 +61,7 @@ public final class TexSuiteCli implements Callable<Integer> {
                 recentFolderStorage.resolveSibling("editor.properties"));
 
         this.editorLauncher = EditorLauncher.system();
+        this.editorPicker = EditorPicker.system();
         this.compileGate = TexCompileGate::new;
     }
 
@@ -76,6 +78,7 @@ public final class TexSuiteCli implements Callable<Integer> {
                 recentFolderStorage.resolveSibling("editor.properties"));
 
         this.editorLauncher = (path, application) -> Optional.empty();
+        this.editorPicker = Optional::empty;
         this.compileGate = TexCompileGate::new;
     }
 
@@ -84,6 +87,11 @@ public final class TexSuiteCli implements Callable<Integer> {
             java.util.function.BiFunction<Boolean, Path, TexCompileGate> compileGate) {
         this.editorLauncher = editorLauncher;
         this.compileGate = compileGate;
+    }
+
+    // Test-only picker injection; call before command execution.
+    void setEditorPickerForTests(EditorPicker editorPicker) {
+        this.editorPicker = editorPicker;
     }
 
     public static void main(String[] args) {
@@ -131,7 +139,7 @@ public final class TexSuiteCli implements Callable<Integer> {
                     commandSpec.commandLine().getErr(), selectedFile.get(),
                     !debugDisabled || debugRequested,
                     () -> showSnapshot(selectedFile.get()), editorPreferences,
-                    editorLauncher, compileGate.apply(allowNoCompile, compilationMain == null ? null
+                    editorLauncher, editorPicker, compileGate.apply(allowNoCompile, compilationMain == null ? null
                             : workingDirectory.resolve(compilationMain).toAbsolutePath().normalize())).run();
         }
 
