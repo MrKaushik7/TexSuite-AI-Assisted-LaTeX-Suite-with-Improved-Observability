@@ -27,7 +27,7 @@ final class DocumentInputValidator {
         try {
             realFile = candidate.toRealPath();
         } catch (NoSuchFileException exception) {
-            throw new InputException("file does not exist");
+            throw new InputException(InputException.Reason.MISSING_FILE, "file does not exist");
         } catch (AccessDeniedException exception) {
             throw new InputException("access denied");
         } catch (IOException exception) {
@@ -43,8 +43,21 @@ final class DocumentInputValidator {
     }
 
     static final class InputException extends Exception {
+        enum Reason { MISSING_FILE, OTHER }
+
+        private final Reason reason;
+
         InputException(String message) {
+            this(Reason.OTHER, message);
+        }
+
+        InputException(Reason reason, String message) {
             super(message);
+            this.reason = reason;
+        }
+
+        Reason reason() {
+            return reason;
         }
     }
 }

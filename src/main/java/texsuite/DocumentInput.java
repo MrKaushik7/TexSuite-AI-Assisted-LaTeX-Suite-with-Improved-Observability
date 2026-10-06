@@ -148,7 +148,7 @@ final class DocumentInput {
     }
 
     private void showInputError(String enteredPath, DocumentInputValidator.InputException exception) {
-        if (exception.getMessage().equals("file does not exist")) {
+        if (exception.reason() == DocumentInputValidator.InputException.Reason.MISSING_FILE) {
             Path attemptedPath = workingDirectory.resolve(enteredPath).normalize();
             errors.printf("Cannot open %s: file does not exist at %s%n",
                     safeDisplay(enteredPath), safeDisplay(attemptedPath));

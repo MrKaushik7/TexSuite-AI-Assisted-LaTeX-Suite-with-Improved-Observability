@@ -44,5 +44,9 @@ final class DocumentInputValidatorTest {
                 DocumentInputValidator.InputException.class,
                 () -> validator.validate(name, temporaryDirectory));
         assertTrue(exception.getMessage().contains(expectedMessage));
+        assertEquals(name.equals("missing.tex")
+                        ? DocumentInputValidator.InputException.Reason.MISSING_FILE
+                        : DocumentInputValidator.InputException.Reason.OTHER,
+                exception.reason());
     }
 }

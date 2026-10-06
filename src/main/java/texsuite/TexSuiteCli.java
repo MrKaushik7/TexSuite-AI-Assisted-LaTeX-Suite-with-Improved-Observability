@@ -135,7 +135,7 @@ public final class TexSuiteCli implements Callable<Integer> {
                 DocumentInput.safeDisplay(selectedFile.get().getParent()));
 
         if (interactive) {
-            return new RenameWorkflow(input, commandSpec.commandLine().getOut(),
+            return new DocumentSession(input, commandSpec.commandLine().getOut(),
                     commandSpec.commandLine().getErr(), selectedFile.get(),
                     !debugDisabled || debugRequested,
                     () -> showSnapshot(selectedFile.get()), editorPreferences,
