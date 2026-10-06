@@ -1,11 +1,14 @@
 package texsuite;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import texsuite.DocumentSnapshot.SourceContext;
 
 final class TexSourceScanner {
+    private static final SourceContext[] CONTEXTS = SourceContext.values();
     private static final Set<String> MATH_ENVIRONMENTS = Set.of("math", "displaymath",
             "equation", "equation*", "align", "align*", "gather", "gather*",
             "multline", "multline*", "flalign", "flalign*", "eqnarray", "eqnarray*");
@@ -22,18 +25,23 @@ final class TexSourceScanner {
     private final String source;
     private final int[] byteOffsets;
     private final int[] lines;
-    private final List<RawOccurrence> occurrences = new ArrayList<>();
+    private final int[] columns;
     private final List<IncludeReference> includes = new ArrayList<>();
     private final List<AssetReference> assets = new ArrayList<>();
     private final List<Problem> problems = new ArrayList<>();
     private final List<ProtectedRegion> protectedRegions = new ArrayList<>();
     private final List<String> environments = new ArrayList<>();
     private final List<ConditionalState> conditionals = new ArrayList<>();
-    private char occurrenceTarget;
+    private byte[] capturedContexts;
+    private boolean[] capturedConditional;
+    private byte[] capturedBraces;
     private String mathDelimiter;
     private String verbatimEnvironment;
     private int mathEnvironmentDepth;
     private int braceDepth;
+    private int documentStart;
+    private boolean hasDocumentStart;
+    private int documentEnd;
     private int mathStart;
     private int commentStart = -1;
     private int verbatimStart = -1;
@@ -44,39 +52,114 @@ final class TexSourceScanner {
         this.source = source;
         byteOffsets = new int[source.length() + 1];
         lines = new int[source.length() + 1];
+        columns = new int[source.length() + 1];
         int bytes = 0;
         int line = 1;
+        int column = 1;
         for (int index = 0; index < source.length();) {
             int codePoint = source.codePointAt(index);
             int width = Character.charCount(codePoint);
             for (int part = 0; part < width; part++) {
                 byteOffsets[index + part] = bytes;
                 lines[index + part] = line;
+                columns[index + part] = column;
             }
             bytes += utf8Width(codePoint);
             if (codePoint == '\r' || codePoint == '\n'
                     && (index == 0 || source.charAt(index - 1) != '\r')) {
                 line++;
+                column = 1;
+            } else if (codePoint != '\n' || index == 0 || source.charAt(index - 1) != '\r') {
+                column++;
             }
             index += width;
         }
         byteOffsets[source.length()] = bytes;
         lines[source.length()] = line;
+        columns[source.length()] = column;
     }
 
     Scan scan() {
-        return scan('\0');
+        return scan(false);
     }
 
     Scan scanFor(char target) {
         if (!asciiLetter(target)) {
             throw new IllegalArgumentException("occurrence target must be an ASCII letter");
         }
-        return scan(target);
+        return scanFor(String.valueOf(target));
     }
 
-    private Scan scan(char target) {
-        occurrences.clear();
+    Scan scanFor(String target) {
+        Objects.requireNonNull(target, "target");
+        if (target.isEmpty()) {
+            throw new IllegalArgumentException("occurrence target must not be empty");
+        }
+        Scan structure = scan(true);
+        return new Scan(collectMatches(target), structure.includes(), structure.assets(),
+                structure.problems(), structure.protectedRegions());
+    }
+
+    private List<RawOccurrence> collectMatches(String target) {
+        List<RawOccurrence> matches = new ArrayList<>();
+        int[] contexts = new int[CONTEXTS.length + 1];
+        int previousStart = -1;
+        int previousEnd = -1;
+        int conditionalCount = 0;
+        for (int start = source.indexOf(target); start >= 0;
+                start = source.indexOf(target, start + 1)) {
+            int end = start + target.length();
+            if (previousStart >= 0 && start < previousEnd) {
+                conditionalCount += updateWindow(contexts, previousStart, start, -1);
+                conditionalCount += updateWindow(contexts, previousEnd, end, 1);
+            } else {
+                Arrays.fill(contexts, 0);
+                conditionalCount = updateWindow(contexts, start, end, 1);
+            }
+            matches.add(new RawOccurrence(start, spanContext(contexts, target.length()),
+                    conditionalCount > 0));
+            previousStart = start;
+            previousEnd = end;
+        }
+        return List.copyOf(matches);
+    }
+
+    private int updateWindow(int[] contexts, int start, int end, int change) {
+        int conditionalChange = 0;
+        for (int index = start; index < end; index++) {
+            contexts[Byte.toUnsignedInt(capturedContexts[index])] += change;
+            if (capturedConditional[index]) {
+                conditionalChange += change;
+            }
+        }
+        return conditionalChange;
+    }
+
+    private static SourceContext spanContext(int[] contexts, int length) {
+        for (SourceContext context : CONTEXTS) {
+            if (context != SourceContext.MATH && context != SourceContext.PROSE
+                    && context != SourceContext.UNKNOWN
+                    && contexts[context.ordinal() + 1] > 0) {
+                return context;
+            }
+        }
+        if (contexts[SourceContext.MATH.ordinal() + 1] == length) {
+            return SourceContext.MATH;
+        }
+        if (contexts[SourceContext.PROSE.ordinal() + 1] == length) {
+            return SourceContext.PROSE;
+        }
+        return SourceContext.UNKNOWN;
+    }
+
+    private Scan scan(boolean captureAll) {
+        resetScan(captureAll);
+        scanSource();
+        return finishScan();
+    }
+
+    // Resets all transient state; neutral scans need no per-character capture arrays.
+    private void resetScan(boolean captureAll) {
         includes.clear();
         assets.clear();
         problems.clear();
@@ -87,12 +170,21 @@ final class TexSourceScanner {
         verbatimEnvironment = null;
         mathEnvironmentDepth = 0;
         braceDepth = 0;
+        documentStart = 0;
+        hasDocumentStart = false;
+        documentEnd = source.length();
         mathStart = 0;
         commentStart = -1;
         verbatimStart = -1;
         comment = false;
         unknown = false;
-        occurrenceTarget = target;
+        capturedContexts = captureAll ? new byte[source.length()] : null;
+        capturedConditional = captureAll ? new boolean[source.length()] : null;
+        capturedBraces = captureAll ? new byte[source.length()] : null;
+    }
+
+    // Walks source once, updating contexts, structural state, references and diagnostics.
+    private void scanSource() {
         for (int index = 0; index < source.length();) {
             char character = source.charAt(index);
             if (comment) {
@@ -140,7 +232,9 @@ final class TexSourceScanner {
             }
             if (character == '{') {
                 braceDepth++;
+                if (capturedBraces != null) capturedBraces[index] = 1;
             } else if (character == '}') {
+                if (capturedBraces != null) capturedBraces[index] = -1;
                 if (braceDepth == 0) {
                     problem(index, "UNBALANCED_BRACE", "unexpected closing brace");
                     unknown = true;
@@ -148,12 +242,16 @@ final class TexSourceScanner {
                     braceDepth--;
                 }
             }
-            if (occurrenceTarget != '\0') {
+            if (capturedContexts != null) {
                 record(index, unknown ? SourceContext.UNKNOWN
                         : inMath() ? SourceContext.MATH : SourceContext.PROSE);
             }
             index++;
         }
+    }
+
+    // Resolves EOF uncertainty before any requested matches are classified.
+    private Scan finishScan() {
         if (comment) {
             protectedRegions.add(new ProtectedRegion(commentStart, source.length(),
                     SourceContext.COMMENT));
@@ -167,19 +265,18 @@ final class TexSourceScanner {
             problem(source.length(), "UNCLOSED_STRUCTURE", "unclosed delimiter, group, or environment");
             int uncertainFrom = mathDelimiter != null && mathEnvironmentDepth == 0
                     && braceDepth == 0 && environments.isEmpty() ? mathStart : 0;
-            for (int index = 0; index < occurrences.size(); index++) {
-                RawOccurrence occurrence = occurrences.get(index);
-                if (occurrence.reason() == SourceContext.MATH
-                        && occurrence.charIndex() >= uncertainFrom) {
-                    occurrences.set(index, new RawOccurrence(occurrence.charIndex(),
-                            SourceContext.UNKNOWN, occurrence.conditional()));
+            if (capturedContexts != null) {
+                for (int index = uncertainFrom; index < capturedContexts.length; index++) {
+                    if (capturedContexts[index] == SourceContext.MATH.ordinal() + 1) {
+                        capturedContexts[index] = (byte) (SourceContext.UNKNOWN.ordinal() + 1);
+                    }
                 }
             }
         }
         if (!conditionals.isEmpty()) {
             problem(source.length(), "UNCLOSED_CONDITIONAL", "conditional has no matching \\fi");
         }
-        return new Scan(List.copyOf(occurrences), List.copyOf(includes),
+        return new Scan(List.of(), List.copyOf(includes),
                 List.copyOf(assets), List.copyOf(problems), List.copyOf(protectedRegions));
     }
 
@@ -191,9 +288,23 @@ final class TexSourceScanner {
         return lines[charIndex];
     }
 
-    boolean adjacentLetters(int charIndex) {
-        return charIndex > 0 && asciiLetter(source.charAt(charIndex - 1))
-                || charIndex + 1 < source.length() && asciiLetter(source.charAt(charIndex + 1));
+    int column(int charIndex) {
+        return columns[charIndex];
+    }
+
+    boolean adjacentLetters(int start, int end) {
+        return start > 0 && Character.isLetter(source.codePointBefore(start))
+                || end < source.length() && Character.isLetter(source.codePointAt(end));
+    }
+
+    boolean partialGroup(int start, int end) {
+        if (capturedBraces == null) return false;
+        int depth = 0;
+        for (int index = start; index < end; index++) {
+            depth += capturedBraces[index];
+            if (depth < 0) return true;
+        }
+        return depth != 0;
     }
 
     private int scanCommand(int start) {
@@ -228,16 +339,7 @@ final class TexSourceScanner {
             return scanEnvironment(command, end, start);
         }
         if (DEFINITION_COMMANDS.contains(command)) {
-            int definitionEnd = definitionEnd(command, end);
-            if (definitionEnd < 0) {
-                problem(start, "UNSUPPORTED_DEFINITION", "cannot locate complete definition body");
-                unknown = true;
-                return end;
-            }
-            recordRange(end, definitionEnd, SourceContext.DEFINITION);
-            protectedRegions.add(new ProtectedRegion(start, definitionEnd,
-                    SourceContext.DEFINITION));
-            return definitionEnd;
+            return scanDefinition(command, start, end);
         }
         if (command.equals("input") || command.equals("include")) {
             return scanInclude(command, end, start);
@@ -255,20 +357,45 @@ final class TexSourceScanner {
             unknown = true;
         }
         if (command.equals("newif")) {
-            int nameStart = skipSpaces(end);
-            if (source.startsWith("\\if", nameStart)) {
-                int nameEnd = nameStart + 3;
-                while (nameEnd < source.length() && asciiLetter(source.charAt(nameEnd))) {
-                    nameEnd++;
-                }
-                recordRange(end, nameEnd, SourceContext.DEFINITION);
-                protectedRegions.add(new ProtectedRegion(start, nameEnd,
-                        SourceContext.DEFINITION));
-                return nameEnd;
-            }
-            problem(start, "UNSUPPORTED_DEFINITION", "conditional name is not a control sequence");
-            unknown = true;
+            return scanConditionalDeclaration(start, end);
         }
+        updateConditional(command, start);
+        return end;
+    }
+
+    // Records the definition span and returns the next source position.
+    private int scanDefinition(String command, int start, int end) {
+        int definitionEnd = definitionEnd(command, end);
+        if (definitionEnd < 0) {
+            problem(start, "UNSUPPORTED_DEFINITION", "cannot locate complete definition body");
+            unknown = true;
+            return end;
+        }
+        recordRange(end, definitionEnd, SourceContext.DEFINITION);
+        protectedRegions.add(new ProtectedRegion(start, definitionEnd,
+                SourceContext.DEFINITION));
+        return definitionEnd;
+    }
+
+    private int scanConditionalDeclaration(int start, int end) {
+        int nameStart = skipSpaces(end);
+        if (source.startsWith("\\if", nameStart)) {
+            int nameEnd = nameStart + 3;
+            while (nameEnd < source.length() && asciiLetter(source.charAt(nameEnd))) {
+                nameEnd++;
+            }
+            recordRange(end, nameEnd, SourceContext.DEFINITION);
+            protectedRegions.add(new ProtectedRegion(start, nameEnd,
+                    SourceContext.DEFINITION));
+            return nameEnd;
+        }
+        problem(start, "UNSUPPORTED_DEFINITION", "conditional name is not a control sequence");
+        unknown = true;
+        return end;
+    }
+
+    // Updates tracked branch state and records uncertainty diagnostics.
+    private void updateConditional(String command, int start) {
         if (command.equals("fi") || command.equals("else") || command.equals("or")) {
             if (conditionals.isEmpty()) {
                 problem(start, "UNMATCHED_CONDITIONAL", "conditional boundary has no tracked opening");
@@ -288,7 +415,6 @@ final class TexSourceScanner {
                 && !command.equals("iff")) {
             conditionals.add(conditionalState());
         }
-        return end;
     }
 
     private int scanInlineVerb(int start, int afterCommand) {
@@ -317,6 +443,14 @@ final class TexSourceScanner {
         return end;
     }
 
+    boolean hasDocumentStart() {
+        return hasDocumentStart;
+    }
+
+    boolean withinDocument(int start, int end) {
+        return start >= documentStart && end <= documentEnd;
+    }
+
     private int scanEnvironment(String command, int afterCommand, int start) {
         int argumentStart = skipSpaces(afterCommand);
         Group argument = groupAt(argumentStart, '{', '}');
@@ -329,6 +463,13 @@ final class TexSourceScanner {
         protectedRegions.add(new ProtectedRegion(argumentStart, argument.end(),
                 SourceContext.METADATA));
         String name = source.substring(argumentStart + 1, argument.end() - 1);
+        if (name.equals("document")) {
+            if (command.equals("begin")) {
+                documentStart = argument.end();
+                if (conditionals.isEmpty()) hasDocumentStart = true;
+            }
+            else documentEnd = start;
+        }
         if (command.equals("begin")) {
             environments.add(name);
             if (MATH_ENVIRONMENTS.contains(name)) {
@@ -559,7 +700,7 @@ final class TexSourceScanner {
     }
 
     private void recordRange(int start, int end, SourceContext reason) {
-        if (occurrenceTarget == '\0') {
+        if (capturedContexts == null) {
             return;
         }
         for (int index = start; index < end; index++) {
@@ -568,8 +709,9 @@ final class TexSourceScanner {
     }
 
     private void record(int index, SourceContext reason) {
-        if (occurrenceTarget != '\0' && source.charAt(index) == occurrenceTarget) {
-            occurrences.add(new RawOccurrence(index, reason, !conditionals.isEmpty()));
+        if (capturedContexts != null) {
+            capturedContexts[index] = (byte) (reason.ordinal() + 1);
+            capturedConditional[index] = !conditionals.isEmpty();
         }
     }
 
@@ -610,7 +752,14 @@ final class TexSourceScanner {
 
     record Scan(List<RawOccurrence> occurrences, List<IncludeReference> includes,
             List<AssetReference> assets, List<Problem> problems,
-            List<ProtectedRegion> protectedRegions) { }
+            List<ProtectedRegion> protectedRegions) {
+        boolean overlaps(int index, int literalLength) {
+            int start = occurrences.get(index).charIndex();
+            return index > 0 && occurrences.get(index - 1).charIndex() + literalLength > start
+                    || index + 1 < occurrences.size()
+                    && occurrences.get(index + 1).charIndex() < start + literalLength;
+        }
+    }
     record RawOccurrence(int charIndex, SourceContext reason, boolean conditional) { }
     record IncludeReference(int charIndex, String literal, boolean conditional,
             boolean supported) { }

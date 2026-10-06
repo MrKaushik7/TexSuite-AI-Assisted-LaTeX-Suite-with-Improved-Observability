@@ -28,11 +28,14 @@ final class DocumentLoaderTest {
                 "\\begin{verbatim}n", "} n")) {
             TexSourceScanner scanner = new TexSourceScanner(text);
             TexSourceScanner.Scan requested = scanner.scanFor('n');
+            TexSourceScanner.Scan stringRequested = scanner.scanFor("n+");
             TexSourceScanner.Scan neutral = scanner.scan();
 
             assertTrue(neutral.occurrences().isEmpty());
             assertEquals(new TexSourceScanner(text).scan(), neutral);
             assertEquals(requested, scanner.scanFor('n'));
+            assertEquals(new TexSourceScanner(text).scanFor("n+"), stringRequested);
+            assertEquals(stringRequested, scanner.scanFor("n+"));
             assertEquals(new TexSourceScanner(text).scanFor('x'), scanner.scanFor('x'));
             assertEquals(neutral, scanner.scan());
         }
