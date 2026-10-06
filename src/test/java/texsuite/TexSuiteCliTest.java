@@ -151,13 +151,55 @@ final class TexSuiteCliTest {
 
     @Test
     void decliningBrowseSuppressesLaterAutomaticOffers() throws Exception {
-        Files.writeString(temporaryDirectory.resolve("paper.tex"), "hello");
+        Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), "hello");
 
-        RunResult result = run(true, "n\nwrong.tex\nquit\n", Optional::empty, "papr.tex");
+        RunResult result = run(true, "n\nwrong.tex\nbrowse\n6\n",
+                () -> Optional.of(source), "papr.tex");
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
 
         assertEquals(1, result.output().split("Browse for a file\\?", -1).length - 1);
+        assertEquals(2, result.output().split("LaTeX file path, browse, or quit: ", -1).length - 1);
+        assertFalse(result.output().contains("LaTeX file path or quit:"));
+        assertTrue(result.output().contains("Selected: " + source.toRealPath()));
         assertFalse(result.output().contains("suggestion number"));
-        assertFalse(result.output().contains("  1."));
+        assertFalse(result.output().split("Selected:", 2)[0].contains("  1."));
+    }
+
+    @Test
+    void invalidPickerSelectionKeepsBrowseVisibleAndAllowsAnotherSelection() throws Exception {
+        Path invalid = Files.writeString(temporaryDirectory.resolve("main.aux"), "auxiliary");
+        Path source = Files.writeString(temporaryDirectory.resolve("main.tex"), "hello");
+        int[] selections = {0};
+
+        RunResult result = run(true, "hi\ny\nhi.tex\nhi\nbrowse\n6\n",
+                () -> Optional.of(selections[0]++ == 0 ? invalid : source));
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(2, selections[0]);
+        assertTrue(result.errors().contains("Cannot open " + invalid + ": filename must end in .tex"));
+        assertEquals(1, result.output().split("Browse for a file\\?", -1).length - 1);
+        assertEquals(4, result.output().split("LaTeX file path, browse, or quit: ", -1).length - 1);
+        assertFalse(result.output().contains("LaTeX file path or quit:"));
+        assertTrue(result.output().contains("Selected: " + source.toRealPath()));
+        assertEquals("hello", Files.readString(source));
+        assertEquals("auxiliary", Files.readString(invalid));
+    }
+
+    @Test
+    void cancelledBrowseOfferKeepsBrowseVisibleAndAllowsAnotherSelection() throws Exception {
+        Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), "hello");
+        int[] selections = {0};
+
+        RunResult result = run(true, "y\nbrowse\n6\n",
+                () -> selections[0]++ == 0 ? Optional.empty() : Optional.of(source), "hi");
+
+        assertEquals(CommandLine.ExitCode.OK, result.exitCode());
+        assertEquals(2, selections[0]);
+        assertTrue(result.output().contains("No file selected; enter a path or browse again."));
+        assertEquals(1, result.output().split("LaTeX file path, browse, or quit: ", -1).length - 1);
+        assertFalse(result.output().contains("LaTeX file path or quit:"));
+        assertTrue(result.output().contains("Selected: " + source.toRealPath()));
     }
 
     @Test

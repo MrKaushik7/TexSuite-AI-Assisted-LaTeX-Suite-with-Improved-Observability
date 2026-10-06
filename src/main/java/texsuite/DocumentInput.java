@@ -97,8 +97,7 @@ final class DocumentInput {
     }
 
     private String prompt() {
-        output.print(browseOffered ? "LaTeX file path or quit: "
-                : "LaTeX file path, browse, or quit: ");
+        output.print("LaTeX file path, browse, or quit: ");
         output.flush();
         try {
             return input.readLine();
