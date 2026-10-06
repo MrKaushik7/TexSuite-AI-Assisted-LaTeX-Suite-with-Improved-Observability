@@ -16,9 +16,21 @@
         <project.build.outputTimestamp>2026-09-18T00:00:00Z</project.build.outputTimestamp>
         <picocli.version>4.7.7</picocli.version>
         <junit.version>5.14.4</junit.version>
+        <jackson.version>2.22.1</jackson.version>
+        <java-diff-utils.version>4.17</java-diff-utils.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.java-diff-utils</groupId>
+            <artifactId>java-diff-utils</artifactId>
+            <version>${java-diff-utils.version}</version>
+        </dependency>
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>

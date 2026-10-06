@@ -20,7 +20,7 @@ mkdir -p "$fixture_root/bin"
 ln -s "$script_dir/test-install.sh" "$fixture_root/bin/java"
 
 TEXSUITE_INSTALL_DIR="$fixture_root/app" TEXSUITE_BIN_DIR="$fixture_root/launchers" \
-    "$script_dir/install.sh" > "$fixture_root/install.out"
+    "$script_dir/install.sh" </dev/null > "$fixture_root/install.out"
 
 PATH="$fixture_root/bin:$PATH" TEXSUITE_LOG_DIR="$fixture_root/logs" \
     "$fixture_root/launchers/texsuite" --clean \
@@ -67,3 +67,5 @@ grep -Fq 'Usage: texsuite' "$fixture_root/help.stdout"
 test ! -s "$fixture_root/help.stderr"
 
 printf '%s\n' 'Launcher warning filter passed.'
+
+python3 "$script_dir/test-tex-setup.py"

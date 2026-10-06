@@ -53,3 +53,55 @@ chmod 0755 "$BIN_DIR/texsuite"
 printf 'Installed TexSuite JAR: %s\n' "$INSTALL_DIR/texsuite.jar"
 printf 'Installed command: %s\n' "$BIN_DIR/texsuite"
 printf 'Add %s to PATH if needed.\n' "$BIN_DIR"
+
+find_compiler() (
+    # Match the application's discovery order without changing the caller's IFS.
+    set -f
+    IFS=:
+    compiler_search="${PATH-}:/Library/TeX/texbin"
+    for compiler_dir in $compiler_search; do
+        case "$compiler_dir" in
+            /*)
+                if [ -f "$compiler_dir/pdflatex" ] && [ -x "$compiler_dir/pdflatex" ]; then
+                    printf '%s\n' "$compiler_dir/pdflatex"
+                    return 0
+                fi
+                ;;
+        esac
+    done
+    return 1
+)
+
+if compiler_path=$(find_compiler); then
+    printf 'TeX compiler found: %s\n' "$compiler_path"
+else
+    tex_download_url=https://www.tug.org/mactex/morepackages.html
+    printf '\n%s\n' 'pdflatex was not found. Compiled edits require a TeX installation.'
+    printf 'Install BasicTeX (recommended): %s\n' "$tex_download_url"
+    printf '%s\n' 'Download BasicTeX and complete its macOS installer, then rerun this script to check.'
+    printf '%s\n' 'Some documents need extra TeX packages; add missing packages with tlmgr.'
+    printf '%s\n' 'Optional full MacTeX for broader package coverage: https://www.tug.org/mactex/mactex-download.html'
+    printf '%s\n' 'For an explicitly uncompiled edit, start TexSuite with --allow-no-compile.'
+
+    if [ -t 0 ]; then
+        printf 'Open the official BasicTeX download page? [y/N]: '
+        if IFS= read -r setup_answer; then
+            case "$setup_answer" in
+                y|Y|yes|YES|Yes)
+                    if ! open "$tex_download_url"; then
+                        printf '%s\n' 'Could not open the browser. Use the download link above.'
+                    fi
+                    printf '%s\n' 'Complete the BasicTeX installer before checking again.'
+                    printf 'Press Enter to check for pdflatex, or type skip to finish: '
+                    if IFS= read -r recheck_answer && [ -z "$recheck_answer" ]; then
+                        if compiler_path=$(find_compiler); then
+                            printf 'TeX compiler found: %s\n' "$compiler_path"
+                        else
+                            printf '%s\n' 'pdflatex is still unavailable. Rerun this script after installing BasicTeX.'
+                        fi
+                    fi
+                    ;;
+            esac
+        fi
+    fi
+fi
