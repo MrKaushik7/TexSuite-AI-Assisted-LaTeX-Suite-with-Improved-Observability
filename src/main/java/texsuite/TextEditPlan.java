@@ -74,7 +74,12 @@ final class TextEditPlan {
     }
 
     Path apply() throws IOException {
+        return apply(() -> { });
+    }
+
+    Path apply(TexCompileGate.Freshness contextFreshness) throws IOException {
         validate();
+        contextFreshness.check();
         Path data = snapshot.root().resolve(".tex-suite");
         Path backups = data.resolve("backups");
         if (Files.isSymbolicLink(data) || Files.isSymbolicLink(backups)) {
@@ -87,6 +92,7 @@ final class TextEditPlan {
         Map<Path, byte[]> updates = prepareUpdates();
         TexCompileGate.Freshness compilation = compileGate.validate(snapshot, updates);
         validate();
+        contextFreshness.check();
         Path recovery = createRecoveryDirectory(backups);
         Map<Path, Path> staged = new TreeMap<>();
         List<Path> changed = new ArrayList<>();
@@ -99,6 +105,7 @@ final class TextEditPlan {
                 throw new StaleSourceException("Saved source changed before apply; reload and review again.");
             }
             compilation.check();
+            contextFreshness.check();
             commitStaged(staged, changed);
             TextRecovery.writeJournal(recovery, "complete", snapshot, updates);
         } catch (IOException failure) {

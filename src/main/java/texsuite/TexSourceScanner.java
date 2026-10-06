@@ -21,6 +21,10 @@ final class TexSourceScanner {
     private static final Set<String> DEFINITION_COMMANDS = Set.of("def", "gdef", "edef",
             "xdef", "newcommand", "renewcommand", "providecommand", "DeclareRobustCommand",
             "newenvironment", "renewenvironment");
+    private static final Set<String> SECTION_COMMANDS = Set.of("part", "chapter", "section",
+            "subsection", "subsubsection", "paragraph", "subparagraph");
+    private static final Set<String> CONTEXT_ENVIRONMENTS = Set.of("definition", "theorem",
+            "lemma", "proposition", "corollary", "claim", "proof", "remark", "example");
 
     private final String source;
     private final int[] byteOffsets;
@@ -32,6 +36,8 @@ final class TexSourceScanner {
     private final List<ProtectedRegion> protectedRegions = new ArrayList<>();
     private final List<String> environments = new ArrayList<>();
     private final List<ConditionalState> conditionals = new ArrayList<>();
+    private final List<ContextSpan> contextSpans = new ArrayList<>();
+    private final List<ContextOpening> contextOpenings = new ArrayList<>();
     private byte[] capturedContexts;
     private boolean[] capturedConditional;
     private byte[] capturedBraces;
@@ -81,6 +87,11 @@ final class TexSourceScanner {
 
     Scan scan() {
         return scan(false);
+    }
+
+    // Structural context is evidence for review, never an edit authorization.
+    List<ContextSpan> contextSpans() {
+        return List.copyOf(contextSpans);
     }
 
     Scan scanFor(char target) {
@@ -166,6 +177,8 @@ final class TexSourceScanner {
         protectedRegions.clear();
         environments.clear();
         conditionals.clear();
+        contextSpans.clear();
+        contextOpenings.clear();
         mathDelimiter = null;
         verbatimEnvironment = null;
         mathEnvironmentDepth = 0;
@@ -206,6 +219,7 @@ final class TexSourceScanner {
                             index + ending.length(), SourceContext.VERBATIM));
                     index += ending.length();
                     environments.remove(environments.size() - 1);
+                    closeContextEnvironment(index);
                     verbatimEnvironment = null;
                     verbatimStart = -1;
                 } else {
@@ -324,6 +338,7 @@ final class TexSourceScanner {
         }
         String command = source.substring(start + 1, end);
         recordRange(start, end, SourceContext.CONTROL_SEQUENCE);
+        if (SECTION_COMMANDS.contains(command)) recordHeading(command, start, end);
         if (command.equals("(") || command.equals("[")) {
             openMath(command.equals("(") ? "\\(" : "\\[", start);
             return end;
@@ -374,7 +389,36 @@ final class TexSourceScanner {
         recordRange(end, definitionEnd, SourceContext.DEFINITION);
         protectedRegions.add(new ProtectedRegion(start, definitionEnd,
                 SourceContext.DEFINITION));
+        contextSpans.add(new ContextSpan(start, definitionEnd, "macro",
+                definitionName(end), !conditionals.isEmpty()));
         return definitionEnd;
+    }
+
+    private String definitionName(int afterCommand) {
+        int position = skipSpaces(afterCommand);
+        if (position < source.length() && source.charAt(position) == '*') {
+            position = skipSpaces(position + 1);
+        }
+        if (position < source.length() && source.charAt(position) == '{') {
+            position = skipSpaces(position + 1);
+        }
+        int start = position;
+        if (position >= source.length() || source.charAt(position++) != '\\') return "";
+
+        while (position < source.length()
+                && (asciiLetter(source.charAt(position)) || source.charAt(position) == '@')) {
+            position++;
+        }
+        return position > start + 1 ? source.substring(start, position) : "";
+    }
+
+    private void recordHeading(String command, int start, int afterCommand) {
+        int position = argumentStart(afterCommand);
+        Group title = groupAt(position, '{', '}');
+        if (title != null) {
+            contextSpans.add(new ContextSpan(start, title.end(), "section", command,
+                    !conditionals.isEmpty()));
+        }
     }
 
     private int scanConditionalDeclaration(int start, int end) {
@@ -472,6 +516,7 @@ final class TexSourceScanner {
         }
         if (command.equals("begin")) {
             environments.add(name);
+            contextOpenings.add(new ContextOpening(start, name, !conditionals.isEmpty()));
             if (MATH_ENVIRONMENTS.contains(name)) {
                 mathEnvironmentDepth++;
             }
@@ -485,11 +530,23 @@ final class TexSourceScanner {
             unknown = true;
         } else {
             environments.remove(environments.size() - 1);
+            closeContextEnvironment(argument.end());
             if (MATH_ENVIRONMENTS.contains(name)) {
                 mathEnvironmentDepth--;
             }
         }
         return argument.end();
+    }
+
+    private void closeContextEnvironment(int end) {
+        ContextOpening opening = contextOpenings.removeLast();
+        String name = opening.name().replaceFirst("\\*$", "");
+        String kind = MATH_ENVIRONMENTS.contains(opening.name()) ? "equation"
+                : CONTEXT_ENVIRONMENTS.contains(name) ? name : null;
+        if (kind != null) {
+            contextSpans.add(new ContextSpan(opening.startChar(), end, kind, opening.name(),
+                    opening.conditional() || !conditionals.isEmpty()));
+        }
     }
 
     private int scanInclude(String command, int afterCommand, int start) {
@@ -687,6 +744,8 @@ final class TexSourceScanner {
             problem(index, "MISMATCHED_MATH_DELIMITER", "math delimiter does not match open");
             unknown = true;
         } else {
+            contextSpans.add(new ContextSpan(mathStart, index + delimiter.length(),
+                    "equation", delimiter, !conditionals.isEmpty()));
             mathDelimiter = null;
         }
     }
@@ -766,6 +825,8 @@ final class TexSourceScanner {
     record AssetReference(int charIndex, String command, String literal) { }
     record Problem(int byteOffset, String code, String detail) { }
     record ProtectedRegion(int startChar, int endChar, SourceContext reason) { }
+    record ContextSpan(int startChar, int endChar, String kind, String name, boolean conditional) { }
+    private record ContextOpening(int startChar, String name, boolean conditional) { }
     private record Group(int end) { }
     private record ConditionalState(String mathDelimiter, int braceDepth,
             List<String> environments) { }

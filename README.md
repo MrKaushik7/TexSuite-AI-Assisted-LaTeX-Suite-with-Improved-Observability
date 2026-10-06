@@ -1,5 +1,7 @@
 # TexSuite
 
+Read [opinions.md](opinions.md) for the program's assumptions, supported syntax, approval rules and limits before editing a project.
+
 ## Build
 
 ```sh
@@ -13,7 +15,7 @@
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-The JAR is installed at `~/Applications/TexSuite/texsuite.jar` and the command at `~/.local/bin/texsuite`.
+The JAR, this README and `opinions.md` are installed at `~/Applications/TexSuite/`; the command is at `~/.local/bin/texsuite`.
 
 The installer checks for `pdflatex` on absolute `PATH` entries and in `/Library/TeX/texbin`. If it is missing, it recommends [BasicTeX](https://www.tug.org/mactex/morepackages.html), a smaller TeX installation, and an interactive install offers to open its official download page. Download BasicTeX and run its macOS installer, then press Enter for one availability recheck or type `skip` to finish. You can also rerun `scripts/install.sh` later to check again. Noninteractive installs print the instructions without prompting.
 
@@ -28,6 +30,8 @@ texsuite [FILE]
 ```
 
 Choose **Rename a mathematical symbol** to enter the source, its intended meaning, replacement, and file/project scope. Review each eligible mathematical occurrence with `y`; Enter or `n` skips. Uncertain or protected occurrences cannot be selected. Review the accepted-only unified diff, then type `apply`. Selection is manual at this stage; model classification is not implemented. Quit, EOF, cancellation, and empty selections leave source unchanged. Stale source requires fresh occurrence decisions.
+
+Rename review now displays source context: the enclosing equation and blank-line paragraph, nearest supported section/definition/theorem/proof, and referenced local macro definitions. Static included files may supply context without becoming editable. Batches contain at most eight candidates and 24,000 Unicode source characters; oversized, incomplete or structurally uncertain context is reported for manual review without truncation. No source is sent to a model. Supporting source changes require fresh review, including changes detected after compilation. The planned response budget of 1,500 tokens is carried in each batch for the later HTTP adapter.
 
 Approved rename intent is stored in `.tex-suite/plans/` as versioned JSON with request, source fingerprint, accepted occurrence IDs/ranges/hashes, and manual provenance. These private local records can contain source text. They record approval, not successful application: a later compilation failure can leave a plan without changing source. There is no plan replay command. For a compilable example, define `\newcommand{\numElements}{n}` and rename selected `n` uses to `\numElements`; `\number` is already a TeX primitive.
 

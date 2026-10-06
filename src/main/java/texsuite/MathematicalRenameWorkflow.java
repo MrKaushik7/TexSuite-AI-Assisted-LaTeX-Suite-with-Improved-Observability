@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import picocli.CommandLine;
 import texsuite.EditReview.Cancel;
@@ -83,6 +84,9 @@ final class MathematicalRenameWorkflow {
             out.println("Too many occurrences to review at once; choose a smaller file scope.");
             return CommandLine.ExitCode.OK;
         }
+        ContextRetriever.Retrieval context = new ContextRetriever().retrieve(snapshot, request, inventory);
+        context.checkCurrent();
+        printContext(context);
         out.println("Manual review: accept only occurrences matching your stated meaning.");
         List<String> accepted = new ArrayList<>();
         for (var candidate : candidates) {
@@ -104,17 +108,40 @@ final class MathematicalRenameWorkflow {
         out.println("Review meaning and rendering before applying.");
         out.println(resolved.validationNotice());
         plan.validate();
+        context.checkCurrent();
         if (!review.answer("Type apply to accept these changes, or Enter to cancel: ")
                 .equalsIgnoreCase("apply")) {
             out.println("Cancelled without source changes.");
             return CommandLine.ExitCode.OK;
         }
         plan.validate();
+        context.checkCurrent();
         Path savedPlan = record.save(snapshot);
         out.println("Approved intent saved: " + DocumentInput.safeDisplay(savedPlan));
-        Path backup = plan.apply();
+        Path backup = plan.apply(context::checkCurrent);
         out.printf("Applied %d rename(s). Backup: %s%n", plan.size(), DocumentInput.safeDisplay(backup));
         return CommandLine.ExitCode.OK;
+    }
+
+    private void printContext(ContextRetriever.Retrieval context) {
+        out.printf("Context retrieval: %d batch(es), %d source character(s), %d manual-only occurrence(s).%n",
+                context.batches().size(), context.sourceCharacters(), context.reviews().size());
+        out.println("Context reads follow static includes; they do not expand edit scope.");
+
+        var displayed = new HashSet<String>();
+        for (var batch : context.batches()) {
+            for (var slice : batch.slices()) {
+                if (!displayed.add(slice.id())) continue;
+
+                out.printf("  Context %s:%d:%d [%s]%n", DocumentInput.safeDisplay(slice.path()),
+                        slice.line(), slice.column(), String.join(", ", slice.roles()));
+                slice.text().lines().forEach(line -> out.println("    " + DocumentInput.safeDisplay(line)));
+            }
+        }
+        for (var item : context.reviews()) {
+            out.printf("  Manual context review %s: %s%n", item.candidateId(),
+                    DocumentInput.safeDisplay(item.reason()));
+        }
     }
 
     private DocumentSnapshot loadRenameSnapshot(RenameRequest request)

@@ -129,6 +129,28 @@ final class MathematicalRenameWorkflowTest {
         return run(source, new BufferedReader(new StringReader(input)), gate);
     }
 
+    @Test
+    void contextOnlyDependencyChangesRequireNewOccurrenceDecisions() throws Exception {
+        Path source = Files.writeString(directory.resolve("main.tex"), "$n=\\meaning$\\input{defs}").toRealPath();
+        Path definitions = Files.writeString(directory.resolve("defs.tex"), "\\newcommand{\\meaning}{one}");
+        BufferedReader input = new BufferedReader(new StringReader("y\napply\nn\n")) {
+            @Override public String readLine() throws IOException {
+                String answer = super.readLine();
+                if ("apply".equals(answer)) Files.writeString(definitions, "\\newcommand{\\meaning}{two}");
+                return answer;
+            }
+        };
+        Result result = run(source, input, new TexCompileGate(null, true, null, null));
+
+        assertEquals(0, result.code(), result.errors());
+        assertEquals(2, result.output().split("Rename this occurrence", -1).length - 1);
+        assertTrue(result.output().contains("\\newcommand{\\meaning}{one}"));
+        assertTrue(result.output().contains("\\newcommand{\\meaning}{two}"));
+        assertTrue(result.output().contains("Saved source changed; reloading"));
+        assertEquals("$n=\\meaning$\\input{defs}", Files.readString(source));
+        assertFalse(Files.exists(directory.resolve(".tex-suite")));
+    }
+
     private Result run(Path source, BufferedReader input, TexCompileGate gate) {
         StringWriter output = new StringWriter();
         StringWriter errors = new StringWriter();

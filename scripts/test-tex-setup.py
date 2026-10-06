@@ -32,6 +32,8 @@ class TeXSetupTest(unittest.TestCase):
         target = self.root / "project/target"
         target.mkdir()
         shutil.copyfile(PROJECT / "target/texsuite.jar", target / "texsuite.jar")
+        for document in ("README.md", "opinions.md"):
+            shutil.copyfile(PROJECT / document, target.parent / document)
         self.installer = scripts / "install.sh"
         # Isolate the fixed macOS fallback without adding production test hooks.
         installer = (PROJECT / "scripts/install.sh").read_text()
@@ -126,6 +128,9 @@ class TeXSetupTest(unittest.TestCase):
         self.assertNotIn(OPEN_PROMPT, output)
         self.assertFalse(self.browser_log.exists())
         self.assertTrue((self.root / "app/texsuite.jar").is_file())
+        for document in ("README.md", "opinions.md"):
+            self.assertEqual((PROJECT / document).read_bytes(),
+                             (self.root / "app" / document).read_bytes())
 
     def test_decline_and_default_do_not_open_browser(self):
         for answer in (b"n\n", b"\n"):
