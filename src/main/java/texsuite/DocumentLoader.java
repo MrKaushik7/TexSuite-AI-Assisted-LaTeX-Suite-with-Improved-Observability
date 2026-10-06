@@ -34,15 +34,25 @@ final class DocumentLoader {
     private Path projectRoot;
     private long totalBytes;
     private boolean complete = true;
+    private boolean followDependencies;
 
     DocumentSnapshot load(Path selectedFile) throws LoadException {
+        return load(selectedFile, true);
+    }
+
+    DocumentSnapshot loadFile(Path selectedFile) throws LoadException {
+        return load(selectedFile, false);
+    }
+
+    private DocumentSnapshot load(Path selectedFile, boolean followDependencies) throws LoadException {
         loaded.clear();
         includeSites.clear();
         assets.clear();
         diagnostics.clear();
         active.clear();
         totalBytes = 0;
-        complete = true;
+        this.followDependencies = followDependencies;
+        complete = followDependencies;
         Path main;
         try {
             main = validator.validate(selectedFile.toString(), Path.of("").toAbsolutePath());
@@ -69,10 +79,23 @@ final class DocumentLoader {
         protectedRegions.sort(Comparator.comparing((ProtectedRegion item) -> item.source().toString())
                 .thenComparingInt(ProtectedRegion::startByte));
         return new DocumentSnapshot(projectRoot, relativeMain, files, includeSites, assets,
-                diagnostics, protectedRegions, fingerprint(relativeMain, files), complete);
+                diagnostics, protectedRegions, fingerprint(relativeMain, files), complete,
+                followDependencies ? DocumentSnapshot.Coverage.STATIC_CLOSURE
+                        : DocumentSnapshot.Coverage.FILE);
     }
 
     boolean isCurrent(DocumentSnapshot snapshot) {
+        if (snapshot.coverage() == DocumentSnapshot.Coverage.FILE) {
+            try {
+                DocumentSnapshot current = new DocumentLoader().loadFile(
+                        snapshot.root().resolve(snapshot.main()));
+                return current.root().equals(snapshot.root())
+                        && current.main().equals(snapshot.main())
+                        && current.fingerprint().equals(snapshot.fingerprint());
+            } catch (LoadException exception) {
+                return false;
+            }
+        }
         if (!snapshot.complete() || snapshot.diagnostics().stream()
                 .anyMatch(item -> item.code().equals("UNRESOLVED_ASSET"))) {
             return false;
@@ -139,9 +162,20 @@ final class DocumentLoader {
                 }
             }
             for (TexSourceScanner.AssetReference asset : scan.assets()) {
-                addAssets(relative, asset, scanner);
+                if (followDependencies) {
+                    addAssets(relative, asset, scanner);
+                } else {
+                    assets.add(new AssetReference(relative, scanner.byteOffset(asset.charIndex()),
+                            asset.command(), asset.literal(), null, null, false));
+                }
             }
             for (TexSourceScanner.IncludeReference reference : scan.includes()) {
+                if (!followDependencies) {
+                    includeSites.add(new IncludeSite(relative,
+                            scanner.byteOffset(reference.charIndex()), reference.literal(),
+                            null, reference.conditional(), false));
+                    continue;
+                }
                 Path target = reference.supported()
                         ? resolveInclude(relative, reference, scanner) : null;
                 includeSites.add(new IncludeSite(relative, scanner.byteOffset(reference.charIndex()),
@@ -166,7 +200,8 @@ final class DocumentLoader {
             throw new LoadException("include escapes project root: " + relative);
         }
         Path fileName = Path.of(literal).getFileName();
-        if (!literal.endsWith(".tex") && (fileName == null || !fileName.toString().contains("."))) {
+        // .tex can be dropped in includes, which is still correct. However if include unsupported file extension -> incomplete
+        if (!literal.endsWith(".tex") && !fileName.toString().contains(".")) {
             literal += ".tex";
         }
         if (!literal.endsWith(".tex")) {

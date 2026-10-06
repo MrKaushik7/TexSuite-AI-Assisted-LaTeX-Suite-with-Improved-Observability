@@ -270,7 +270,7 @@ final class TexSuiteCliTest {
                 "$x$\\input{missing}\\includegraphics{missing.pdf}");
         byte[] before = Files.readAllBytes(source);
         RunResult result = run(true, "0\n3\n1\n \nx\n \nlength\nx\n"
-                + "\\number\nother\n\n6\n", Optional::empty,
+                + "\\number\nother\n\nquit\n", Optional::empty,
                 "--no-debug", "chapter.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
@@ -282,7 +282,7 @@ final class TexSuiteCliTest {
         assertTrue(result.output().contains("Choose 1 for this file"));
         assertTrue(result.output().contains("Scope: FILE"));
         assertTrue(result.output().contains("Rename request: x -> \\number"));
-        assertTrue(result.output().contains("Read-only inventory: 1 file(s), 1 candidate(s)"));
+        assertTrue(result.output().contains("Occurrence inventory: 1 file(s), 1 candidate(s)"));
         assertFalse(result.output().contains("Debug snapshot"));
         assertFalse(result.output().contains("missing.pdf sha256"));
         assertArrayEquals(before, Files.readAllBytes(source));
@@ -294,7 +294,7 @@ final class TexSuiteCliTest {
         Path main = Files.writeString(temporaryDirectory.resolve("main.tex"),
                 "$n$\\input{chapter}");
         Files.writeString(temporaryDirectory.resolve("chapter.tex"), "$n$");
-        RunResult complete = run(true, "1\nn\nlength\n\\number\n2\n6\n",
+        RunResult complete = run(true, "1\nn\nlength\n\\number\n2\nquit\n",
                 Optional::empty, "--no-debug", "main.tex");
 
         assertEquals(CommandLine.ExitCode.OK, complete.exitCode());
@@ -302,13 +302,13 @@ final class TexSuiteCliTest {
         assertTrue(complete.output().contains("2 file(s), 2 candidate(s)"));
 
         Files.writeString(main, "$n$\\ifnum1=1\\input{missing}\\fi");
-        RunResult incomplete = run(true, "1\nn\nlength\n\\number\n2\n6\n",
+        RunResult incomplete = run(true, "1\nn\nlength\n\\number\n2\nquit\n",
                 Optional::empty, "--no-debug", "main.tex");
 
         assertEquals(CommandLine.ExitCode.OK, incomplete.exitCode());
         assertTrue(incomplete.output().contains("Static include closure is incomplete"));
         assertTrue(incomplete.output().contains("MISSING_CONDITIONAL_INCLUDE"));
-        assertFalse(incomplete.output().contains("Read-only inventory:"));
+        assertFalse(incomplete.output().contains("Occurrence inventory:"));
     }
 
     @Test
@@ -319,12 +319,12 @@ final class TexSuiteCliTest {
                 "1\nn\nlength\n\\number\nquit\n"}) {
             RunResult cancelled = run(true, answers, Optional::empty, "main.tex");
             assertEquals(CommandLine.ExitCode.OK, cancelled.exitCode());
-            assertFalse(cancelled.output().contains("Read-only inventory:"));
+            assertFalse(cancelled.output().contains("Occurrence inventory:"));
         }
         RunResult ended = run(true, "1\nn\n", Optional::empty, "main.tex");
         assertEquals(CommandLine.ExitCode.USAGE, ended.exitCode());
         assertTrue(ended.errors().contains("Input ended"));
-        assertFalse(ended.output().contains("Read-only inventory:"));
+        assertFalse(ended.output().contains("Occurrence inventory:"));
     }
 
     @Test
@@ -332,14 +332,14 @@ final class TexSuiteCliTest {
         String filename = "odd\u001b[31m.tex";
         Files.writeString(temporaryDirectory.resolve(filename), "$n$");
         RunResult result = run(true, "5\n1\n6\n1\nn\nlength\u001b[31m\n"
-                + "\\number\n\n6\n", Optional::empty, "--no-debug", filename);
+                + "\\number\n\nquit\n", Optional::empty, "--no-debug", filename);
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("Snapshot: 1 source file(s)"));
         assertTrue(result.output().contains("Rename request: n -> \\number"));
         assertTrue(result.output().contains("meaning: length?[31m"));
         assertFalse(result.output().contains("\u001b"));
-        assertTrue(result.output().indexOf("Read-only inventory:")
+        assertTrue(result.output().indexOf("Occurrence inventory:")
                 > result.output().indexOf("Snapshot: 1 source file(s)"));
     }
 
@@ -347,12 +347,12 @@ final class TexSuiteCliTest {
     void renameInventoryKeepsDiagnosticsOutOfNormalOutput() throws Exception {
         String original = "é 😀 Let $n + 1$ grow.\r\n\\iftrue $n$\\fi\rEnd.";
         Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), original);
-        RunResult result = run(true, "1\nn\nlength\nm\n\n6\n",
+        RunResult result = run(true, "1\nn\nlength\nm\n\nquit\n",
                 Optional::empty, "--no-debug", "paper.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("1 candidate(s), 1 review"));
-        assertTrue(result.output().contains("discovery-only"));
+        assertTrue(result.output().contains("Uncertain and protected occurrences cannot be selected."));
         assertFalse(result.output().contains("CANDIDATE:"));
         assertFalse(result.output().contains("REVIEW:"));
         assertFalse(result.output().contains("bytes["));
@@ -364,7 +364,7 @@ final class TexSuiteCliTest {
     void renameInventoryBoundsUnicodeContextAndKeepsDebugIdentity() throws Exception {
         String original = "é😀".repeat(100) + "$n$" + "😀é".repeat(100);
         Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), original);
-        RunResult result = run(true, "1\nn\nlength\nm\n\n6\n",
+        RunResult result = run(true, "1\nn\nlength\nm\n\nquit\n",
                 Optional::empty, "paper.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
@@ -382,20 +382,20 @@ final class TexSuiteCliTest {
     void interactiveRenamePreservesLongLiteralReplacementAndSourceSpans() throws Exception {
         Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), "$n + n$");
         String replacement = " \\text{héllo_😀 \\\"yes\\\"} ";
-        RunResult result = run(true, "1\nn\nlength\n" + replacement + "\n\n6\n",
+        RunResult result = run(true, "1\nn\nlength\n" + replacement + "\n\nquit\n",
                 Optional::empty, "--no-debug", "paper.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("Rename request: n -> " + replacement));
         assertTrue(result.output().contains("2 candidate(s)"));
-        assertFalse(result.output().contains("⟦n⟧"));
+        assertTrue(result.output().contains("⟦n⟧"));
         assertEquals("$n + n$", Files.readString(source));
     }
 
     @Test
     void replacementPromptKeepsPaddedQuitButRejectsBlankAndNoOp() throws Exception {
         Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), "$n$");
-        RunResult result = run(true, "1\nn\nlength\n \nn\n quit \n\n6\n",
+        RunResult result = run(true, "1\nn\nlength\n \nn\n quit \n\nquit\n",
                 Optional::empty, "--no-debug", "paper.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
@@ -409,7 +409,7 @@ final class TexSuiteCliTest {
     @Test
     void replacementPromptRejectsUnicodeLineSeparators() throws Exception {
         Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), "$n$");
-        RunResult result = run(true, "1\nn\nlength\nn\u2028x\nm\n\n6\n",
+        RunResult result = run(true, "1\nn\nlength\nn\u2028x\nm\n\nquit\n",
                 Optional::empty, "--no-debug", "paper.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
@@ -423,16 +423,16 @@ final class TexSuiteCliTest {
     void renameAcceptsLiteralSourceStringsWithoutRePrompting() throws Exception {
         Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"),
                 "$hu + hu$ what");
-        RunResult math = run(true, "1\nhu\nquantity\nhello\n\n6\n",
+        RunResult math = run(true, "1\nhu\nquantity\nhello\n\nquit\n",
                 Optional::empty, "--no-debug", "paper.tex");
-        RunResult prose = run(true, "1\nwhat\nword\nhello\n\n6\n",
+        RunResult prose = run(true, "1\nwhat\nword\nhello\n\nquit\n",
                 Optional::empty, "--no-debug", "paper.tex");
 
         assertEquals(CommandLine.ExitCode.OK, math.exitCode());
         assertFalse(math.output().contains("Source must be exactly one ASCII letter"));
         assertTrue(math.output().contains("Rename request: hu -> hello"));
         assertTrue(math.output().contains("2 candidate(s)"));
-        assertFalse(math.output().contains("⟦hu⟧"));
+        assertTrue(math.output().contains("⟦hu⟧"));
         assertEquals(CommandLine.ExitCode.OK, prose.exitCode());
         assertFalse(prose.output().contains("Source must be exactly one ASCII letter"));
         assertTrue(prose.output().contains("Rename request: what -> hello"));
@@ -461,7 +461,7 @@ final class TexSuiteCliTest {
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
         assertTrue(result.errors().contains("included source is missing"));
-        assertFalse(result.output().contains("Read-only inventory:"));
+        assertFalse(result.output().contains("Occurrence inventory:"));
         assertEquals("$n$\\input{missing}", Files.readString(source));
     }
 
@@ -483,7 +483,7 @@ final class TexSuiteCliTest {
             assertEquals(CommandLine.ExitCode.OK, process.exitValue(), text);
             assertTrue(text.contains("Read-only snapshot finished"), text);
             assertFalse(text.contains("What would you like to do?"), text);
-            assertFalse(text.contains("Read-only inventory:"), text);
+            assertFalse(text.contains("Occurrence inventory:"), text);
             assertEquals("$n$", Files.readString(source));
         } finally {
             process.destroyForcibly();
@@ -499,14 +499,17 @@ final class TexSuiteCliTest {
         Files.createSymbolicLink(selected, other);
         StringWriter output = new StringWriter();
         StringWriter errors = new StringWriter();
-        RenameWorkflow workflow = new RenameWorkflow(
+        DocumentSession workflow = new DocumentSession(
                 new BufferedReader(new StringReader("1\nn\nlength\nx\n\n")),
                 new PrintWriter(output, true), new PrintWriter(errors, true), selected,
-                false, () -> CommandLine.ExitCode.OK);
+                false, () -> CommandLine.ExitCode.OK,
+                new EditorPreferences(temporaryDirectory.resolve("editor.properties")),
+                (file, application) -> Optional.empty(), Optional::empty,
+                new TexCompileGate(null, false, null, null));
 
         assertEquals(CommandLine.ExitCode.USAGE, workflow.run());
         assertTrue(errors.toString().contains("Selected file identity changed"));
-        assertFalse(output.toString().contains("Read-only inventory:"));
+        assertFalse(output.toString().contains("Occurrence inventory:"));
         assertEquals("$x$", Files.readString(other));
     }
 
@@ -515,7 +518,7 @@ final class TexSuiteCliTest {
         String original = "\\customsettings{widget=blue}\n"
                 + "\\hypersetup{linkcolor=blue,citecolor=blue}\n";
         Path source = Files.writeString(temporaryDirectory.resolve("colours.tex"), original);
-        RunResult result = run(true, "2\nblue\nred\n\n2\napply\n6\n",
+        RunResult result = run(true, "2\nblue\nred\n\n2\ny\ny\ny\napply\n6\n",
                 Optional::empty, "--no-debug", "--allow-no-compile", "colours.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.errors());
@@ -534,7 +537,7 @@ final class TexSuiteCliTest {
     void documentTextLeavesCitationAndCommentUnchanged() throws Exception {
         String original = "\\begin{document}hello \\cite{hello} % hello\n\\end{document}";
         Path source = Files.writeString(temporaryDirectory.resolve("main.tex"), original);
-        RunResult result = run(true, "2\nhello\nworld\n\n\napply\n6\n",
+        RunResult result = run(true, "2\nhello\nworld\n\n\ny\napply\n6\n",
                 Optional::empty, "--no-debug", "--allow-no-compile", "main.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.errors());
@@ -547,7 +550,7 @@ final class TexSuiteCliTest {
         Path source = Files.writeString(temporaryDirectory.resolve("plain.tex"),
                 "\\begin{document}hello\\end{document}");
         String original = Files.readString(source);
-        RunResult result = run(true, "2\nhello\nworld\n\n\napply\n6\n",
+        RunResult result = run(true, "2\nhello\nworld\n\n\ny\napply\n6\n",
                 Optional::empty, "--no-debug", "plain.tex");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
@@ -561,7 +564,7 @@ final class TexSuiteCliTest {
         Path main = Files.writeString(temporaryDirectory.resolve("main.tex"),
                 "\\begin{document}café\\input{chapter}\\end{document}");
         Path chapter = Files.writeString(temporaryDirectory.resolve("chapter.tex"), "café");
-        RunResult result = run(true, "2\ncafé\nbistro\n2\n1\napply\n6\n",
+        RunResult result = run(true, "2\ncafé\nbistro\n2\n1\ny\ny\napply\n6\n",
                 Optional::empty, "--no-debug", "--allow-no-compile", "main.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.errors());
@@ -583,7 +586,7 @@ final class TexSuiteCliTest {
         Path recovery = temporaryDirectory.resolve(".tex-suite/backups/previous");
         Files.createDirectories(recovery);
         Files.writeString(recovery.resolve("recovery.properties"), "status=pending\n");
-        RunResult result = run(true, "2\nhello\nworld\n\n2\napply\n",
+        RunResult result = run(true, "2\nhello\nworld\n\n2\ny\napply\n",
                 Optional::empty, "--no-debug", "--allow-no-compile", "plain.tex");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
@@ -595,7 +598,7 @@ final class TexSuiteCliTest {
     void savedChangeAfterPreviewRejectsApply() throws Exception {
         String original = "\\customsettings{widget=blue}";
         Path source = Files.writeString(temporaryDirectory.resolve("stale.tex"), original);
-        BufferedReader input = new BufferedReader(new StringReader("2\nblue\nred\n\n2\napply\n\n6\n")) {
+        BufferedReader input = new BufferedReader(new StringReader("2\nblue\nred\n\n2\ny\napply\ny\n\n6\n")) {
             @Override
             public String readLine() throws java.io.IOException {
                 String answer = super.readLine();
@@ -605,6 +608,8 @@ final class TexSuiteCliTest {
         };
         TexSuiteCli cli = new TexSuiteCli(input, true, temporaryDirectory,
                 temporaryDirectory.resolve("recent.properties"), Optional::empty);
+        cli.setDependenciesForTests((path, app) -> Optional.empty(),
+                (allow, main) -> new TexCompileGate(null, allow, main, null));
         CommandLine command = new CommandLine(cli);
         StringWriter output = new StringWriter();
         StringWriter errors = new StringWriter();
@@ -838,7 +843,7 @@ final class TexSuiteCliTest {
     void compileMainOptionReachesGateWithoutExpandingEditScope() throws Exception {
         Path main = Files.writeString(temporaryDirectory.resolve("main.tex"), "hello\\input{chapter}");
         Path chapter = Files.writeString(temporaryDirectory.resolve("chapter.tex"), "hello");
-        var input = new BufferedReader(new StringReader("2\nhello\nworld\n1\n1\napply\n6\n"));
+        var input = new BufferedReader(new StringReader("2\nhello\nworld\n1\n1\ny\napply\n6\n"));
         var cli = new TexSuiteCli(input, true, temporaryDirectory,
                 temporaryDirectory.resolve("recent.properties"), Optional::empty);
         cli.setDependenciesForTests((path, app) -> Optional.empty(), (allow, selectedMain) -> {
