@@ -25,14 +25,44 @@ final class ModelReviewTest {
         var run = run(source, "1\ny\ny\nn\ny\napply\n", client);
         assertEquals(0, run.code(), run.errors());
         assertEquals("$m+n+m$ prose n\n% n\n\\newcommand{\\name}{n}\n", Files.readString(source));
-        assertTrue(run.output().contains("AI KEEP"));
-        assertTrue(run.output().contains("AI REPLACE"));
-        assertTrue(run.output().contains("AI NEEDS_HUMAN_REVIEW"));
+        var headings = List.of("=== AI KEEP: KEEP ORIGINAL ===",
+                "=== AI REPLACE: REPLACE OCCURRENCE ===",
+                "=== AI NEEDS_HUMAN_REVIEW: DECIDE MANUALLY ===");
+        var questions = List.of("[AI KEEP] Override KEEP and replace this occurrence? [y/N, Enter keeps original]: ",
+                "[AI REPLACE] Accept replacement for this occurrence? [y/N]: ",
+                "[AI NEEDS_HUMAN_REVIEW] Replace this occurrence after manual review? [y/N]: ");
+        int previous = -1;
+        for (int i = 0; i < headings.size(); i++) {
+            int heading = run.output().indexOf(headings.get(i), previous + 1);
+            int excerpt = run.output().indexOf("    - ", heading);
+            int question = run.output().indexOf(questions.get(i), heading);
+            assertTrue(heading > previous && excerpt > heading && question > excerpt,
+                    "Recommendation must lead its excerpt and repeat at the answer prompt: " + headings.get(i));
+            previous = question;
+        }
+        assertTrue(run.output().contains("Replacement below applies only if you override KEEP."));
         assertEquals(1, client.requests.size());
         try (var paths = Files.list(directory.resolve(".tex-suite/plans"))) {
             String plan = Files.readString(paths.findFirst().orElseThrow());
             assertTrue(plan.contains("ai-reviewed"));
         }
+    }
+
+    @Test
+    void enterKeepsOriginalForEveryAiRecommendation() throws Exception {
+        String original = "$n+n+n$";
+        Path source = source(original);
+        var client = new Fake(request -> new ModelClient.Result(List.of(
+                decision(request, 0, ModelClient.Action.KEEP),
+                decision(request, 1, ModelClient.Action.REPLACE),
+                decision(request, 2, ModelClient.Action.NEEDS_HUMAN_REVIEW))));
+
+        var run = run(source, "1\ny\n\n\n\n", client);
+
+        assertEquals(0, run.code(), run.errors());
+        assertEquals(original, Files.readString(source));
+        assertEquals(1, client.requests.size());
+        assertFalse(Files.exists(directory.resolve(".tex-suite")));
     }
 
     @Test

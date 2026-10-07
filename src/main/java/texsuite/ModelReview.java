@@ -53,16 +53,36 @@ final class ModelReview {
         List<String> accepted = new ArrayList<>();
         for (var candidate : candidates) {
             var decision = decisions.get(candidate.id());
+            String prompt = "Rename this occurrence? [y/N]: ";
+
             if (decision != null) {
-                out.printf(Locale.ROOT, "AI %s; confidence %.2f (model-reported): %s%n",
-                        decision.action(), decision.confidence(), DocumentInput.safeDisplay(decision.reason()));
+                String recommendation = switch (decision.action()) {
+                    case KEEP -> "KEEP ORIGINAL";
+                    case REPLACE -> "REPLACE OCCURRENCE";
+                    case NEEDS_HUMAN_REVIEW -> "DECIDE MANUALLY";
+                };
+                out.println();
+                out.printf("=== AI %s: %s ===%n", decision.action(), recommendation);
+                out.println("Reason: " + DocumentInput.safeDisplay(decision.reason()));
+                out.printf(Locale.ROOT, "Confidence: %.2f (model-reported)%n", decision.confidence());
+
+                if (decision.action() == ModelClient.Action.KEEP) {
+                    out.println("Replacement below applies only if you override KEEP.");
+                }
+                // Every yes still approves a replacement; Enter always preserves the source.
+                prompt = switch (decision.action()) {
+                    case KEEP -> "[AI KEEP] Override KEEP and replace this occurrence? [y/N, Enter keeps original]: ";
+                    case REPLACE -> "[AI REPLACE] Accept replacement for this occurrence? [y/N]: ";
+                    case NEEDS_HUMAN_REVIEW -> "[AI NEEDS_HUMAN_REVIEW] Replace this occurrence after manual review? [y/N]: ";
+                };
             } else if (assisted) {
                 out.println("Manual-only occurrence: bounded evidence was unavailable.");
             }
+
             review.printEdit(snapshot, new TextEditPlan.Edit(candidate.path(), candidate.startByte(),
                     candidate.endByte(), intent.source().getBytes(StandardCharsets.UTF_8),
                     candidate.line(), candidate.column()), intent.replacement());
-            if (review.yes("Rename this occurrence? [y/N]: ")) accepted.add(candidate.id());
+            if (review.yes(prompt)) accepted.add(candidate.id());
         }
         context.checkCurrent();
         return new Selection(accepted, assisted ? client.decisionSource() : "manual");
