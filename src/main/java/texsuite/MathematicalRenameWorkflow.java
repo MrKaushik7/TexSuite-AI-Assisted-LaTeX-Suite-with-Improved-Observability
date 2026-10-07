@@ -127,14 +127,16 @@ final class MathematicalRenameWorkflow {
                 context.batches().size(), context.sourceCharacters(), context.reviews().size());
         out.println("Context reads follow static includes; they do not expand edit scope.");
 
-        var displayed = new HashSet<String>();
-        for (var batch : context.batches()) {
-            for (var slice : batch.slices()) {
-                if (!displayed.add(slice.id())) continue;
+        if (debug) {
+            var displayed = new HashSet<String>();
+            for (var batch : context.batches()) {
+                for (var slice : batch.slices()) {
+                    if (!displayed.add(slice.id())) continue;
 
-                out.printf("  Context %s:%d:%d [%s]%n", DocumentInput.safeDisplay(slice.path()),
-                        slice.line(), slice.column(), String.join(", ", slice.roles()));
-                slice.text().lines().forEach(line -> out.println("    " + DocumentInput.safeDisplay(line)));
+                    out.printf("  Context %s:%d:%d [%s]%n", DocumentInput.safeDisplay(slice.path()),
+                            slice.line(), slice.column(), String.join(", ", slice.roles()));
+                    slice.text().lines().forEach(line -> out.println("    " + DocumentInput.safeDisplay(line)));
+                }
             }
         }
         for (var item : context.reviews()) {
@@ -186,42 +188,48 @@ final class MathematicalRenameWorkflow {
                     + "for a general literal change.");
         }
         out.println("Uncertain and protected occurrences cannot be selected.");
-        if (debug) {
-            out.printf("Replacement: \"%s\" (proposed literal LaTeX source)%n",
-                    DocumentInput.safeDisplay(request.replacement()).replace("\"", "\\\""));
+        if (!debug && (result.count(RenameCandidateDiscovery.Status.REVIEW) > 0
+                || result.count(RenameCandidateDiscovery.Status.EXCLUDED) > 0)) {
+            out.println("Review/excluded details are hidden. Use --debug to inspect them.");
+        }
+        out.printf("Replacement: \"%s\" (proposed literal LaTeX source)%n",
+                DocumentInput.safeDisplay(request.replacement()).replace("\"", "\\\""));
 
-            out.println("Matched source is marked with ⟦ ⟧; excerpts show the original text.");
-            int excludedShown = 0;
-            Path displayedFile = null;
-            byte[] displayedBytes = null;
+        out.println("Matched source is marked with ⟦ ⟧; excerpts show the original text.");
+        int excludedShown = 0;
+        Path displayedFile = null;
+        byte[] displayedBytes = null;
 
-            for (RenameCandidateDiscovery.Occurrence occurrence : result.occurrences()) {
-                if (occurrence.status() == RenameCandidateDiscovery.Status.EXCLUDED) {
-                    if (excludedShown >= 20) {
-                        continue;
-                    }
-                    excludedShown++;
+        for (RenameCandidateDiscovery.Occurrence occurrence : result.occurrences()) {
+            if (!debug && occurrence.status() != RenameCandidateDiscovery.Status.CANDIDATE) continue;
+
+            if (occurrence.status() == RenameCandidateDiscovery.Status.EXCLUDED) {
+                if (excludedShown >= 20) {
+                    continue;
                 }
-                if (!occurrence.path().equals(displayedFile)) {
-                    displayedFile = occurrence.path();
-                    displayedBytes = snapshot.files().get(displayedFile).bytes();
-                }
+                excludedShown++;
+            }
+            if (!occurrence.path().equals(displayedFile)) {
+                displayedFile = occurrence.path();
+                displayedBytes = snapshot.files().get(displayedFile).bytes();
+            }
 
-                out.printf("  %s: %s (%s:%d:%d)%n",
-                        occurrence.status(), SourceExcerpt.marked(displayedBytes, occurrence.startByte(), occurrence.endByte()),
-                        DocumentInput.safeDisplay(occurrence.path()), occurrence.line(),
-                        occurrence.column());
+            out.printf("  %s: %s (%s:%d:%d)%n",
+                    occurrence.status(), SourceExcerpt.marked(displayedBytes, occurrence.startByte(), occurrence.endByte()),
+                    DocumentInput.safeDisplay(occurrence.path()), occurrence.line(),
+                    occurrence.column());
 
+            if (debug) {
                 out.printf("    REASON: %s%n", occurrence.reason());
 
                 out.printf("    id=%s bytes[%d,%d)%n", occurrence.id(),
                         occurrence.startByte(), occurrence.endByte());
             }
 
-            if (result.count(RenameCandidateDiscovery.Status.EXCLUDED) > excludedShown) {
-                out.printf("  %d excluded occurrence(s) omitted from debug detail.%n",
-                        result.count(RenameCandidateDiscovery.Status.EXCLUDED) - excludedShown);
-            }
+        }
+        if (debug && result.count(RenameCandidateDiscovery.Status.EXCLUDED) > excludedShown) {
+            out.printf("  %d excluded occurrence(s) omitted from debug detail.%n",
+                    result.count(RenameCandidateDiscovery.Status.EXCLUDED) - excludedShown);
         }
 
     }

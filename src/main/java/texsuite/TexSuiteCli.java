@@ -24,10 +24,10 @@ public final class TexSuiteCli implements Callable<Integer> {
             description = "Root LaTeX file to open.")
     private String file;
 
-    @Option(names = "--debug", description = "Show development snapshot details.")
+    @Option(names = "--debug", description = "Show snapshot, excluded-match and retrieved-context details.")
     private boolean debugRequested;
 
-    @Option(names = "--no-debug", description = "Show only the concise snapshot summary.")
+    @Option(names = "--no-debug", description = "Use concise output (default); overrides --debug.")
     private boolean debugDisabled;
 
     @Option(names = "--allow-no-compile", description = "Allow approved text edits only when pdflatex is unavailable.")
@@ -137,7 +137,7 @@ public final class TexSuiteCli implements Callable<Integer> {
         if (interactive) {
             return new DocumentSession(input, commandSpec.commandLine().getOut(),
                     commandSpec.commandLine().getErr(), selectedFile.get(),
-                    !debugDisabled || debugRequested,
+                    debugRequested && !debugDisabled,
                     () -> showSnapshot(selectedFile.get()), editorPreferences,
                     editorLauncher, editorPicker, compileGate.apply(allowNoCompile, compilationMain == null ? null
                             : workingDirectory.resolve(compilationMain).toAbsolutePath().normalize())).run();
@@ -176,7 +176,7 @@ public final class TexSuiteCli implements Callable<Integer> {
                                 diagnostic.code(), diagnosticLocation(snapshot, diagnostic)));
             }
 
-            if (!debugDisabled || debugRequested) {
+            if (debugRequested && !debugDisabled) {
                 printDebug(snapshot);
             }
 

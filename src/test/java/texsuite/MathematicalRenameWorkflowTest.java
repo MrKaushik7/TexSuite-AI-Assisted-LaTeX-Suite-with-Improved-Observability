@@ -140,7 +140,12 @@ final class MathematicalRenameWorkflowTest {
                 return answer;
             }
         };
-        Result result = run(source, input, new TexCompileGate(null, true, null, null));
+        StringWriter output = new StringWriter();
+        StringWriter errors = new StringWriter();
+        int code = new MathematicalRenameWorkflow(input, new PrintWriter(output), new PrintWriter(errors),
+                true, new TexCompileGate(null, true, null, null)).run(new RenameRequest(source, "n",
+                        "database length", "\\numElements", RenameRequest.Scope.FILE));
+        Result result = new Result(code, output.toString(), errors.toString());
 
         assertEquals(0, result.code(), result.errors());
         assertEquals(2, result.output().split("Rename this occurrence", -1).length - 1);

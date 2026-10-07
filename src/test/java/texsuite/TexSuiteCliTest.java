@@ -71,7 +71,7 @@ final class TexSuiteCliTest {
     }
 
     @Test
-    void developmentDebugShowsSnapshotMetadataWithoutCandidatesAndCanBeDisabled()
+    void snapshotDefaultsToConciseAndDebugShowsMetadataWithoutCandidates()
             throws Exception {
         Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"),
                 "$n$ % n\n\\input{chapter}\n\\includegraphics{figure.pdf}\n");
@@ -79,7 +79,8 @@ final class TexSuiteCliTest {
         Files.write(temporaryDirectory.resolve("figure.pdf"), new byte[] {1, 2});
         String original = Files.readString(source);
 
-        RunResult defaultDebug = run(false, "", Optional::empty, "paper.tex");
+        RunResult defaultDebug = run(false, "", Optional::empty, "--debug", "paper.tex");
+        RunResult defaultConcise = run(false, "", Optional::empty, "paper.tex");
         RunResult concise = run(false, "", Optional::empty, "--no-debug", "paper.tex");
 
         assertEquals(CommandLine.ExitCode.OK, defaultDebug.exitCode());
@@ -98,7 +99,39 @@ final class TexSuiteCliTest {
         assertFalse(concise.output().contains("Literal n inventory:"));
         assertFalse(concise.output().contains("Debug snapshot"));
         assertFalse(concise.output().contains("target=figure.pdf"));
+        assertFalse(defaultConcise.output().contains("Debug snapshot"));
+        assertFalse(defaultConcise.output().contains("target=figure.pdf"));
         assertEquals(original, Files.readString(source));
+    }
+
+    @Test
+    void renameShowsCandidatesNormallyAndExcludedDetailsOnlyWithDebug() throws Exception {
+        String original = "\\documentclass{article}\n\\newcommand{\\numElements}{n}\n"
+                + "\\begin{document}\nDatabase length is $n$.\n\nIndependent noise is $n$.\n\\end{document}\n";
+        Path source = Files.writeString(temporaryDirectory.resolve("ai_test.tex"), original);
+        String answers = "1\nn\ndatabase length ONLY, not independent noise\n\\numElements\n\nn\nn\n6\n";
+
+        RunResult concise = run(true, answers, Optional::empty, "ai_test.tex");
+        RunResult debug = run(true, answers, Optional::empty, "--debug", "ai_test.tex");
+        RunResult disabled = run(true, answers, Optional::empty, "--debug", "--no-debug", "ai_test.tex");
+
+        for (RunResult result : new RunResult[] {concise, debug, disabled}) {
+            assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.errors());
+            assertTrue(result.output().contains("2 candidate(s), 0 review, 15 excluded"));
+            assertTrue(result.output().contains("CANDIDATE: Database length is $⟦n⟧$."));
+            assertTrue(result.output().contains("CANDIDATE: Independent noise is $⟦n⟧$."));
+        }
+        for (RunResult result : new RunResult[] {concise, disabled}) {
+            assertFalse(result.output().contains("EXCLUDED:"));
+            assertFalse(result.output().contains("id="));
+            assertFalse(result.output().contains("  Context ai_test.tex:"));
+            assertTrue(result.output().contains("--debug"));
+        }
+        assertTrue(debug.output().contains("EXCLUDED: \\docume⟦n⟧tclass{article}"));
+        assertTrue(debug.output().contains("id="));
+        assertTrue(debug.output().contains("  Context ai_test.tex:"));
+        assertEquals(original, Files.readString(source));
+        assertFalse(Files.exists(temporaryDirectory.resolve(".tex-suite")));
     }
 
     @Test
@@ -295,7 +328,7 @@ final class TexSuiteCliTest {
             String location = "chapter.tex:2:4 (byte " + offset + ")";
 
             RunResult concise = run(false, "", Optional::empty, "--no-debug", "main.tex");
-            RunResult debug = run(false, "", Optional::empty, "main.tex");
+            RunResult debug = run(false, "", Optional::empty, "--debug", "main.tex");
 
             assertEquals(CommandLine.ExitCode.OK, concise.exitCode());
             assertTrue(concise.output().contains("UNCLOSED_STRUCTURE at " + location));
@@ -395,7 +428,7 @@ final class TexSuiteCliTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("1 candidate(s), 1 review"));
         assertTrue(result.output().contains("Uncertain and protected occurrences cannot be selected."));
-        assertFalse(result.output().contains("CANDIDATE:"));
+        assertTrue(result.output().contains("CANDIDATE:"));
         assertFalse(result.output().contains("REVIEW:"));
         assertFalse(result.output().contains("bytes["));
         assertFalse(result.output().matches("(?s).*[a-f0-9]{64}.*"));
@@ -407,7 +440,7 @@ final class TexSuiteCliTest {
         String original = "é😀".repeat(100) + "$n$" + "😀é".repeat(100);
         Path source = Files.writeString(temporaryDirectory.resolve("paper.tex"), original);
         RunResult result = run(true, "1\nn\nlength\nm\n\nquit\n",
-                Optional::empty, "paper.tex");
+                Optional::empty, "--debug", "paper.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         String candidate = result.output().lines().filter(line -> line.contains("CANDIDATE:"))
