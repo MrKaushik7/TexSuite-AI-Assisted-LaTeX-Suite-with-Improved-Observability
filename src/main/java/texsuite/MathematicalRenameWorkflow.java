@@ -4,15 +4,13 @@ import java.io.BufferedReader;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import picocli.CommandLine;
 import texsuite.EditReview.Cancel;
 
-/** Manual meaning decisions stay separate from the shared compile-and-apply safeguards. */
+/** Meaning decisions stay separate from the shared compile-and-apply safeguards. */
 final class MathematicalRenameWorkflow {
     private static final int MAX_REVIEW_OCCURRENCES = 200;
 
@@ -21,15 +19,22 @@ final class MathematicalRenameWorkflow {
     private final PrintWriter err;
     private final boolean debug;
     private final TexCompileGate compileGate;
+    private final ModelReview modelReview;
     private boolean sessionEnded;
 
     MathematicalRenameWorkflow(BufferedReader input, PrintWriter out, PrintWriter err,
             boolean debug, TexCompileGate compileGate) {
+        this(input, out, err, debug, compileGate, null);
+    }
+
+    MathematicalRenameWorkflow(BufferedReader input, PrintWriter out, PrintWriter err,
+            boolean debug, TexCompileGate compileGate, ModelClient modelClient) {
         this.review = new EditReview(input, out);
         this.out = out;
         this.err = err;
         this.debug = debug;
         this.compileGate = compileGate;
+        this.modelReview = new ModelReview(review, out, modelClient);
     }
 
     boolean sessionEnded() {
@@ -87,19 +92,13 @@ final class MathematicalRenameWorkflow {
         ContextRetriever.Retrieval context = new ContextRetriever().retrieve(snapshot, request, inventory);
         context.checkCurrent();
         printContext(context);
-        out.println("Manual review: accept only occurrences matching your stated meaning.");
-        List<String> accepted = new ArrayList<>();
-        for (var candidate : candidates) {
-            review.printEdit(snapshot, new TextEditPlan.Edit(candidate.path(), candidate.startByte(),
-                    candidate.endByte(), request.source().getBytes(StandardCharsets.UTF_8),
-                    candidate.line(), candidate.column()), request.replacement());
-            if (review.yes("Rename this occurrence? [y/N]: ")) accepted.add(candidate.id());
-        }
+        ModelReview.Selection selection = modelReview.select(snapshot, request, candidates, context);
+        List<String> accepted = selection.acceptedIds();
         if (accepted.isEmpty()) {
             out.println("No renames accepted; no source changes.");
             return CommandLine.ExitCode.OK;
         }
-        RenamePlan record = RenamePlan.create(snapshot, request, accepted);
+        RenamePlan record = RenamePlan.create(snapshot, request, accepted, selection.decisionSource());
         List<TextEditPlan.Edit> edits = record.editsFor(snapshot);
         TexCompileGate resolved = review.compilationMain(snapshot, edits, compileGate);
         TextEditPlan plan = new TextEditPlan(snapshot, edits, request.replacement(), resolved);

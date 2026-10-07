@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.function.IntSupplier;
+import java.util.function.Function;
 import picocli.CommandLine;
 
 final class DocumentSession {
@@ -19,10 +20,20 @@ final class DocumentSession {
     private final EditorLauncher editorLauncher;
     private final EditorPicker editorPicker;
     private final TexCompileGate compileGate;
+    private final ModelSettings modelSettings;
+    private final Function<ModelSettings.Profile, ModelClient> modelFactory;
 
     DocumentSession(BufferedReader input, PrintWriter out, PrintWriter err, Path selectedFile,
             boolean debug, IntSupplier showSnapshot, EditorPreferences editorPreferences,
             EditorLauncher editorLauncher, EditorPicker editorPicker, TexCompileGate compileGate) {
+        this(input, out, err, selectedFile, debug, showSnapshot, editorPreferences,
+                editorLauncher, editorPicker, compileGate, ModelClient::create);
+    }
+
+    DocumentSession(BufferedReader input, PrintWriter out, PrintWriter err, Path selectedFile,
+            boolean debug, IntSupplier showSnapshot, EditorPreferences editorPreferences,
+            EditorLauncher editorLauncher, EditorPicker editorPicker, TexCompileGate compileGate,
+            Function<ModelSettings.Profile, ModelClient> modelFactory) {
         this.input = input;
         this.out = out;
         this.err = err;
@@ -33,6 +44,8 @@ final class DocumentSession {
         this.editorLauncher = editorLauncher;
         this.editorPicker = editorPicker;
         this.compileGate = compileGate;
+        this.modelSettings = new ModelSettings(selectedFile.getParent());
+        this.modelFactory = modelFactory;
     }
 
     int run() {
@@ -60,7 +73,7 @@ final class DocumentSession {
                     case "1" -> {
                         RenameRequest request = collectRequest();
                         MathematicalRenameWorkflow workflow = new MathematicalRenameWorkflow(
-                                input, out, err, debug, compileGate);
+                                input, out, err, debug, compileGate, modelClient());
                         int status = workflow.run(request);
                         if (status != CommandLine.ExitCode.OK || workflow.sessionEnded()) return status;
                     }
@@ -131,6 +144,8 @@ final class DocumentSession {
 
             out.println("  7. Recover interrupted edits");
 
+            out.println("  8. AI provider settings and test");
+
             String answer = readSettingsAnswer();
             if (answer == null) continue;
 
@@ -152,7 +167,8 @@ final class DocumentSession {
                 }
                 case "6", "" -> { return; }
                 case "7" -> recoverEdits();
-                default -> out.println("Choose a Settings option from 1 to 7.");
+                case "8" -> modelSettings();
+                default -> out.println("Choose a Settings option from 1 to 8.");
             }
         }
     }
@@ -164,13 +180,104 @@ final class DocumentSession {
         if (answer == null) throw new EOFException();
 
         if (!EditorApplication.safeText(answer)) {
-            out.println("Choose a Settings option from 1 to 7; control characters are not allowed.");
+            out.println("Choose a Settings option from 1 to 8; control characters are not allowed.");
             return null;
         }
         answer = answer.strip();
         if (answer.equalsIgnoreCase("quit")) throw new QuitRequest();
 
         return answer;
+    }
+
+    private ModelClient modelClient() {
+        try {
+            ModelSettings.Profile profile = modelSettings.load();
+            if (profile.configured()) return modelFactory.apply(profile);
+
+            out.println("AI is unconfigured; use Settings option 8 to choose an explicit model.");
+        } catch (IOException | IllegalArgumentException exception) {
+            out.println("Could not load AI provider settings; manual review is available.");
+        }
+        return null;
+    }
+
+    private void modelSettings() throws IOException, QuitRequest {
+        while (true) {
+            try {
+                ModelSettings.Profile profile = modelSettings.load();
+                out.printf("Provider: %s; model: %s; key environment: %s; timeout: %d seconds; output: %s%n",
+                        profile.provider().id(),
+                        profile.configured() ? profile.model() : "unconfigured",
+                        profile.keyEnvironment(), profile.timeoutSeconds(), profile.outputMode().id());
+            } catch (IOException exception) {
+                out.println("AI provider settings could not be read. Fix the project config or use a session profile.");
+            }
+            out.println("  1. Configure this session");
+            out.println("  2. Save current profile to project");
+            out.println("  3. Test provider (synthetic text, may incur API charges)");
+            out.println("  4. Back");
+            switch (ask("AI> ")) {
+                case "1" -> {
+                    try {
+                        String choice = ask("Provider [1=OpenAI, 2=OpenRouter, 3=Gemini]: ");
+                        ModelSettings.Provider provider = switch (choice) {
+                            case "1" -> ModelSettings.Provider.OPENAI;
+                            case "2" -> ModelSettings.Provider.OPENROUTER;
+                            case "3" -> ModelSettings.Provider.GEMINI;
+                            default -> throw new IllegalArgumentException("Choose a provider explicitly.");
+                        };
+                        String model = ask("Explicit model ID (empty disables AI): ");
+
+                        out.println("Enter an environment-variable NAME, not the API key itself.");
+
+                        out.println("Set that variable to your key in the terminal before launching TexSuite.");
+
+                        out.println("Example variable name: " + provider.keyEnvironment() + ". Press Enter to use it.");
+
+                        String keyEnvironment = ask("API key environment-variable NAME [" + provider.keyEnvironment() + "]: ");
+                        String timeout = ask("Request timeout in seconds [60]: ");
+                        ModelSettings.OutputMode mode = ModelSettings.OutputMode.JSON_SCHEMA;
+                        if (provider == ModelSettings.Provider.OPENROUTER) {
+                            String output = ask("Output [1=JSON Schema (default), 2=prompt JSON; e.g. Nemotron Ultra 3 free]: ");
+                            mode = switch (output) {
+                                case "", "1" -> ModelSettings.OutputMode.JSON_SCHEMA;
+                                case "2" -> ModelSettings.OutputMode.PROMPT_JSON;
+                                default -> throw new IllegalArgumentException("Choose an output mode.");
+                            };
+                            if (mode == ModelSettings.OutputMode.PROMPT_JSON) {
+                                out.println("Prompt JSON has no provider schema guarantee; strict local validation and human approval still apply.");
+                            }
+                        }
+                        modelSettings.useSession(new ModelSettings.Profile(provider, model,
+                                keyEnvironment.isEmpty() ? provider.keyEnvironment() : keyEnvironment,
+                                timeout.isEmpty() ? 60 : Integer.parseInt(timeout), mode));
+                        out.println("Session profile updated; no request sent and no key stored.");
+                    } catch (IllegalArgumentException exception) {
+                        out.println("Invalid provider, model ID, environment-variable name or timeout; profile unchanged.");
+                    }
+                }
+                case "2" -> {
+                    try {
+                        modelSettings.save(modelSettings.load());
+                        out.println("AI provider profile saved to .tex-suite/config.json; no key value stored.");
+                    } catch (IOException exception) {
+                        out.println("Could not save AI provider profile; session choice kept.");
+                    }
+                }
+                case "3" -> {
+                    ModelClient client = modelClient();
+                    if (client != null) {
+                        try {
+                            new ModelReview(new EditReview(input, out), out, client).testProvider();
+                        } catch (EditReview.Cancel | EOFException exception) {
+                            throw new QuitRequest();
+                        }
+                    }
+                }
+                case "4", "" -> { return; }
+                default -> out.println("Choose an AI provider option from 1 to 4.");
+            }
+        }
     }
 
     private void browseForEditor() {

@@ -21,6 +21,14 @@ record RenamePlan(int version, String operation, String snapshotFingerprint, Int
 
     static RenamePlan create(DocumentSnapshot snapshot, RenameRequest request,
             List<String> acceptedIds) throws IOException {
+        return create(snapshot, request, acceptedIds, "manual");
+    }
+
+    static RenamePlan create(DocumentSnapshot snapshot, RenameRequest request,
+            List<String> acceptedIds, String decisionSource) throws IOException {
+        if (!List.of("manual", "ai-reviewed", "openai-reviewed", "openrouter-reviewed", "gemini-reviewed").contains(decisionSource)) {
+            throw new IOException("Unknown rename decision source.");
+        }
         if (!new DocumentLoader().isCurrent(snapshot)) {
             throw new StaleSourceException("Saved source changed; reload and review a new preview.");
         }
@@ -40,7 +48,7 @@ record RenamePlan(int version, String operation, String snapshotFingerprint, Int
                         item.startByte(), item.endByte())), item.line(), item.column())).toList();
         return new RenamePlan(1, "mathematical-rename", snapshot.fingerprint(),
                 new Intent(snapshot.main().toString(), request.scope().name(), request.source(),
-                        request.meaning(), request.replacement()), "manual", edits);
+                        request.meaning(), request.replacement()), decisionSource, edits);
     }
 
     private void validate(DocumentSnapshot snapshot) throws IOException {
@@ -50,7 +58,7 @@ record RenamePlan(int version, String operation, String snapshotFingerprint, Int
             RenameRequest request = new RenameRequest(snapshot.root().resolve(intent.target()),
                     intent.source(), intent.meaning(), intent.replacement(),
                     RenameRequest.Scope.valueOf(intent.scope()));
-            expected = create(snapshot, request, edits.stream().map(AcceptedEdit::id).toList());
+            expected = create(snapshot, request, edits.stream().map(AcceptedEdit::id).toList(), decisionSource);
         } catch (IllegalArgumentException exception) {
             throw new IOException("Invalid rename plan request.", exception);
         }
