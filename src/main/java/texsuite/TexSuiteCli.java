@@ -36,6 +36,12 @@ public final class TexSuiteCli implements Callable<Integer> {
     @Option(names = "--compile-main", description = "Saved main .tex file for validating chapter edits.")
     private Path compilationMain;
 
+    @Option(names = "--history", description = "Show local edit history for the selected file's project root.")
+    private boolean history;
+
+    @Option(names = "--json", description = "Emit parseable JSON with --history.")
+    private boolean json;
+
     @Spec
     private CommandSpec commandSpec;
 
@@ -45,6 +51,7 @@ public final class TexSuiteCli implements Callable<Integer> {
     private final RecentFolders recentFolders;
     private final Supplier<Optional<Path>> filePicker;
     private final EditorPreferences editorPreferences;
+    private final ModelSettings modelSettings;
     private EditorLauncher editorLauncher;
     private EditorPicker editorPicker;
     private java.util.function.BiFunction<Boolean, Path, TexCompileGate> compileGate;
@@ -59,6 +66,7 @@ public final class TexSuiteCli implements Callable<Integer> {
         this.recentFolders = new RecentFolders(recentFolderStorage);
         this.editorPreferences = new EditorPreferences(
                 recentFolderStorage.resolveSibling("editor.properties"));
+        this.modelSettings = new ModelSettings(recentFolderStorage.resolveSibling("ai.json"));
 
         this.editorLauncher = EditorLauncher.system();
         this.editorPicker = EditorPicker.system();
@@ -76,6 +84,7 @@ public final class TexSuiteCli implements Callable<Integer> {
         this.recentFolders = new RecentFolders(recentFolderStorage);
         this.editorPreferences = new EditorPreferences(
                 recentFolderStorage.resolveSibling("editor.properties"));
+        this.modelSettings = new ModelSettings(recentFolderStorage.resolveSibling("ai.json"), name -> null);
 
         this.editorLauncher = (path, application) -> Optional.empty();
         this.editorPicker = Optional::empty;
@@ -118,6 +127,10 @@ public final class TexSuiteCli implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        if (json && !history) {
+            commandSpec.commandLine().getErr().println("--json requires --history.");
+            return CommandLine.ExitCode.USAGE;
+        }
         DocumentInput documentInput = new DocumentInput(input, interactive, workingDirectory,
                 recentFolders, filePicker, commandSpec.commandLine().getOut(),
                 commandSpec.commandLine().getErr());
@@ -126,6 +139,17 @@ public final class TexSuiteCli implements Callable<Integer> {
         if (selectedFile.isEmpty()) {
             return documentInput.wasCancelledByUser()
                     ? CommandLine.ExitCode.OK : CommandLine.ExitCode.USAGE;
+        }
+
+        if (history) {
+            try {
+                EditHistory.print(selectedFile.get().getParent(), commandSpec.commandLine().getOut(), json);
+                return CommandLine.ExitCode.OK;
+            } catch (java.io.IOException exception) {
+                commandSpec.commandLine().getErr().println("Could not read edit history: "
+                        + DocumentInput.safeDisplay(exception.getMessage()));
+                return CommandLine.ExitCode.USAGE;
+            }
         }
 
         commandSpec.commandLine().getOut().printf("Selected: %s%n",
@@ -140,7 +164,8 @@ public final class TexSuiteCli implements Callable<Integer> {
                     debugRequested && !debugDisabled,
                     () -> showSnapshot(selectedFile.get()), editorPreferences,
                     editorLauncher, editorPicker, compileGate.apply(allowNoCompile, compilationMain == null ? null
-                            : workingDirectory.resolve(compilationMain).toAbsolutePath().normalize())).run();
+                            : workingDirectory.resolve(compilationMain).toAbsolutePath().normalize()),
+                    ModelClient::create, modelSettings).run();
         }
 
         return showSnapshot(selectedFile.get());

@@ -23,6 +23,7 @@ final class TextEditPlan {
     private final byte[] replacement;
     private final Committer committer;
     private final TexCompileGate compileGate;
+    private final EditHistory.Intent intent;
 
     TextEditPlan(DocumentSnapshot snapshot, List<Edit> edits, String replacement,
             TexCompileGate compileGate) {
@@ -32,11 +33,26 @@ final class TextEditPlan {
 
     TextEditPlan(DocumentSnapshot snapshot, List<Edit> edits, String replacement,
             TexCompileGate compileGate, Committer committer) {
+        this(snapshot, edits, replacement, compileGate, committer, new EditHistory.Intent("literal-edit",
+                snapshot.main().toString(), snapshot.coverage().name(), "UNSPECIFIED",
+                edits.isEmpty() ? "" : new String(edits.getFirst().expected(), StandardCharsets.UTF_8),
+                "explicitly approved literal changes", replacement, "manual", null, null));
+    }
+
+    TextEditPlan(DocumentSnapshot snapshot, List<Edit> edits, String replacement,
+            TexCompileGate compileGate, EditHistory.Intent intent) {
+        this(snapshot, edits, replacement, compileGate, (staged, target) -> Files.move(staged, target,
+                StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING), intent);
+    }
+
+    TextEditPlan(DocumentSnapshot snapshot, List<Edit> edits, String replacement,
+            TexCompileGate compileGate, Committer committer, EditHistory.Intent intent) {
         this.snapshot = snapshot;
         this.edits = List.copyOf(edits);
         this.replacement = replacement.getBytes(StandardCharsets.UTF_8);
         this.committer = committer;
         this.compileGate = compileGate;
+        this.intent = intent;
     }
 
     int size() {
@@ -78,6 +94,7 @@ final class TextEditPlan {
     }
 
     Path apply(TexCompileGate.Freshness contextFreshness) throws IOException {
+        if (edits.isEmpty()) throw new IOException("Empty selection cannot be applied.");
         validate();
         contextFreshness.check();
         Path data = snapshot.root().resolve(".tex-suite");
@@ -99,6 +116,7 @@ final class TextEditPlan {
         boolean journalWritten = false;
         try {
             stageBackups(recovery, updates, staged);
+            EditHistory.write(recovery, snapshot, edits, new String(replacement, StandardCharsets.UTF_8), updates, intent);
             TextRecovery.writeJournal(recovery, "pending", snapshot, updates);
             journalWritten = true;
             if (!new DocumentLoader().isCurrent(snapshot)) {

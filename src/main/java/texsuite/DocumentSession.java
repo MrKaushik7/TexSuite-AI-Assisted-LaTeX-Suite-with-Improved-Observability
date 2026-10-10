@@ -34,6 +34,14 @@ final class DocumentSession {
             boolean debug, IntSupplier showSnapshot, EditorPreferences editorPreferences,
             EditorLauncher editorLauncher, EditorPicker editorPicker, TexCompileGate compileGate,
             Function<ModelSettings.Profile, ModelClient> modelFactory) {
+        this(input, out, err, selectedFile, debug, showSnapshot, editorPreferences, editorLauncher,
+                editorPicker, compileGate, modelFactory, new ModelSettings(ModelSettings.defaultStorage()));
+    }
+
+    DocumentSession(BufferedReader input, PrintWriter out, PrintWriter err, Path selectedFile,
+            boolean debug, IntSupplier showSnapshot, EditorPreferences editorPreferences,
+            EditorLauncher editorLauncher, EditorPicker editorPicker, TexCompileGate compileGate,
+            Function<ModelSettings.Profile, ModelClient> modelFactory, ModelSettings modelSettings) {
         this.input = input;
         this.out = out;
         this.err = err;
@@ -44,13 +52,15 @@ final class DocumentSession {
         this.editorLauncher = editorLauncher;
         this.editorPicker = editorPicker;
         this.compileGate = compileGate;
-        this.modelSettings = new ModelSettings(selectedFile.getParent());
+        this.modelSettings = modelSettings;
         this.modelFactory = modelFactory;
     }
 
     int run() {
         try {
             initializeEditor();
+            out.println("Enter back at any prompt to return to the menu.");
+            initializeAi();
             if (!TextRecovery.pending(selectedFile.getParent()).isEmpty()) {
                 out.println("An interrupted text edit needs recovery. Use Settings option 7 before applying edits.");
             }
@@ -68,27 +78,34 @@ final class DocumentSession {
                 out.println("  5. Settings and diagnostics");
 
                 out.println("  6. Quit");
-                String choice = ask("> ");
-                switch (choice) {
-                    case "1" -> {
-                        RenameRequest request = collectRequest();
-                        MathematicalRenameWorkflow workflow = new MathematicalRenameWorkflow(
-                                input, out, err, debug, compileGate, modelClient());
-                        int status = workflow.run(request);
-                        if (status != CommandLine.ExitCode.OK || workflow.sessionEnded()) return status;
+
+                out.println("  7. Revert last change");
+                try {
+                    String choice = ask("> ");
+                    switch (choice) {
+                        case "1" -> {
+                            RenameRequest request = collectRequest();
+                            MathematicalRenameWorkflow workflow = new MathematicalRenameWorkflow(
+                                    input, out, err, debug, compileGate, modelClient());
+                            int status = workflow.run(request);
+                            if (status != CommandLine.ExitCode.OK || workflow.sessionEnded()) return status;
+                        }
+                        case "2" -> {
+                            int status = new TextReplacementWorkflow(input, out, err, selectedFile,
+                                    debug, compileGate, modelClient()).run();
+                            if (status != CommandLine.ExitCode.OK) return status;
+                        }
+                        case "3", "4" -> out.println("This operation is unavailable in this build.");
+                        case "5" -> settings();
+                        case "6" -> {
+                            out.println("Session ended.");
+                            return CommandLine.ExitCode.OK;
+                        }
+                        case "7" -> revertLastChange();
+                        default -> out.println("Choose a number from 1 to 7, or enter quit.");
                     }
-                    case "2" -> {
-                        int status = new TextReplacementWorkflow(input, out, err, selectedFile,
-                                debug, compileGate).run();
-                        if (status != CommandLine.ExitCode.OK) return status;
-                    }
-                    case "3", "4" -> out.println("This operation is unavailable in this build.");
-                    case "5" -> settings();
-                    case "6" -> {
-                        out.println("Session ended.");
-                        return CommandLine.ExitCode.OK;
-                    }
-                    default -> out.println("Choose a number from 1 to 6, or enter quit.");
+                } catch (EditReview.Back exception) {
+                    out.println("Back to menu.");
                 }
             }
         } catch (QuitRequest exception) {
@@ -146,6 +163,8 @@ final class DocumentSession {
 
             out.println("  8. AI provider settings and test");
 
+            out.println("  9. Edit history");
+
             String answer = readSettingsAnswer();
             if (answer == null) continue;
 
@@ -168,7 +187,8 @@ final class DocumentSession {
                 case "6", "" -> { return; }
                 case "7" -> recoverEdits();
                 case "8" -> modelSettings();
-                default -> out.println("Choose a Settings option from 1 to 8.");
+                case "9" -> showHistory();
+                default -> out.println("Choose a Settings option from 1 to 9.");
             }
         }
     }
@@ -180,11 +200,12 @@ final class DocumentSession {
         if (answer == null) throw new EOFException();
 
         if (!EditorApplication.safeText(answer)) {
-            out.println("Choose a Settings option from 1 to 8; control characters are not allowed.");
+            out.println("Choose a Settings option from 1 to 9; control characters are not allowed.");
             return null;
         }
         answer = answer.strip();
         if (answer.equalsIgnoreCase("quit")) throw new QuitRequest();
+        if (answer.equalsIgnoreCase("back")) throw new EditReview.Back();
 
         return answer;
     }
@@ -194,79 +215,47 @@ final class DocumentSession {
             ModelSettings.Profile profile = modelSettings.load();
             if (profile.configured()) return modelFactory.apply(profile);
 
-            out.println("AI is unconfigured; use Settings option 8 to choose an explicit model.");
         } catch (IOException | IllegalArgumentException exception) {
-            out.println("Could not load AI provider settings; manual review is available.");
+            out.println("AI settings unavailable; using manual selection.");
         }
         return null;
+    }
+
+    private void initializeAi() throws IOException, QuitRequest {
+        try {
+            if (modelSettings.load().configured() || modelSettings.saved()) return;
+
+            out.println("AI is not configured. You can change it anytime in Settings 8.");
+            String choice = ask("Configure AI now? [y/N]: ");
+            if (choice.equalsIgnoreCase("y") || choice.equalsIgnoreCase("yes")) configureModel();
+        } catch (EditReview.Back exception) {
+            // Returning from startup setup leaves manual operations available.
+        } catch (IOException exception) {
+            if (exception instanceof EOFException) throw exception;
+
+            out.println("AI settings unavailable; use Settings 8. Manual selection is available.");
+        }
     }
 
     private void modelSettings() throws IOException, QuitRequest {
         while (true) {
             try {
                 ModelSettings.Profile profile = modelSettings.load();
-                out.printf("Provider: %s; model: %s; key environment: %s; timeout: %d seconds; output: %s%n",
-                        profile.provider().id(),
-                        profile.configured() ? profile.model() : "unconfigured",
+                out.printf("AI: %s / %s; key variable: %s; timeout: %ds; output: %s%n",
+                        profile.provider().id(), profile.configured() ? profile.model() : "disabled",
                         profile.keyEnvironment(), profile.timeoutSeconds(), profile.outputMode().id());
             } catch (IOException exception) {
-                out.println("AI provider settings could not be read. Fix the project config or use a session profile.");
+                out.println("Global AI settings could not be read.");
             }
-            out.println("  1. Configure this session");
-            out.println("  2. Save current profile to project");
-            out.println("  3. Test provider (synthetic text, may incur API charges)");
-            out.println("  4. Back");
+            out.println("  1. Change AI settings (saved globally)");
+            out.println("  2. Test provider (synthetic text, may incur API charges)");
+            out.println("  3. Back");
             switch (ask("AI> ")) {
-                case "1" -> {
-                    try {
-                        String choice = ask("Provider [1=OpenAI, 2=OpenRouter, 3=Gemini]: ");
-                        ModelSettings.Provider provider = switch (choice) {
-                            case "1" -> ModelSettings.Provider.OPENAI;
-                            case "2" -> ModelSettings.Provider.OPENROUTER;
-                            case "3" -> ModelSettings.Provider.GEMINI;
-                            default -> throw new IllegalArgumentException("Choose a provider explicitly.");
-                        };
-                        String model = ask("Explicit model ID (empty disables AI): ");
-
-                        out.println("Enter an environment-variable NAME, not the API key itself.");
-
-                        out.println("Set that variable to your key in the terminal before launching TexSuite.");
-
-                        out.println("Example variable name: " + provider.keyEnvironment() + ". Press Enter to use it.");
-
-                        String keyEnvironment = ask("API key environment-variable NAME [" + provider.keyEnvironment() + "]: ");
-                        String timeout = ask("Request timeout in seconds [60]: ");
-                        ModelSettings.OutputMode mode = ModelSettings.OutputMode.JSON_SCHEMA;
-                        if (provider == ModelSettings.Provider.OPENROUTER) {
-                            String output = ask("Output [1=JSON Schema (default), 2=prompt JSON; e.g. Nemotron Ultra 3 free]: ");
-                            mode = switch (output) {
-                                case "", "1" -> ModelSettings.OutputMode.JSON_SCHEMA;
-                                case "2" -> ModelSettings.OutputMode.PROMPT_JSON;
-                                default -> throw new IllegalArgumentException("Choose an output mode.");
-                            };
-                            if (mode == ModelSettings.OutputMode.PROMPT_JSON) {
-                                out.println("Prompt JSON has no provider schema guarantee; strict local validation and human approval still apply.");
-                            }
-                        }
-                        modelSettings.useSession(new ModelSettings.Profile(provider, model,
-                                keyEnvironment.isEmpty() ? provider.keyEnvironment() : keyEnvironment,
-                                timeout.isEmpty() ? 60 : Integer.parseInt(timeout), mode));
-                        out.println("Session profile updated; no request sent and no key stored.");
-                    } catch (IllegalArgumentException exception) {
-                        out.println("Invalid provider, model ID, environment-variable name or timeout; profile unchanged.");
-                    }
-                }
+                case "1" -> configureModel();
                 case "2" -> {
-                    try {
-                        modelSettings.save(modelSettings.load());
-                        out.println("AI provider profile saved to .tex-suite/config.json; no key value stored.");
-                    } catch (IOException exception) {
-                        out.println("Could not save AI provider profile; session choice kept.");
-                    }
-                }
-                case "3" -> {
                     ModelClient client = modelClient();
-                    if (client != null) {
+                    if (client == null) out.println("AI is disabled; choose option 1 to configure it.");
+                    else {
                         try {
                             new ModelReview(new EditReview(input, out), out, client).testProvider();
                         } catch (EditReview.Cancel | EOFException exception) {
@@ -274,9 +263,44 @@ final class DocumentSession {
                         }
                     }
                 }
-                case "4", "" -> { return; }
-                default -> out.println("Choose an AI provider option from 1 to 4.");
+                case "3", "" -> { return; }
+                default -> out.println("Choose an AI option from 1 to 3.");
             }
+        }
+    }
+
+    private void configureModel() throws IOException, QuitRequest {
+        try {
+            ModelSettings.Provider provider = switch (ask("Provider [1=OpenAI, 2=OpenRouter, 3=Gemini]: ")) {
+                case "1" -> ModelSettings.Provider.OPENAI;
+                case "2" -> ModelSettings.Provider.OPENROUTER;
+                case "3" -> ModelSettings.Provider.GEMINI;
+                default -> throw new IllegalArgumentException("Choose a provider explicitly.");
+            };
+            String model = ask("Explicit model ID (Enter disables AI): ");
+            out.println("Use the key variable NAME, not the API key. Export its value before launching TexSuite.");
+            String keyEnvironment = ask("API key environment-variable NAME [" + provider.keyEnvironment() + "]: ");
+            String timeout = ask("Request timeout in seconds [60]: ");
+            ModelSettings.OutputMode mode = ModelSettings.OutputMode.JSON_SCHEMA;
+            if (provider == ModelSettings.Provider.OPENROUTER) {
+                mode = switch (ask("Output [1=JSON Schema (default), 2=prompt JSON]: ")) {
+                    case "", "1" -> ModelSettings.OutputMode.JSON_SCHEMA;
+                    case "2" -> ModelSettings.OutputMode.PROMPT_JSON;
+                    default -> throw new IllegalArgumentException("Choose an output mode.");
+                };
+            }
+            var profile = new ModelSettings.Profile(provider, model,
+                    keyEnvironment.isEmpty() ? provider.keyEnvironment() : keyEnvironment,
+                    timeout.isEmpty() ? 60 : Integer.parseInt(timeout), mode);
+            try {
+                modelSettings.save(profile);
+                out.println("AI settings saved globally. Change them anytime in Settings 8.");
+            } catch (IOException exception) {
+                out.println("Could not save global AI settings; profile unchanged: "
+                        + DocumentInput.safeDisplay(exception.getMessage()));
+            }
+        } catch (IllegalArgumentException exception) {
+            out.println(DocumentInput.safeDisplay(exception.getMessage()) + " Profile unchanged.");
         }
     }
 
@@ -310,8 +334,44 @@ final class DocumentSession {
                     out.println("Original files restored. Prepare a new preview before editing.");
                 }
             }
+        } catch (EditReview.Back exception) {
+            throw exception;
         } catch (IOException exception) {
             err.println("Recovery stopped: " + DocumentInput.safeDisplay(exception.getMessage()));
+        }
+    }
+
+    private void showHistory() {
+        try {
+            EditHistory.print(selectedFile.getParent(), out, false);
+        } catch (IOException exception) {
+            err.println("Could not read edit history: " + DocumentInput.safeDisplay(exception.getMessage()));
+        }
+    }
+
+    private void revertLastChange() throws IOException, QuitRequest {
+        try {
+            Path root = selectedFile.getParent();
+            Path recovery = TextRecovery.lastCompleted(root);
+            if (recovery == null) {
+                out.println("No completed change is available to revert.");
+                return;
+            }
+            var targets = TextRecovery.completedTargets(root, recovery);
+            out.println("Revert the whole last completed operation: " + DocumentInput.safeDisplay(recovery.getFileName()));
+            for (Path target : targets) out.println("  " + DocumentInput.safeDisplay(target));
+            if (new EditReview(input, out).yes("Are you sure you want to revert this change? [y/N]: ")) {
+                TextRecovery.revert(root, recovery);
+                out.println("Last change reverted. Originals restored; backups and history retained.");
+            } else {
+                out.println("Revert cancelled; no source changes.");
+            }
+        } catch (EditReview.Cancel | EOFException exception) {
+            throw new QuitRequest();
+        } catch (EditReview.Back exception) {
+            throw exception;
+        } catch (IOException exception) {
+            err.println("Revert stopped: " + DocumentInput.safeDisplay(exception.getMessage()));
         }
     }
 
@@ -358,9 +418,8 @@ final class DocumentSession {
     private String askReplacement(String source, String meaning) throws IOException, QuitRequest {
         String replacement;
 
-        out.println("Enter literal LaTeX source; rendering depends on its TeX syntax.");
         while (true) {
-            replacement = askLiteral("Replacement (only 'quit' alone cancels): ");
+            replacement = askLiteral("Replacement: ");
             try {
                 new RenameRequest(selectedFile, source, meaning, replacement,
                         RenameRequest.Scope.FILE);
@@ -406,6 +465,7 @@ final class DocumentSession {
         if (answer.equalsIgnoreCase("quit")) {
             throw new QuitRequest();
         }
+        if (answer.equalsIgnoreCase("back")) throw new EditReview.Back();
         return answer;
     }
 

@@ -66,12 +66,14 @@ final class RenameCandidateDiscovery {
         Status status;
         String reason;
         SourceContext context = raw.reason();
+        boolean symbol = scanner.mathSymbol(startChar, endChar);
         if (context == SourceContext.UNKNOWN) {
             status = Status.REVIEW;
             reason = "unknown scanner context";
-        } else if (context != SourceContext.MATH) {
+        } else if (context != SourceContext.MATH && !symbol) {
             status = Status.EXCLUDED;
-            reason = context.name().toLowerCase(java.util.Locale.ROOT);
+            reason = context == SourceContext.PROSE ? "outside mathematical context"
+                    : context.name().toLowerCase(java.util.Locale.ROOT);
         } else if (scan.overlaps(index, length)) {
             status = Status.REVIEW;
             reason = "overlapping literal matches";
@@ -87,7 +89,7 @@ final class RenameCandidateDiscovery {
         } else if (raw.conditional()) {
             status = Status.REVIEW;
             reason = "inside conditional";
-        } else if (scanner.adjacentLetters(startChar, endChar)) {
+        } else if (!symbol && scanner.adjacentLetters(startChar, endChar)) {
             status = Status.REVIEW;
             reason = "adjacent letter";
         } else {
@@ -115,7 +117,7 @@ final class RenameCandidateDiscovery {
     }
 
 
-    private static String id(Path path, String hash, int start, int end, String source) {
+    static String id(Path path, String hash, int start, int end, String source) {
         String key = path.toString() + '\0' + hash + '\0' + start + '\0' + end + '\0'
                 + source;
         try {

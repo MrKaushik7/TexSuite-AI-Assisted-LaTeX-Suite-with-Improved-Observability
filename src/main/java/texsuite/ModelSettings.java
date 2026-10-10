@@ -22,20 +22,25 @@ final class ModelSettings {
 
     private final Path storage;
     private final Function<String, String> environment;
-    private Profile session;
 
-    ModelSettings(Path root) {
-        this(root, System::getenv);
+    ModelSettings(Path storage) {
+        this(storage, System::getenv);
     }
 
-    ModelSettings(Path root, Function<String, String> environment) {
-        this.storage = root.resolve(".tex-suite/config.json");
+    ModelSettings(Path storage, Function<String, String> environment) {
+        this.storage = storage;
         this.environment = environment;
     }
 
-    Profile load() throws IOException {
-        if (session != null) return session;
+    static Path defaultStorage() {
+        return RecentFolders.defaultStorage().resolveSibling("ai.json");
+    }
 
+    boolean saved() throws IOException {
+        return read().has("modelProvider");
+    }
+
+    Profile load() throws IOException {
         ObjectNode config = read();
         try {
             Provider provider = Provider.parse(setting(config, "modelProvider", "TEXSUITE_MODEL_PROVIDER", "openai"));
@@ -49,10 +54,6 @@ final class ModelSettings {
         } catch (IllegalArgumentException exception) {
             throw new IOException("Invalid provider, model, key-environment name or timeout.");
         }
-    }
-
-    void useSession(Profile profile) {
-        session = profile;
     }
 
     private String setting(JsonNode values, String field, String variable, String fallback) throws IOException {
@@ -76,7 +77,7 @@ final class ModelSettings {
         values.put("timeoutSeconds", profile.timeoutSeconds());
         values.put("outputMode", profile.outputMode().id());
         byte[] bytes = JSON.writerWithDefaultPrettyPrinter().writeValueAsBytes(config);
-        if (bytes.length > MAX_CONFIG_BYTES) throw new IOException("Project settings are too large.");
+        if (bytes.length > MAX_CONFIG_BYTES) throw new IOException("AI settings are too large.");
 
         Path directory = storage.getParent();
         Files.createDirectories(directory);
@@ -88,7 +89,6 @@ final class ModelSettings {
             Files.write(temporary, bytes);
             checkStorage();
             Files.move(temporary, storage, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            session = profile;
         } finally {
             Files.deleteIfExists(temporary);
         }
@@ -97,20 +97,20 @@ final class ModelSettings {
     private ObjectNode read() throws IOException {
         checkStorage();
         if (!Files.exists(storage, LinkOption.NOFOLLOW_LINKS)) return JSON.createObjectNode();
-        if (Files.size(storage) > MAX_CONFIG_BYTES) throw new IOException("Project settings are too large.");
+        if (Files.size(storage) > MAX_CONFIG_BYTES) throw new IOException("AI settings are too large.");
         byte[] bytes;
         try (var input = Files.newInputStream(storage)) {
             bytes = input.readNBytes(MAX_CONFIG_BYTES + 1);
         }
-        if (bytes.length > MAX_CONFIG_BYTES) throw new IOException("Project settings are too large.");
+        if (bytes.length > MAX_CONFIG_BYTES) throw new IOException("AI settings are too large.");
 
         JsonNode config;
         try {
             config = JSON.readTree(bytes);
         } catch (IOException exception) {
-            throw new IOException("Invalid project settings JSON.");
+            throw new IOException("Invalid AI settings JSON.");
         }
-        if (!(config instanceof ObjectNode object)) throw new IOException("Project settings must be an object.");
+        if (!(config instanceof ObjectNode object)) throw new IOException("AI settings must be an object.");
         return object;
     }
 

@@ -28,6 +28,7 @@ final class EditReview {
         String value = input.readLine();
         if (value == null) throw new EOFException();
         if (value.equalsIgnoreCase("quit")) throw new Cancel();
+        if (value.equalsIgnoreCase("back")) throw new Back();
         return value;
     }
 
@@ -118,4 +119,6 @@ final class EditReview {
     }
 
     static final class Cancel extends IOException { }
+
+    static final class Back extends IOException { }
 }

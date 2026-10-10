@@ -15,6 +15,8 @@ final class MathematicalRenameWorkflow {
     private static final int MAX_REVIEW_OCCURRENCES = 200;
 
     private final EditReview review;
+    private final BufferedReader input;
+    private final ModelClient modelClient;
     private final PrintWriter out;
     private final PrintWriter err;
     private final boolean debug;
@@ -29,6 +31,8 @@ final class MathematicalRenameWorkflow {
 
     MathematicalRenameWorkflow(BufferedReader input, PrintWriter out, PrintWriter err,
             boolean debug, TexCompileGate compileGate, ModelClient modelClient) {
+        this.input = input;
+        this.modelClient = modelClient;
         this.review = new EditReview(input, out);
         this.out = out;
         this.err = err;
@@ -53,6 +57,9 @@ final class MathematicalRenameWorkflow {
                 }
             }
             throw new IOException("Saved source kept changing; no edit was applied.");
+        } catch (EditReview.Back exception) {
+            out.println("Back to menu; no source changes.");
+            return CommandLine.ExitCode.OK;
         } catch (Cancel | EOFException exception) {
             sessionEnded = true;
             out.println("Cancelled without source changes.");
@@ -68,7 +75,7 @@ final class MathematicalRenameWorkflow {
         DocumentSnapshot snapshot = loadRenameSnapshot(request);
         printRenameRequest(request, snapshot);
         if (request.scope() == RenameRequest.Scope.PROJECT) {
-            out.println("Project scope covers only the loaded static include closure.");
+            if (debug) out.println("Project scope covers only the loaded static include closure.");
             if (!snapshot.complete()) {
                 out.println("Static include closure is incomplete; inventory stopped.");
                 printDiagnostics(snapshot);
@@ -82,7 +89,13 @@ final class MathematicalRenameWorkflow {
         List<RenameCandidateDiscovery.Occurrence> candidates = inventory.occurrences().stream()
                 .filter(item -> item.status() == RenameCandidateDiscovery.Status.CANDIDATE).toList();
         if (candidates.isEmpty()) {
-            out.println("No safe mathematical occurrences are available for selection; no source changes.");
+            if (inventory.occurrences().stream().anyMatch(item -> item.reason().equals("outside mathematical context"))) {
+                if (review.yes("Continue this literal request in LaTeX source replacement? [y/N]: ")) {
+                    return new TextReplacementWorkflow(input, out, err, request.target(), debug, compileGate,
+                            modelClient).run(request);
+                }
+            }
+            out.println("No eligible math matches. Try Replace text or use --debug for reasons.");
             return CommandLine.ExitCode.OK;
         }
         if (candidates.size() > MAX_REVIEW_OCCURRENCES) {
@@ -93,50 +106,41 @@ final class MathematicalRenameWorkflow {
         context.checkCurrent();
         printContext(context);
         ModelReview.Selection selection = modelReview.select(snapshot, request, candidates, context);
-        List<String> accepted = selection.acceptedIds();
-        if (accepted.isEmpty()) {
-            out.println("No renames accepted; no source changes.");
+        var approval = modelReview.approve(snapshot, request, candidates, context, selection,
+                "mathematical-rename", "MATH", (int) (inventory.count(RenameCandidateDiscovery.Status.EXCLUDED)
+                        + inventory.count(RenameCandidateDiscovery.Status.REVIEW)), compileGate);
+        if (approval == null) {
+            out.println("No renames applied; cancelled or no occurrences accepted.");
             return CommandLine.ExitCode.OK;
         }
-        RenamePlan record = RenamePlan.create(snapshot, request, accepted, selection.decisionSource());
-        List<TextEditPlan.Edit> edits = record.editsFor(snapshot);
-        TexCompileGate resolved = review.compilationMain(snapshot, edits, compileGate);
-        TextEditPlan plan = new TextEditPlan(snapshot, edits, request.replacement(), resolved);
-        review.printUnifiedDiff(snapshot, plan.preview());
-        out.printf("%d rename(s) accepted. Structural checks passed.%n", edits.size());
-        out.println("Review meaning and rendering before applying.");
-        out.println(resolved.validationNotice());
-        plan.validate();
-        context.checkCurrent();
-        if (!review.answer("Type apply to accept these changes, or Enter to cancel: ")
-                .equalsIgnoreCase("apply")) {
-            out.println("Cancelled without source changes.");
-            return CommandLine.ExitCode.OK;
-        }
-        plan.validate();
-        context.checkCurrent();
+        RenamePlan record = RenamePlan.create(snapshot, request, approval.selection().acceptedIds(),
+                approval.selection().decisionSource());
+        TextEditPlan plan = approval.plan();
         Path savedPlan = record.save(snapshot);
         out.println("Approved intent saved: " + DocumentInput.safeDisplay(savedPlan));
         Path backup = plan.apply(context::checkCurrent);
         out.printf("Applied %d rename(s). Backup: %s%n", plan.size(), DocumentInput.safeDisplay(backup));
+        out.println("Exact edit history: " + DocumentInput.safeDisplay(backup.resolve("changes.json")));
         return CommandLine.ExitCode.OK;
     }
 
     private void printContext(ContextRetriever.Retrieval context) {
+        if (!debug) {
+            if (!context.reviews().isEmpty()) out.printf("%d occurrence(s) need manual context review.%n", context.reviews().size());
+            return;
+        }
         out.printf("Context retrieval: %d batch(es), %d source character(s), %d manual-only occurrence(s).%n",
                 context.batches().size(), context.sourceCharacters(), context.reviews().size());
         out.println("Context reads follow static includes; they do not expand edit scope.");
 
-        if (debug) {
-            var displayed = new HashSet<String>();
-            for (var batch : context.batches()) {
-                for (var slice : batch.slices()) {
-                    if (!displayed.add(slice.id())) continue;
+        var displayed = new HashSet<String>();
+        for (var batch : context.batches()) {
+            for (var slice : batch.slices()) {
+                if (!displayed.add(slice.id())) continue;
 
-                    out.printf("  Context %s:%d:%d [%s]%n", DocumentInput.safeDisplay(slice.path()),
-                            slice.line(), slice.column(), String.join(", ", slice.roles()));
-                    slice.text().lines().forEach(line -> out.println("    " + DocumentInput.safeDisplay(line)));
-                }
+                out.printf("  Context %s:%d:%d [%s]%n", DocumentInput.safeDisplay(slice.path()),
+                        slice.line(), slice.column(), String.join(", ", slice.roles()));
+                slice.text().lines().forEach(line -> out.println("    " + DocumentInput.safeDisplay(line)));
             }
         }
         for (var item : context.reviews()) {
@@ -162,6 +166,11 @@ final class MathematicalRenameWorkflow {
     }
 
     private void printRenameRequest(RenameRequest request, DocumentSnapshot snapshot) {
+        if (!debug) {
+            out.printf("Rename: %s -> %s (%s)%n", DocumentInput.safeDisplay(request.source()),
+                    DocumentInput.safeDisplay(request.replacement()), request.scope());
+            return;
+        }
         out.printf("Rename request: %s -> %s; meaning: %s%n",
                 DocumentInput.safeDisplay(request.source()),
                 DocumentInput.safeDisplay(request.replacement()),
@@ -179,23 +188,13 @@ final class MathematicalRenameWorkflow {
                 result.count(RenameCandidateDiscovery.Status.REVIEW),
                 result.count(RenameCandidateDiscovery.Status.EXCLUDED));
 
-        out.println("Candidates are lexical findings, not approved edits.");
-        if (result.count(RenameCandidateDiscovery.Status.CANDIDATE) == 0
-                && result.count(RenameCandidateDiscovery.Status.REVIEW) == 0) {
-            out.println(result.occurrences().isEmpty()
-                    ? "No literal matches were found in the chosen scope."
-                    : "Matches are outside mathematical rename. Use Replace text "
-                    + "for a general literal change.");
+        if (debug) {
+            out.println("Candidates are lexical findings, not approved edits.");
+            out.println("Uncertain and protected occurrences cannot be selected.");
+            out.printf("Replacement: \"%s\" (proposed literal LaTeX source)%n",
+                    DocumentInput.safeDisplay(request.replacement()).replace("\"", "\\\""));
+            out.println("Matched source is marked with ⟦ ⟧; excerpts show the original text.");
         }
-        out.println("Uncertain and protected occurrences cannot be selected.");
-        if (!debug && (result.count(RenameCandidateDiscovery.Status.REVIEW) > 0
-                || result.count(RenameCandidateDiscovery.Status.EXCLUDED) > 0)) {
-            out.println("Review/excluded details are hidden. Use --debug to inspect them.");
-        }
-        out.printf("Replacement: \"%s\" (proposed literal LaTeX source)%n",
-                DocumentInput.safeDisplay(request.replacement()).replace("\"", "\\\""));
-
-        out.println("Matched source is marked with ⟦ ⟧; excerpts show the original text.");
         int excludedShown = 0;
         Path displayedFile = null;
         byte[] displayedBytes = null;

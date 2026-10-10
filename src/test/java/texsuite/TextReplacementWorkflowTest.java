@@ -67,7 +67,7 @@ final class TextReplacementWorkflowTest {
         assertEquals(2, code);
         assertEquals(3, previews[0]);
         assertEquals(0, count(output, "Type apply"));
-        assertTrue(errors.toString().contains("Saved source kept changing during preview."));
+        assertTrue(errors.toString().contains("Saved source changed; reload and review"));
         assertEquals("hello 3", Files.readString(source));
     }
 

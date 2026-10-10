@@ -9,28 +9,36 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Consented classification followed by explicit human decisions; never authorizes writes. */
+/** Consented classification and batch/manual review; writes stay behind the shared apply gate. */
 final class ModelReview {
     private final EditReview review;
     private final PrintWriter out;
     private final ModelClient client;
+    private final String manualPrompt;
     private boolean repairUsed;
 
     ModelReview(EditReview review, PrintWriter out, ModelClient client) {
+        this(review, out, client, "Rename this occurrence? [y/N]: ");
+    }
+
+    ModelReview(EditReview review, PrintWriter out, ModelClient client, String manualPrompt) {
         this.review = review;
         this.out = out;
         this.client = client;
+        this.manualPrompt = manualPrompt;
     }
 
     Selection select(DocumentSnapshot snapshot, RenameRequest intent,
             List<RenameCandidateDiscovery.Occurrence> candidates, ContextRetriever.Retrieval context)
             throws IOException {
+        repairUsed = false;
         Map<String, ModelClient.Decision> decisions = new HashMap<>();
         if (client != null && chooseAi()) {
             try {
                 if (context.batches().isEmpty()) {
-                    throw new ModelClient.Failure(ModelClient.Problem.CONFIGURATION,
-                            "No bounded context is available for AI classification.");
+                    out.println("No bounded AI context is available; all occurrences are skipped.");
+                    context.checkCurrent();
+                    return new Selection(List.of(), client.decisionSource(), Map.of(), true);
                 }
                 for (var batch : context.batches()) {
                     ModelClient.Request request = request(intent, candidates, batch);
@@ -43,9 +51,22 @@ final class ModelReview {
                 out.println("AI classification stopped: " + exception.problem() + ". "
                         + DocumentInput.safeDisplay(exception.getMessage()));
                 out.println("All AI decisions for this operation were discarded.");
-                if (!review.yes("Continue with manual review? [y/N]: ")) return new Selection(List.of(), "manual");
+                if (!review.yes("Continue with manual review? [y/N]: ")) return new Selection(List.of(), "manual", Map.of(), false);
             }
         }
+        context.checkCurrent();
+        if (!decisions.isEmpty()) {
+            return new Selection(candidates.stream().filter(item -> decisions.containsKey(item.id())
+                    && decisions.get(item.id()).action() == ModelClient.Action.REPLACE)
+                    .map(RenameCandidateDiscovery.Occurrence::id).toList(),
+                    client.decisionSource(), decisions, true);
+        }
+        return manual(snapshot, intent, candidates, context, decisions);
+    }
+
+    private Selection manual(DocumentSnapshot snapshot, RenameRequest intent,
+            List<RenameCandidateDiscovery.Occurrence> candidates, ContextRetriever.Retrieval context,
+            Map<String, ModelClient.Decision> decisions) throws IOException {
         context.checkCurrent();
         boolean assisted = !decisions.isEmpty();
         out.println(assisted ? "AI decisions are suggestions. Review every eligible occurrence."
@@ -53,7 +74,7 @@ final class ModelReview {
         List<String> accepted = new ArrayList<>();
         for (var candidate : candidates) {
             var decision = decisions.get(candidate.id());
-            String prompt = "Rename this occurrence? [y/N]: ";
+            String prompt = manualPrompt;
 
             if (decision != null) {
                 String recommendation = switch (decision.action()) {
@@ -85,7 +106,78 @@ final class ModelReview {
             if (review.yes(prompt)) accepted.add(candidate.id());
         }
         context.checkCurrent();
-        return new Selection(accepted, assisted ? client.decisionSource() : "manual");
+        return new Selection(accepted, assisted ? client.decisionSource() : "manual", decisions, false);
+    }
+
+    Approval approve(DocumentSnapshot snapshot, RenameRequest intent,
+            List<RenameCandidateDiscovery.Occurrence> candidates, ContextRetriever.Retrieval context,
+            Selection selection, String operation, String region, int protectedCount,
+            TexCompileGate compileGate) throws IOException {
+        while (true) {
+            var acceptedIds = new java.util.HashSet<>(selection.acceptedIds());
+            List<TextEditPlan.Edit> edits = candidates.stream()
+                    .filter(item -> acceptedIds.contains(item.id()))
+                    .map(item -> new TextEditPlan.Edit(item.path(), item.startByte(), item.endByte(),
+                            intent.source().getBytes(StandardCharsets.UTF_8), item.line(), item.column())).toList();
+            if (edits.isEmpty() && !selection.batch()) return null;
+
+            TexCompileGate resolved = edits.isEmpty() ? compileGate
+                    : review.compilationMain(snapshot, edits, compileGate);
+            compileGate = resolved;
+            String provider = selection.decisionSource().equals("manual") ? null
+                    : selection.decisionSource().replace("-reviewed", "");
+            var history = new EditHistory.Intent(operation, intent.target().getFileName().toString(),
+                    intent.scope().name(), region, intent.source(), intent.meaning(), intent.replacement(),
+                    selection.decisionSource(), provider, provider == null ? null : client.model());
+            TextEditPlan plan = new TextEditPlan(snapshot, edits, intent.replacement(), resolved, history);
+            if (!selection.batch()) {
+                review.printUnifiedDiff(snapshot, plan.preview());
+                if (operation.equals("text-replacement")) {
+                    for (var edit : edits) review.printEdit(snapshot, edit, intent.replacement());
+                }
+                out.printf("%d %s accepted. Structural checks passed.%n", edits.size(),
+                        operation.equals("text-replacement") ? "replacement(s)" : "rename(s)");
+                out.println("Review meaning and rendering before applying.");
+                out.println(resolved.validationNotice());
+                plan.validate();
+                context.checkCurrent();
+                if (!review.answer("Type apply to accept these changes, or Enter to cancel: ")
+                        .equalsIgnoreCase("apply")) return null;
+
+                plan.validate();
+                context.checkCurrent();
+                return new Approval(plan, selection);
+            }
+            long kept = selection.decisions().values().stream()
+                    .filter(item -> item.action() == ModelClient.Action.KEEP).count();
+            long uncertain = candidates.size() - edits.size() - kept;
+            out.println("AI batch proposal: " + DocumentInput.safeDisplay(intent.source()) + " -> "
+                    + DocumentInput.safeDisplay(intent.replacement()));
+            out.printf("Scope: %s; region: %s; selected: %d; kept: %d; uncertain/skipped: %d; protected/excluded: %d.%n",
+                    intent.scope(), region, edits.size(), kept, uncertain, protectedCount);
+            var totals = new java.util.TreeMap<java.nio.file.Path, Integer>();
+            for (var edit : edits) totals.merge(edit.path(), 1, Integer::sum);
+            totals.forEach((path, count) -> out.printf("  %s: %d selected%n", DocumentInput.safeDisplay(path), count));
+            out.println("AI KEEP and uncertain occurrences remain unchanged. Manual review can override eligible decisions.");
+            if (!edits.isEmpty()) {
+                plan.validate();
+                out.println(resolved.validationNotice());
+            }
+            context.checkCurrent();
+            switch (review.answer("Batch [diff/manual/apply/cancel (default)]: ").strip().toLowerCase(Locale.ROOT)) {
+                case "diff" -> review.printUnifiedDiff(snapshot, plan.preview());
+                case "manual" -> selection = manual(snapshot, intent, candidates, context, selection.decisions());
+                case "apply" -> {
+                    if (edits.isEmpty()) return null;
+
+                    plan.validate();
+                    context.checkCurrent();
+                    return new Approval(plan, selection);
+                }
+                case "", "cancel" -> { return null; }
+                default -> out.println("Choose diff, manual, apply or cancel.");
+            }
+        }
     }
 
     private boolean chooseAi() throws IOException {
@@ -174,9 +266,13 @@ final class ModelReview {
                         .toList(), batch.maxOutputTokens(), null);
     }
 
-    record Selection(List<String> acceptedIds, String decisionSource) {
+    record Approval(TextEditPlan plan, Selection selection) { }
+
+    record Selection(List<String> acceptedIds, String decisionSource,
+            Map<String, ModelClient.Decision> decisions, boolean batch) {
         Selection {
             acceptedIds = List.copyOf(acceptedIds);
+            decisions = Map.copyOf(decisions);
         }
     }
 }

@@ -25,6 +25,11 @@ final class TexSourceScanner {
             "subsection", "subsubsection", "paragraph", "subparagraph");
     private static final Set<String> CONTEXT_ENVIRONMENTS = Set.of("definition", "theorem",
             "lemma", "proposition", "corollary", "claim", "proof", "remark", "example");
+    private static final Set<String> GREEK_SYMBOLS = Set.of("alpha", "beta", "gamma", "delta",
+            "epsilon", "varepsilon", "zeta", "eta", "theta", "vartheta", "iota", "kappa",
+            "lambda", "mu", "nu", "xi", "pi", "varpi", "rho", "varrho", "sigma", "varsigma",
+            "tau", "upsilon", "phi", "varphi", "chi", "psi", "omega", "Gamma", "Delta",
+            "Theta", "Lambda", "Xi", "Pi", "Sigma", "Upsilon", "Phi", "Psi", "Omega");
 
     private final String source;
     private final int[] byteOffsets;
@@ -38,6 +43,7 @@ final class TexSourceScanner {
     private final List<ConditionalState> conditionals = new ArrayList<>();
     private final List<ContextSpan> contextSpans = new ArrayList<>();
     private final List<ContextOpening> contextOpenings = new ArrayList<>();
+    private final List<SymbolSpan> mathSymbols = new ArrayList<>();
     private byte[] capturedContexts;
     private boolean[] capturedConditional;
     private byte[] capturedBraces;
@@ -179,6 +185,7 @@ final class TexSourceScanner {
         conditionals.clear();
         contextSpans.clear();
         contextOpenings.clear();
+        mathSymbols.clear();
         mathDelimiter = null;
         verbatimEnvironment = null;
         mathEnvironmentDepth = 0;
@@ -306,9 +313,30 @@ final class TexSourceScanner {
         return columns[charIndex];
     }
 
+    int editorColumn(int charIndex) {
+        int previousNewline = Math.max(source.lastIndexOf('\n', charIndex - 1), source.lastIndexOf('\r', charIndex - 1));
+        return charIndex - previousNewline;
+    }
+
+    int charIndex(int byteOffset) {
+        int lower = 0;
+        int upper = source.length();
+        while (lower < upper) {
+            int middle = (lower + upper) >>> 1;
+            if (byteOffsets[middle] < byteOffset) lower = middle + 1;
+            else upper = middle;
+        }
+        if (byteOffsets[lower] != byteOffset) throw new IllegalArgumentException("Not a UTF-8 boundary.");
+        return lower;
+    }
+
     boolean adjacentLetters(int start, int end) {
         return start > 0 && Character.isLetter(source.codePointBefore(start))
                 || end < source.length() && Character.isLetter(source.codePointAt(end));
+    }
+
+    boolean mathSymbol(int start, int end) {
+        return mathSymbols.contains(new SymbolSpan(start, end));
     }
 
     boolean partialGroup(int start, int end) {
@@ -338,6 +366,10 @@ final class TexSourceScanner {
         }
         String command = source.substring(start + 1, end);
         recordRange(start, end, SourceContext.CONTROL_SEQUENCE);
+        // Keep lexical command protection independent of supported whole-symbol eligibility.
+        if (inMath() && !unknown && GREEK_SYMBOLS.contains(command)) {
+            mathSymbols.add(new SymbolSpan(start, end));
+        }
         if (SECTION_COMMANDS.contains(command)) recordHeading(command, start, end);
         if (command.equals("(") || command.equals("[")) {
             openMath(command.equals("(") ? "\\(" : "\\[", start);
@@ -820,6 +852,8 @@ final class TexSourceScanner {
         }
     }
     record RawOccurrence(int charIndex, SourceContext reason, boolean conditional) { }
+
+    private record SymbolSpan(int start, int end) { }
     record IncludeReference(int charIndex, String literal, boolean conditional,
             boolean supported) { }
     record AssetReference(int charIndex, String command, String literal) { }
