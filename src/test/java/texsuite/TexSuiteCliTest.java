@@ -27,6 +27,13 @@ final class TexSuiteCliTest {
     @TempDir
     Path temporaryDirectory;
 
+    @org.junit.jupiter.api.BeforeEach
+    void isolatedDisabledAiProfile() throws Exception {
+        temporaryDirectory = temporaryDirectory.toRealPath();
+        new ModelSettings(temporaryDirectory.resolve("ai.json"), name -> null)
+                .save(new ModelSettings.Profile("", "OPENAI_API_KEY", 60));
+    }
+
     @Test
     void helpDescribesTheCommandWithoutStartingAWorkflow() {
         CommandLine commandLine = new CommandLine(TexSuiteCli.class);
@@ -125,7 +132,7 @@ final class TexSuiteCliTest {
             assertFalse(result.output().contains("EXCLUDED:"));
             assertFalse(result.output().contains("id="));
             assertFalse(result.output().contains("  Context ai_test.tex:"));
-            assertTrue(result.output().contains("--debug"));
+            assertFalse(result.output().contains("details are hidden"));
         }
         assertTrue(debug.output().contains("EXCLUDED: \\docume⟦n⟧tclass{article}"));
         assertTrue(debug.output().contains("id="));
@@ -349,14 +356,14 @@ final class TexSuiteCliTest {
                 "--no-debug", "chapter.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertTrue(result.output().contains("Choose a number from 1 to 6"));
+        assertTrue(result.output().contains("Choose a number from 1 to 7"));
         assertTrue(result.output().contains("This operation is unavailable"));
         assertTrue(result.output().contains("source must not be blank"));
         assertTrue(result.output().contains("Describe the intended meaning"));
         assertTrue(result.output().contains("replacement must differ"));
         assertTrue(result.output().contains("Choose 1 for this file"));
-        assertTrue(result.output().contains("Scope: FILE"));
-        assertTrue(result.output().contains("Rename request: x -> \\number"));
+        assertTrue(result.output().contains("(FILE)"));
+        assertTrue(result.output().contains("Rename: x -> \\number"));
         assertTrue(result.output().contains("Occurrence inventory: 1 file(s), 1 candidate(s)"));
         assertFalse(result.output().contains("Debug snapshot"));
         assertFalse(result.output().contains("missing.pdf sha256"));
@@ -373,7 +380,7 @@ final class TexSuiteCliTest {
                 Optional::empty, "--no-debug", "main.tex");
 
         assertEquals(CommandLine.ExitCode.OK, complete.exitCode());
-        assertTrue(complete.output().contains("Scope: PROJECT"));
+        assertTrue(complete.output().contains("(PROJECT)"));
         assertTrue(complete.output().contains("2 file(s), 2 candidate(s)"));
 
         Files.writeString(main, "$n$\\ifnum1=1\\input{missing}\\fi");
@@ -411,8 +418,8 @@ final class TexSuiteCliTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("Snapshot: 1 source file(s)"));
-        assertTrue(result.output().contains("Rename request: n -> \\number"));
-        assertTrue(result.output().contains("meaning: length?[31m"));
+        assertTrue(result.output().contains("Rename: n -> \\number"));
+        assertFalse(result.output().contains("meaning:"));
         assertFalse(result.output().contains("\u001b"));
         assertTrue(result.output().indexOf("Occurrence inventory:")
                 > result.output().indexOf("Snapshot: 1 source file(s)"));
@@ -427,7 +434,7 @@ final class TexSuiteCliTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("1 candidate(s), 1 review"));
-        assertTrue(result.output().contains("Uncertain and protected occurrences cannot be selected."));
+        assertFalse(result.output().contains("Uncertain and protected occurrences cannot be selected."));
         assertTrue(result.output().contains("CANDIDATE:"));
         assertFalse(result.output().contains("REVIEW:"));
         assertFalse(result.output().contains("bytes["));
@@ -461,7 +468,7 @@ final class TexSuiteCliTest {
                 Optional::empty, "--no-debug", "paper.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertTrue(result.output().contains("Rename request: n -> " + replacement));
+        assertTrue(result.output().contains("Rename: n -> " + replacement));
         assertTrue(result.output().contains("2 candidate(s)"));
         assertTrue(result.output().contains("⟦n⟧"));
         assertEquals("$n + n$", Files.readString(source));
@@ -476,7 +483,7 @@ final class TexSuiteCliTest {
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("replacement must not be blank"));
         assertTrue(result.output().contains("replacement must differ"));
-        assertTrue(result.output().contains("Rename request: n ->  quit "));
+        assertTrue(result.output().contains("Rename: n ->  quit "));
         assertTrue(result.output().contains("1 candidate(s)"));
         assertEquals("$n$", Files.readString(source));
     }
@@ -489,7 +496,7 @@ final class TexSuiteCliTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("replacement must be one line"));
-        assertTrue(result.output().contains("Rename request: n -> m"));
+        assertTrue(result.output().contains("Rename: n -> m"));
         assertFalse(result.output().contains("\u2028"));
         assertEquals("$n$", Files.readString(source));
     }
@@ -505,12 +512,12 @@ final class TexSuiteCliTest {
 
         assertEquals(CommandLine.ExitCode.OK, math.exitCode());
         assertFalse(math.output().contains("Source must be exactly one ASCII letter"));
-        assertTrue(math.output().contains("Rename request: hu -> hello"));
+        assertTrue(math.output().contains("Rename: hu -> hello"));
         assertTrue(math.output().contains("2 candidate(s)"));
         assertTrue(math.output().contains("⟦hu⟧"));
         assertEquals(CommandLine.ExitCode.OK, prose.exitCode());
         assertFalse(prose.output().contains("Source must be exactly one ASCII letter"));
-        assertTrue(prose.output().contains("Rename request: what -> hello"));
+        assertTrue(prose.output().contains("Rename: what -> hello"));
         assertTrue(prose.output().contains("0 candidate(s), 0 review, 1 excluded"));
         assertEquals("$hu + hu$ what", Files.readString(source));
     }
@@ -523,7 +530,7 @@ final class TexSuiteCliTest {
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("1 file(s), 0 candidate(s), 0 review, 0 excluded"));
-        assertTrue(result.output().contains("no source changes"));
+        assertTrue(result.output().contains("No eligible math matches."));
         assertEquals("$x$", Files.readString(source));
     }
 
@@ -580,7 +587,8 @@ final class TexSuiteCliTest {
                 false, () -> CommandLine.ExitCode.OK,
                 new EditorPreferences(temporaryDirectory.resolve("editor.properties")),
                 (file, application) -> Optional.empty(), Optional::empty,
-                new TexCompileGate(null, false, null, null));
+                new TexCompileGate(null, false, null, null), ModelClient::create,
+                new ModelSettings(temporaryDirectory.resolve("ai.json"), name -> null));
 
         assertEquals(CommandLine.ExitCode.USAGE, workflow.run());
         assertTrue(errors.toString().contains("Selected file identity changed"));

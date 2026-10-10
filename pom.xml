@@ -14,6 +14,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.outputTimestamp>2026-09-18T00:00:00Z</project.build.outputTimestamp>
+        <jqwik.version>1.10.2</jqwik.version>
+        <pitest.version>1.19.4</pitest.version>
+        <jacoco.version>0.8.14</jacoco.version>
         <picocli.version>4.7.7</picocli.version>
         <junit.version>5.14.4</junit.version>
         <jackson.version>2.22.1</jackson.version>
@@ -42,11 +45,37 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik</artifactId>
+            <version>${jqwik.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <finalName>texsuite</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>coverage-agent</id>
+                        <phase>initialize</phase>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>coverage-report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal></goals>
+                        <configuration>
+                            <formats><format>HTML</format><format>XML</format></formats>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -91,4 +120,38 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>mutation</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>${pitest.version}</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.3</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>texsuite.TextEditPlan*</param>
+                                <param>texsuite.TextRecovery*</param>
+                                <param>texsuite.DocumentInputValidator*</param>
+                                <param>texsuite.ModelProtocol*</param>
+                            </targetClasses>
+                            <excludedTestClasses><param>*PropertiesTest</param></excludedTestClasses>
+                            <threads>2</threads>
+                            <outputFormats><param>HTML</param><param>XML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                            <failWhenNoMutations>true</failWhenNoMutations>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

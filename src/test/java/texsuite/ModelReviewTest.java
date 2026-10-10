@@ -22,7 +22,7 @@ final class ModelReviewTest {
                 decision(request, 0, ModelClient.Action.KEEP),
                 decision(request, 1, ModelClient.Action.REPLACE),
                 decision(request, 2, ModelClient.Action.NEEDS_HUMAN_REVIEW))));
-        var run = run(source, "1\ny\ny\nn\ny\napply\n", client);
+        var run = run(source, "1\ny\nmanual\ny\nn\ny\napply\n", client);
         assertEquals(0, run.code(), run.errors());
         assertEquals("$m+n+m$ prose n\n% n\n\\newcommand{\\name}{n}\n", Files.readString(source));
         var headings = List.of("=== AI KEEP: KEEP ORIGINAL ===",
@@ -57,7 +57,7 @@ final class ModelReviewTest {
                 decision(request, 1, ModelClient.Action.REPLACE),
                 decision(request, 2, ModelClient.Action.NEEDS_HUMAN_REVIEW))));
 
-        var run = run(source, "1\ny\n\n\n\n", client);
+        var run = run(source, "1\ny\nmanual\n\n\n\n", client);
 
         assertEquals(0, run.code(), run.errors());
         assertEquals(original, Files.readString(source));

@@ -26,26 +26,41 @@ final class TextReplacementWorkflow {
     private final Path selectedFile;
     private final boolean debug;
     private final TexCompileGate compileGate;
+    private final ModelReview modelReview;
+    private final boolean aiAvailable;
 
     TextReplacementWorkflow(BufferedReader input, PrintWriter out, PrintWriter err,
             Path selectedFile, boolean debug, TexCompileGate compileGate) {
+        this(input, out, err, selectedFile, debug, compileGate, null);
+    }
+
+    TextReplacementWorkflow(BufferedReader input, PrintWriter out, PrintWriter err,
+            Path selectedFile, boolean debug, TexCompileGate compileGate, ModelClient client) {
         this.review = new EditReview(input, out);
         this.out = out;
         this.err = err;
         this.selectedFile = selectedFile;
         this.debug = debug;
         this.compileGate = compileGate;
+        this.modelReview = new ModelReview(review, out, client, "Replace this occurrence? [y/N]: ");
+        this.aiAvailable = client != null;
     }
 
     int run() {
+        return run(null);
+    }
+
+    int run(RenameRequest routed) {
         try {
-            Request request = collectRequest();
+            Request request = routed == null ? collectRequest()
+                    : new Request(routed.source(), routed.replacement(), routed.scope(),
+                            new Region(RegionKind.SOURCE, 0, 0), routed.meaning());
             if (!selectedFile.toRealPath().equals(selectedFile)) {
                 throw new IOException("Selected file identity changed; select it again.");
             }
             for (int attempt = 0; attempt < 3; attempt++) {
                 try {
-                    return attemptReplacement(request, attempt == 2);
+                    return attemptReplacement(request);
                 } catch (StaleSourceException exception) {
                     if (attempt == 2) throw exception;
 
@@ -53,6 +68,9 @@ final class TextReplacementWorkflow {
                 }
             }
             throw new IOException("Saved source kept changing; no edit was applied.");
+        } catch (EditReview.Back exception) {
+            out.println("Back to menu; no source changes.");
+            return CommandLine.ExitCode.OK;
         } catch (Cancel | EOFException exception) {
             out.println("Cancelled without source changes.");
             return CommandLine.ExitCode.OK;
@@ -74,7 +92,20 @@ final class TextReplacementWorkflow {
         }
         RenameRequest.Scope scope = scope();
         Region region = region(scope);
-        return new Request(source, replacement, scope, region);
+        String meaning = "all eligible literal matches";
+        if (aiAvailable) {
+            while (true) {
+                meaning = review.answer("Meaning/purpose for AI selection (Enter = all eligible literal matches): ");
+                if (meaning.isBlank()) meaning = "all eligible literal matches";
+                try {
+                    RenameRequest.validateLiteral(meaning, "meaning/purpose");
+                    break;
+                } catch (IllegalArgumentException exception) {
+                    out.println(DocumentInput.safeDisplay(exception.getMessage()));
+                }
+            }
+        }
+        return new Request(source, replacement, scope, region, meaning);
     }
 
     private DocumentSnapshot loadSnapshot(RenameRequest.Scope scope)
@@ -88,7 +119,7 @@ final class TextReplacementWorkflow {
         return snapshot;
     }
 
-    private int attemptReplacement(Request request, boolean lastAttempt)
+    private int attemptReplacement(Request request)
             throws IOException, DocumentLoader.LoadException, Cancel {
         String source = request.source();
         String replacement = request.replacement();
@@ -102,6 +133,15 @@ final class TextReplacementWorkflow {
         }
         Selection selection = select(snapshot, source, region);
         printSelection(request, selection);
+        if (region.kind() == RegionKind.DOCUMENT_TEXT
+                && selection.skipReasons().containsKey("outside document text")) {
+            out.println("Document text excludes the preamble; LaTeX source includes eligible literal values there.");
+            if (review.yes("Try these matches in the LaTeX source region? [y/N]: ")) {
+                region = new Region(RegionKind.SOURCE, 0, 0);
+                selection = select(snapshot, source, region);
+                printSelection(new Request(source, replacement, scope, region, request.meaning()), selection);
+            }
+        }
         if (selection.matches() == 0) {
             out.println("No literal matches were found in the chosen file scope.");
             return CommandLine.ExitCode.OK;
@@ -115,35 +155,29 @@ final class TextReplacementWorkflow {
             out.println("Too many proposed edits to review at once; choose a line range.");
             return CommandLine.ExitCode.OK;
         }
-        List<TextEditPlan.Edit> accepted = new ArrayList<>();
-        for (TextEditPlan.Edit edit : selection.edits()) {
-            review.printEdit(snapshot, edit, replacement);
-            if (review.yes("Replace this occurrence? [y/N]: ")) accepted.add(edit);
-        }
-        if (accepted.isEmpty()) {
-            out.println("No replacements accepted; no source changes.");
+        var intent = new RenameRequest(selectedFile, source, request.meaning(), replacement, scope);
+        List<RenameCandidateDiscovery.Occurrence> candidates = selection.edits().stream().map(edit ->
+                new RenameCandidateDiscovery.Occurrence(RenameCandidateDiscovery.id(edit.path(),
+                        snapshot.files().get(edit.path()).hash(), edit.start(), edit.end(), source),
+                        edit.path(), snapshot.files().get(edit.path()).hash(), edit.start(), edit.end(),
+                        edit.line(), edit.column(), RenameCandidateDiscovery.Status.CANDIDATE,
+                        "eligible literal text/source value")).toList();
+        var context = new ContextRetriever().retrieve(snapshot, intent,
+                new RenameCandidateDiscovery.Result(candidates, snapshot.files().size()));
+        var choice = modelReview.select(snapshot, intent, candidates, context);
+        var approval = modelReview.approve(snapshot, intent, candidates, context, choice,
+                "text-replacement", region.kind().name()
+                        + (region.kind() == RegionKind.LINE_RANGE ? ":" + region.firstLine() + "-" + region.lastLine() : ""),
+                selection.skipped(), compileGate);
+        if (approval == null) {
+            out.println("No replacements applied; cancelled or no occurrences accepted.");
             return CommandLine.ExitCode.OK;
         }
-        TexCompileGate resolvedGate = review.compilationMain(snapshot, accepted, compileGate);
-        TextEditPlan plan = new TextEditPlan(snapshot, accepted, replacement, resolvedGate);
-        plan.validate();
-        printPreview(snapshot, accepted, replacement);
-        out.println(resolvedGate.validationNotice());
-        if (!new DocumentLoader().isCurrent(snapshot)) {
-            if (!lastAttempt) {
-                throw new StaleSourceException("Saved source changed during preview.");
-            }
-            throw new IOException("Saved source kept changing during preview.");
-        }
-        String decision = review.answer("Type apply to accept these changes, or Enter to cancel: ");
-        if (!decision.equalsIgnoreCase("apply")) {
-            out.println("Cancelled without source changes.");
-            return CommandLine.ExitCode.OK;
-        }
-        Path backup = plan.apply();
-
+        TextEditPlan plan = approval.plan();
+        Path backup = plan.apply(context::checkCurrent);
         out.printf("Applied %d replacement(s). Backup: %s%n", plan.size(),
                 DocumentInput.safeDisplay(backup));
+        out.println("Exact edit history: " + DocumentInput.safeDisplay(backup.resolve("changes.json")));
         return CommandLine.ExitCode.OK;
     }
 
@@ -163,15 +197,6 @@ final class TextReplacementWorkflow {
         if (!selection.skipReasons().isEmpty()) {
             out.println("Skipped by reason: " + selection.skipReasons());
         }
-    }
-
-    private void printPreview(DocumentSnapshot snapshot, List<TextEditPlan.Edit> edits,
-            String replacement) {
-        out.println("Proposed changes to saved source:");
-        for (TextEditPlan.Edit edit : edits) review.printEdit(snapshot, edit, replacement);
-        out.printf("%d replacement(s) accepted. Structural checks passed.%n", edits.size());
-
-        out.println("Review meaning and rendering before applying.");
     }
 
     private static Selection select(DocumentSnapshot snapshot, String source, Region region) {
@@ -225,7 +250,7 @@ final class TextReplacementWorkflow {
         String reason = null;
         if (raw.reason() != SourceContext.PROSE
                 && !(region.kind() != RegionKind.DOCUMENT_TEXT
-                        && raw.reason() == SourceContext.TEXT_ARGUMENT)) {
+                        && (raw.reason() == SourceContext.TEXT_ARGUMENT || raw.reason() == SourceContext.MATH))) {
             reason = "protected or non-text TeX context";
         } else if (region.kind() == RegionKind.DOCUMENT_TEXT
                 && !scanner.withinDocument(startChar, endChar)) {
@@ -272,6 +297,8 @@ final class TextReplacementWorkflow {
     }
 
     private Region region(RenameRequest.Scope scope) throws IOException, Cancel {
+        out.println("Document text: prose inside the document. LaTeX source: eligible literal values, including the preamble.");
+        out.println("Comments, verbatim, definitions, command names and metadata remain protected in every region.");
         while (true) {
             String choice = review.answer("Region [1=document text (default), "
                     + "2=LaTeX source, 3=line range]: ");
@@ -305,7 +332,7 @@ final class TextReplacementWorkflow {
     private record Region(RegionKind kind, int firstLine, int lastLine) { }
 
     private record Request(String source, String replacement, RenameRequest.Scope scope,
-            Region region) { }
+            Region region, String meaning) { }
 
     private record Skipped(Path path, int line, int column, String reason) { }
 

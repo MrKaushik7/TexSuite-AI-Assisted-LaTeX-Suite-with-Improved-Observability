@@ -22,3 +22,14 @@ jobs:
         run: ./mvnw --batch-mode verify
       - name: Verify launcher diagnostics
         run: sh scripts/test-install.sh
+      - name: Publish coverage and test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-and-tests
+          path: |
+            target/site/jacoco/
+            target/surefire-reports/
+            target/jqwik-database*
+          retention-days: 14
+          if-no-files-found: error

@@ -198,7 +198,7 @@ final class ContextRetrieverTest {
     }
 
     @Test
-    void structuralObservationsResetWithoutAuthorizingMathCommandsOrProtectedBytes() throws Exception {
+    void structuralObservationsResetWithSeparateWholeSymbolEligibility() throws Exception {
         String source = "\\section{Title}\n\\begin{definition}$n+\\alpha$\\end{definition}\n"
                 + "\\begin{verbatim}\\section{Fake}$n$\\end{verbatim}";
         var scanner = new TexSourceScanner(source);
@@ -215,8 +215,13 @@ final class ContextRetrieverTest {
         var snapshot = new DocumentLoader().loadFile(file);
         var inventory = new RenameCandidateDiscovery().discover(snapshot,
                 new RenameRequest(file, "\\alpha", "alpha", "\\beta", RenameRequest.Scope.FILE));
-        assertEquals(1, inventory.count(RenameCandidateDiscovery.Status.EXCLUDED));
-        assertEquals(0, inventory.count(RenameCandidateDiscovery.Status.CANDIDATE));
+        assertEquals(0, inventory.count(RenameCandidateDiscovery.Status.EXCLUDED));
+        assertEquals(1, inventory.count(RenameCandidateDiscovery.Status.CANDIDATE));
+        assertEquals(DocumentSnapshot.SourceContext.CONTROL_SEQUENCE,
+                scanner.scanFor("\\alpha").occurrences().getFirst().reason());
+        var structural = new RenameCandidateDiscovery().discover(snapshot,
+                new RenameRequest(file, "\\section", "heading", "\\chapter", RenameRequest.Scope.FILE));
+        assertEquals(2, structural.count(RenameCandidateDiscovery.Status.EXCLUDED));
     }
 
     private Path source(String text) throws Exception {
