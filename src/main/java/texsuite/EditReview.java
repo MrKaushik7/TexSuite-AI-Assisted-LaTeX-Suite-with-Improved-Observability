@@ -52,14 +52,35 @@ final class EditReview {
 
     void printUnifiedDiff(DocumentSnapshot snapshot, Map<Path, byte[]> updates) {
         out.println("Proposed changes to saved source:");
+        out.println("OLD (-) = saved source; NEW (+) = proposed source. Changes are not applied yet.");
         for (var entry : new TreeMap<>(updates).entrySet()) {
             List<String> before = new String(snapshot.files().get(entry.getKey()).bytes(),
                     StandardCharsets.UTF_8).lines().toList();
             List<String> after = new String(entry.getValue(), StandardCharsets.UTF_8).lines().toList();
             String file = entry.getKey().toString();
             List<String> diff = UnifiedDiffUtils.generateUnifiedDiff("a/" + file, "b/" + file,
-                    before, DiffUtils.diff(before, after), 3);
-            for (String line : diff) out.println(DocumentInput.safeDisplay(line));
+                    before, DiffUtils.diff(before, after), 1);
+
+            out.println();
+            out.println("========== File: " + DocumentInput.safeDisplay(file) + " ==========");
+            char previousKind = ' ';
+            for (int index = 0; index < diff.size(); index++) {
+                String line = diff.get(index);
+                // The first two lines are file headers, not removed/added source.
+                char kind = index < 2 || line.isEmpty() ? ' ' : line.charAt(0);
+                if ((kind == '-' || kind == '+') && kind != previousKind) {
+                    out.println();
+                    out.println(kind == '-' ? "----- OLD: saved source -----"
+                            : "----- NEW: proposed source -----");
+                } else if (kind != '-' && kind != '+'
+                        && (previousKind == '-' || previousKind == '+')) {
+                    out.println("----- Unchanged context -----");
+                }
+
+                out.println(DocumentInput.safeDisplay(line));
+                previousKind = kind;
+            }
+            out.println("========== End of file diff ==========");
         }
         out.println("Source line endings and final newline are preserved.");
     }
