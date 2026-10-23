@@ -164,7 +164,9 @@ final class TextReplacementWorkflow {
                         "eligible literal text/source value")).toList();
         var context = new ContextRetriever().retrieve(snapshot, intent,
                 new RenameCandidateDiscovery.Result(candidates, snapshot.files().size()));
-        var choice = modelReview.select(snapshot, intent, candidates, context);
+        String regionIdentity = region.kind().name()
+                + (region.kind() == RegionKind.LINE_RANGE ? ":" + region.firstLine() + "-" + region.lastLine() : "");
+        var choice = modelReview.select(snapshot, intent, candidates, context, "text-replacement", regionIdentity);
         var approval = modelReview.approve(snapshot, intent, candidates, context, choice,
                 "text-replacement", region.kind().name()
                         + (region.kind() == RegionKind.LINE_RANGE ? ":" + region.firstLine() + "-" + region.lastLine() : ""),

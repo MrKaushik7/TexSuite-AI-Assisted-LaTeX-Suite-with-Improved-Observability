@@ -165,6 +165,8 @@ final class DocumentSession {
 
             out.println("  9. Edit history");
 
+            out.println("  10. AI response cache");
+
             String answer = readSettingsAnswer();
             if (answer == null) continue;
 
@@ -188,7 +190,8 @@ final class DocumentSession {
                 case "7" -> recoverEdits();
                 case "8" -> modelSettings();
                 case "9" -> showHistory();
-                default -> out.println("Choose a Settings option from 1 to 9.");
+                case "10" -> cacheSettings();
+                default -> out.println("Choose a Settings option from 1 to 10.");
             }
         }
     }
@@ -200,7 +203,7 @@ final class DocumentSession {
         if (answer == null) throw new EOFException();
 
         if (!EditorApplication.safeText(answer)) {
-            out.println("Choose a Settings option from 1 to 9; control characters are not allowed.");
+            out.println("Choose a Settings option from 1 to 10; control characters are not allowed.");
             return null;
         }
         answer = answer.strip();
@@ -219,6 +222,36 @@ final class DocumentSession {
             out.println("AI settings unavailable; using manual selection.");
         }
         return null;
+    }
+
+    private void cacheSettings() throws IOException, QuitRequest {
+        ModelCache cache = new ModelCache(selectedFile.getParent());
+        while (true) {
+            try {
+                var stats = cache.stats();
+                out.printf("Project AI cache: %s; %d/%d entries; %d bytes (maximum 32 MiB).%n",
+                        cache.enabled() ? "enabled" : "disabled", stats.entries(), ModelCache.MAX_ENTRIES, stats.bytes());
+                out.println("1. Enable  2. Disable  3. Clear cached results  4. Back");
+                out.println("Choose AI regenerate during selection to bypass cached results for that operation.");
+                switch (ask("Cache> ")) {
+                    case "1" -> cache.setEnabled(true);
+                    case "2" -> cache.setEnabled(false);
+                    case "3" -> {
+                        if (ask("Type clear to delete this project's cached AI results: ").equals("clear")) {
+                            out.printf("Cleared %d cached result(s).%n", cache.clear());
+                        }
+                    }
+                    case "4", "" -> { return; }
+                    default -> out.println("Choose a cache option from 1 to 4.");
+                }
+            } catch (EditReview.Back exception) {
+                throw exception;
+            } catch (IOException exception) {
+                if (exception instanceof EOFException) throw exception;
+                out.println("AI cache storage is unavailable; source and history were not changed.");
+                return;
+            }
+        }
     }
 
     private void initializeAi() throws IOException, QuitRequest {

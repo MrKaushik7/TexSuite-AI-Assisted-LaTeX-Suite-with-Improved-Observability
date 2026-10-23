@@ -73,6 +73,35 @@ Use **Settings → 9: Edit history**, `texsuite FILE --history`, or `texsuite FI
 
 Choose **7: Revert last change** from the main menu, then confirm `[y/N]`. It restores the whole last completed operation only when every current file still matches its post-edit hash and every backup matches the original hash. Later external edits, damaged backups and pending recovery block revert before any source write. Backups and history remain. An interrupted revert becomes a pending journal; use **Settings → 7** and type `restore` to finish restoring originals. Repeated revert can walk earlier completed operations when their hashes still match. There is no redo or project-wide atomic transaction.
 
+### AI response cache
+
+AI-assisted rename and text replacement reuse validated classifications from the selected
+project's private `.tex-suite/cache/` directory. Repeating an unchanged request, even after
+cancelling the preview or restarting TexSuite, can avoid another API call. A hit explicitly
+says **no remote call**; you must still review and approve the current edit. Pure manual
+replacement does not consult the cache. Provider tests always make a separately consented request.
+
+Keys include the operation/scope/region, exact request and context identities, actual outgoing
+JSON, prompt/schema, provider endpoint and model. Source strings and replacement whitespace
+are preserved: `hi` and ` hi ` are different requests. Changes to relevant source, meaning,
+model or generation settings cause misses. The current adapters do not send credentials in
+their JSON payloads; credentials are never saved in the cache. Cached decision explanations
+may contain private source text, so do not publish this directory.
+
+Use **Settings → 10: AI response cache** for counts/size, enable/disable, and confirmed clear.
+The enabled setting persists per project; disabling keeps existing results. Clearing removes
+only cache result files, preserving settings, history and backups. Choose **3: AI regenerate**
+at occurrence selection to bypass all cache reads for that operation and request fresh AI
+decisions with normal consent; a valid result replaces its old entry when caching is enabled.
+
+Storage accepts at most 256 result files of up to 128 KiB each (32 MiB total managed results).
+When full, new results remain usable but are not saved until space is cleared; existing keys
+can still be refreshed. Corrupt/incompatible entries become misses, and unavailable cache
+storage never repeats a completed API call or bypasses validation. Valid results from an
+earlier batch can be cached even if a later batch fails, but partial decisions cannot authorize
+an edit. A successful schema repair is saved under the original request. Cache records do not
+contain apply permission; freshness, compilation, history, backup and recovery checks remain.
+
 ### Coverage, generated cases, and mutation testing
 
 Run `./mvnw clean verify` for JUnit tests, jqwik properties, and JaCoCo coverage.
@@ -88,6 +117,9 @@ segments around valid replacements, exact recovery after interruption, and Unico
 candidate byte ranges. It runs 200 cases per editing/offset property and 50 recovery
 cases, using synthetic files in a fresh temporary directory for each trial.
 The tests use jqwik's JUnit Platform engine, not Jupiter's `@TempDir` lifecycle.
+`CachePropertiesTest` adds 400 generated checks of canonical object ordering, preserved array
+ordering and exact replacement whitespace. `ModelCacheTest` exercises persistence, corruption,
+limits, project isolation, controls, repairs, partial batches, and approval/compile/freshness gates.
 JUnit regression tests use Arrange–Act–Assert and compare externally visible
 results; one rejected operation can require assertions on several files.
 

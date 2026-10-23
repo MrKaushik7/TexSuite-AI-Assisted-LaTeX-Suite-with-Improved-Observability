@@ -31,9 +31,24 @@ final class ModelReview {
     Selection select(DocumentSnapshot snapshot, RenameRequest intent,
             List<RenameCandidateDiscovery.Occurrence> candidates, ContextRetriever.Retrieval context)
             throws IOException {
+        return select(snapshot, intent, candidates, context, "mathematical-rename", "MATH");
+    }
+
+    Selection select(DocumentSnapshot snapshot, RenameRequest intent,
+            List<RenameCandidateDiscovery.Occurrence> candidates, ContextRetriever.Retrieval context,
+            String operation, String region) throws IOException {
         repairUsed = false;
         Map<String, ModelClient.Decision> decisions = new HashMap<>();
-        if (client != null && chooseAi()) {
+        int mode = client == null ? 2 : chooseAi();
+        if (mode != 2) {
+            ModelCache cache = new ModelCache(snapshot.root());
+            boolean caching;
+            try {
+                caching = cache.enabled();
+            } catch (IOException exception) {
+                caching = false;
+                out.println("AI cache unavailable; continuing without cached results.");
+            }
             try {
                 if (context.batches().isEmpty()) {
                     out.println("No bounded AI context is available; all occurrences are skipped.");
@@ -42,7 +57,8 @@ final class ModelReview {
                 }
                 for (var batch : context.batches()) {
                     ModelClient.Request request = request(intent, candidates, batch);
-                    ModelClient.Result result = classify(request, context);
+                    ModelClient.Result result = cachedClassification(request, context, batch,
+                            operation, intent.scope().name(), region, caching ? cache : null, mode == 3);
                     result.validate(request);
                     for (var decision : result.decisions()) decisions.put(decision.id(), decision);
                 }
@@ -180,14 +196,57 @@ final class ModelReview {
         }
     }
 
-    private boolean chooseAi() throws IOException {
+    private int chooseAi() throws IOException {
         while (true) {
-            switch (review.answer("Selection [1=AI, 2=manual (default)]: ").strip()) {
-                case "1" -> { return true; }
-                case "2", "" -> { return false; }
-                default -> out.println("Choose 1 or 2.");
+            switch (review.answer("Selection [1=AI, 2=manual (default), 3=AI regenerate]: ").strip()) {
+                case "1" -> { return 1; }
+                case "2", "" -> { return 2; }
+                case "3" -> { return 3; }
+                default -> out.println("Choose 1, 2 or 3.");
             }
         }
+    }
+
+    private ModelClient.Result cachedClassification(ModelClient.Request request,
+            ContextRetriever.Retrieval context, ContextRetriever.Batch batch, String operation,
+            String scope, String region, ModelCache cache, boolean regenerate)
+            throws IOException, ModelClient.Failure {
+        String key = null;
+        context.checkCurrent();
+        if (cache != null) {
+            try {
+                key = ModelCache.key(operation, scope, region, client, request, batch);
+            } catch (IOException exception) {
+                out.println("AI cache unavailable for this request; continuing without cached results.");
+            }
+        }
+        if (key != null && !regenerate) {
+            try {
+                ModelClient.Result cached = cache.read(key, request);
+                if (cached != null) {
+                    context.checkCurrent();
+                    out.println("AI cache hit: reused validated decisions; no remote call. Apply still requires approval.");
+                    return cached;
+                }
+            } catch (ModelClient.Failure exception) {
+                out.println("Invalid AI cache entry; requesting fresh classification.");
+            } catch (IOException exception) {
+                if (exception instanceof StaleSourceException) throw exception;
+                out.println("AI cache entry unavailable; requesting fresh classification.");
+            }
+        }
+        if (regenerate) out.println("AI regeneration: bypassing cached decisions; remote consent is required.");
+
+        ModelClient.Result result = classify(request, context);
+        result.validate(request);
+        if (key != null) {
+            try {
+                cache.store(key, request, result);
+            } catch (IOException exception) {
+                out.println("AI result could not be cached (storage unavailable or full); using the validated result.");
+            }
+        }
+        return result;
     }
 
     private ModelClient.Result classify(ModelClient.Request request, ContextRetriever.Retrieval context)

@@ -31,6 +31,20 @@ The default Replace text region is document text. It excludes preamble declarati
 
 Sanitize and merge are menu placeholders and do not modify documents.
 
+AI classifications are cached per project in private `.tex-suite/cache/`, enabled by default.
+Exact canonical request identity includes operation/scope/region, candidates/context hashes,
+literal strings including whitespace, actual provider payload, prompt/schema and endpoint/model.
+Credential values are not part of stored records. Decision explanations may quote source and
+remain private local data. An unchanged preview can be reused after cancellation/restart;
+cancellation preserves source and history but may leave a useful validated cache entry.
+Hits revalidate decisions and saved-source freshness and require fresh apply approval and compilation.
+Settings 10 persists enable/disable and clears only cached result files; selection 3 regenerates
+with renewed remote consent. The provider probe bypasses the cache. Invalid cache entries are
+misses, and write failure does not resend a successful request. Storage admits 256 entries of
+128 KiB each; full caches skip new entries instead of silently evicting results. These are
+per-write bounds for ordinary CLI use, not a multi-process storage quota or an external-writer lock.
+No model quality or semantic correctness follows from a cache hit.
+
 ## Saved source, roots and scope
 
 TexSuite reads strict UTF-8 from saved files. Unsaved editor buffers are unavailable. Positions use zero-based byte ranges and one-based lines and Unicode-code-point columns; a tab counts as one column and CRLF counts as one newline.
