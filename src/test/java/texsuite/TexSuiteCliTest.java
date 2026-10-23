@@ -351,7 +351,7 @@ final class TexSuiteCliTest {
         Path source = Files.writeString(temporaryDirectory.resolve("chapter.tex"),
                 "$x$\\input{missing}\\includegraphics{missing.pdf}");
         byte[] before = Files.readAllBytes(source);
-        RunResult result = run(true, "0\n3\n1\n \nx\n \nlength\nx\n"
+        RunResult result = run(true, "0\n4\n1\n \nx\n \nlength\nx\n"
                 + "\\number\nother\n\nquit\n", Optional::empty,
                 "--no-debug", "chapter.tex");
 

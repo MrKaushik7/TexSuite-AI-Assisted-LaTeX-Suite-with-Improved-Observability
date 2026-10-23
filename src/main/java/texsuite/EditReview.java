@@ -51,6 +51,10 @@ final class EditReview {
     }
 
     void printUnifiedDiff(DocumentSnapshot snapshot, Map<Path, byte[]> updates) {
+        printUnifiedDiff(snapshot, updates, true);
+    }
+
+    void printUnifiedDiff(DocumentSnapshot snapshot, Map<Path, byte[]> updates, boolean preserveEndings) {
         out.println("Proposed changes to saved source:");
         out.println("OLD (-) = saved source; NEW (+) = proposed source. Changes are not applied yet.");
         for (var entry : new TreeMap<>(updates).entrySet()) {
@@ -82,7 +86,8 @@ final class EditReview {
             }
             out.println("========== End of file diff ==========");
         }
-        out.println("Source line endings and final newline are preserved.");
+        out.println(preserveEndings ? "Source line endings and final newline are preserved."
+                : "See the whitespace preview for exact line-ending changes; final-newline presence is preserved.");
     }
 
     TexCompileGate compilationMain(DocumentSnapshot snapshot, List<TextEditPlan.Edit> accepted,

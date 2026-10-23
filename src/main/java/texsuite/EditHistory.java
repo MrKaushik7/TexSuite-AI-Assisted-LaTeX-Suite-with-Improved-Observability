@@ -24,13 +24,12 @@ final class EditHistory {
     private EditHistory() { }
 
     static void write(Path recovery, DocumentSnapshot snapshot, List<TextEditPlan.Edit> edits,
-            String replacement, Map<Path, byte[]> updates, Intent intent) throws IOException {
+            Map<Path, byte[]> updates, Intent intent) throws IOException {
         List<FileChange> files = new ArrayList<>();
         List<Change> changes = new ArrayList<>();
         var groups = new TreeMap<Path, List<TextEditPlan.Edit>>();
         for (var edit : edits) groups.computeIfAbsent(edit.path(), ignored -> new ArrayList<>()).add(edit);
 
-        byte[] next = replacement.getBytes(StandardCharsets.UTF_8);
         for (var group : groups.entrySet()) {
             byte[] before = snapshot.files().get(group.getKey()).bytes();
             byte[] after = updates.get(group.getKey());
@@ -40,15 +39,17 @@ final class EditHistory {
             group.getValue().sort(Comparator.comparingInt(TextEditPlan.Edit::start));
             int delta = 0;
             for (var edit : group.getValue()) {
+                byte[] next = edit.replacement().getBytes(StandardCharsets.UTF_8);
                 int start = edit.start() + delta;
                 int end = start + next.length;
                 changes.add(new Change(group.getKey().toString(), edit.start(), edit.end(), start, end,
                         position(original, edit.start()), position(updated, start),
-                        new String(edit.expected(), StandardCharsets.UTF_8), replacement));
+                        new String(edit.expected(), StandardCharsets.UTF_8), edit.replacement(), edit.rule()));
                 delta += next.length - (edit.end() - edit.start());
             }
         }
-        Record record = new Record(1, recovery.getFileName().toString(), Instant.now().toString(), "UTF-16",
+        Record record = new Record(intent.operation().equals("sanitation") ? 2 : 1,
+                recovery.getFileName().toString(), Instant.now().toString(), "UTF-16",
                 intent, files, changes);
         byte[] bytes = ModelProtocol.JSON.writerWithDefaultPrettyPrinter().writeValueAsBytes(record);
         if (bytes.length > MAX_BYTES) throw new IOException("Exact edit history exceeds 16 MiB; no source changes.");
@@ -133,10 +134,19 @@ final class EditHistory {
     }
 
     private static void validate(Record record, Path recovery, List<TextRecovery.Entry> journal) throws IOException {
-        if (record.version() != 1 || !"UTF-16".equals(record.columnEncoding()) || !record.operationId().equals(recovery.getFileName().toString())
+        if ((record.version() != 1 && record.version() != 2) || !"UTF-16".equals(record.columnEncoding()) || !record.operationId().equals(recovery.getFileName().toString())
                 || record.intent() == null || record.edits().isEmpty() || record.edits().size() > 200
                 || record.files().size() != journal.size()) throw new IOException("Invalid edit history header.");
         Instant.parse(record.timestamp());
+        if (record.version() == 2 && (!record.intent().operation().equals("sanitation")
+                || !record.intent().scope().equals("FILE") || !record.intent().region().equals("SOURCE")
+                || !record.intent().source().isEmpty() || !record.intent().replacement().isEmpty()
+                || !record.intent().decisionSource().equals("deterministic")
+                || record.intent().provider() != null || record.intent().model() != null
+                || record.files().size() != 1
+                || !record.files().getFirst().path().equals(record.intent().target()))) {
+            throw new IOException("Invalid sanitation history intent.");
+        }
         for (var file : journal) {
             var matching = record.files().stream().filter(item -> item.path().equals(file.relative().toString())).toList();
             if (matching.size() != 1 || !matching.getFirst().beforeHash().equals(file.original())
@@ -158,9 +168,13 @@ final class EditHistory {
                         || !edit.oldText().equals(new String(before, edit.startByte(), edit.endByte() - edit.startByte(), StandardCharsets.UTF_8))
                         || !edit.before().equals(position(scanner, edit.startByte()))
                         || edit.afterStartByte() != edit.startByte() + delta
-                        || !edit.oldText().equals(record.intent().source()) || !edit.newText().equals(record.intent().replacement())) {
+                        || (record.version() == 1 && (edit.rule() != null
+                                || !edit.oldText().equals(record.intent().source())
+                                || !edit.newText().equals(record.intent().replacement())))
+                        || (record.version() == 2 && !SanitationPlanner.validFix(edit.rule(), edit.oldText(), edit.newText()))) {
                     throw new IOException("Exact history source span differs from backup.");
                 }
+                position(scanner, edit.endByte());
                 byte[] next = edit.newText().getBytes(StandardCharsets.UTF_8);
                 if (edit.afterEndByte() != edit.afterStartByte() + next.length) throw new IOException("Invalid history replacement span.");
                 rendered.write(before, previous, edit.startByte() - previous);
@@ -205,7 +219,9 @@ final class EditHistory {
     record Position(int line, int column) { }
 
     record Change(String path, int startByte, int endByte, int afterStartByte, int afterEndByte,
-            Position before, Position after, String oldText, String newText) { }
+            Position before, Position after, String oldText, String newText,
+            @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+            String rule) { }
 
     record FileChange(String path, String beforeHash, String afterHash) { }
 

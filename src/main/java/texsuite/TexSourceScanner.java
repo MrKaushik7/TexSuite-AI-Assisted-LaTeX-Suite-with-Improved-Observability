@@ -46,6 +46,7 @@ final class TexSourceScanner {
     private final List<SymbolSpan> mathSymbols = new ArrayList<>();
     private byte[] capturedContexts;
     private boolean[] capturedConditional;
+    private boolean[] capturedGrouped;
     private byte[] capturedBraces;
     private String mathDelimiter;
     private String verbatimEnvironment;
@@ -93,6 +94,31 @@ final class TexSourceScanner {
 
     Scan scan() {
         return scan(false);
+    }
+
+    Scan scanForSanitation() {
+        return scan(true);
+    }
+
+    SourceContext contextAt(int index) {
+        int value = Byte.toUnsignedInt(capturedContexts[index]);
+        return value == 0 ? SourceContext.UNKNOWN : CONTEXTS[value - 1];
+    }
+
+    boolean unconditional(int start, int end) {
+        for (int index = start; index < end; index++) {
+            if (capturedConditional[index]) return false;
+        }
+        return true;
+    }
+
+    boolean ordinaryProse(int start, int end) {
+        if (!withinDocument(start, end) || !unconditional(start, end)) return false;
+
+        for (int index = start; index < end; index++) {
+            if (contextAt(index) != SourceContext.PROSE || capturedGrouped[index]) return false;
+        }
+        return true;
     }
 
     // Structural context is evidence for review, never an edit authorization.
@@ -200,6 +226,7 @@ final class TexSourceScanner {
         unknown = false;
         capturedContexts = captureAll ? new byte[source.length()] : null;
         capturedConditional = captureAll ? new boolean[source.length()] : null;
+        capturedGrouped = captureAll ? new boolean[source.length()] : null;
         capturedBraces = captureAll ? new byte[source.length()] : null;
     }
 
@@ -803,6 +830,7 @@ final class TexSourceScanner {
         if (capturedContexts != null) {
             capturedContexts[index] = (byte) (reason.ordinal() + 1);
             capturedConditional[index] = !conditionals.isEmpty();
+            capturedGrouped[index] = braceDepth > 0;
         }
     }
 

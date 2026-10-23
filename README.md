@@ -75,6 +75,18 @@ Use **Settings → 9: Edit history**, `texsuite FILE --history`, or `texsuite FI
 
 Choose **7: Revert last change** from the main menu, then confirm `[y/N]`. It restores the whole last completed operation only when every current file still matches its post-edit hash and every backup matches the original hash. Later external edits, damaged backups and pending recovery block revert before any source write. Backups and history remain. An interrupted revert becomes a pending journal; use **Settings → 7** and type `restore` to finish restoring originals. Repeated revert can walk earlier completed operations when their hashes still match. There is no redo or project-wide atomic transaction.
 
+### Sanitation
+
+Choose **3: Sanitize this document** for offline, deterministic inspection of the selected file. Includes/assets supply read-only diagnostics and compilation context. Nothing is sent to a model.
+
+The first cleanup rules remove trailing ASCII spaces/tabs from unconditional plain prose lines and optionally normalize eligible line endings to LF or CRLF. Choose `all` or individual trailing-fix numbers; Enter selects none. EOL conversion is a separate explicit choice, with Enter preserving endings. Inspect the visible whitespace preview (`␠` space, `⇥` tab, `<CR>`/`<LF>` terminators, `∅` deletion), then approve with `y`. Compilation, freshness, private history/backups and Revert last change use the existing guarded apply path. Final-newline presence and paragraph/blank-line count are preserved.
+
+This first version deliberately skips command-bearing lines, grouped arguments, math, comments, verbatim/listings, definitions, conditional/unknown text, blank lines and preamble. A terminator conversion is withheld as a whole if even one changed terminator is unsupported. Unsupported category-code/space/endline manipulation, dynamic constructs, opaque macro bodies, unknown environments or structural/dependency uncertainty withhold automatic fixes. Simple literal macro bodies remain protected without disabling unrelated prose cleanup. Missing/cyclic includes or invalid encoding retain loader errors and never trigger repair guesses.
+
+Advisories name suspicious Unicode whitespace/format characters and a bounded set of lookalike punctuation; ordinary non-English letters are not flagged. Literal repeated package imports and differing options are reported in supported unconditional preamble syntax. These findings are report-only: no Unicode substitution, package removal/reordering, paragraph reflow or syntax repair. This lexical subset does not establish full TeX semantic equivalence. Review a real document before applying.
+
+A selection is limited to 200 patches. Oversized rule groups are explicitly withheld, never truncated into a partial operation; combined selections above the bound require fewer selected trailing fixes or unchanged endings. Advisory output displays at most 200 rows and reports the omitted count. Source changes discard the selection and require a fresh review. Sanitation uses version 2 exact history with each patch's rule ID and old/new text; ordinary replacements retain compatible version 1 history.
+
 ### AI response cache
 
 AI-assisted rename and text replacement reuse validated classifications from the selected

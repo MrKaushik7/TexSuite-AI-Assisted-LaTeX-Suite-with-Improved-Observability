@@ -20,7 +20,6 @@ import java.util.UUID;
 final class TextEditPlan {
     private final DocumentSnapshot snapshot;
     private final List<Edit> edits;
-    private final byte[] replacement;
     private final Committer committer;
     private final TexCompileGate compileGate;
     private final EditHistory.Intent intent;
@@ -48,11 +47,27 @@ final class TextEditPlan {
     TextEditPlan(DocumentSnapshot snapshot, List<Edit> edits, String replacement,
             TexCompileGate compileGate, Committer committer, EditHistory.Intent intent) {
         this.snapshot = snapshot;
-        this.edits = List.copyOf(edits);
-        this.replacement = replacement.getBytes(StandardCharsets.UTF_8);
+        this.edits = edits.stream().map(edit -> new Edit(edit.path(), edit.start(), edit.end(),
+                edit.expected(), edit.line(), edit.column(), replacement, null)).toList();
         this.committer = committer;
         this.compileGate = compileGate;
         this.intent = intent;
+    }
+
+    TextEditPlan(DocumentSnapshot snapshot, List<Edit> edits, TexCompileGate compileGate) {
+        this(snapshot, edits, compileGate, (staged, target) -> Files.move(staged, target,
+                StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING));
+    }
+
+    TextEditPlan(DocumentSnapshot snapshot, List<Edit> edits, TexCompileGate compileGate,
+            Committer committer) {
+        this.snapshot = snapshot;
+        this.edits = List.copyOf(edits);
+        this.compileGate = compileGate;
+        this.committer = committer;
+        this.intent = new EditHistory.Intent("sanitation", snapshot.main().toString(), "FILE",
+                "SOURCE", "", "explicitly selected deterministic whitespace fixes", "",
+                "deterministic", null, null);
     }
 
     int size() {
@@ -65,11 +80,15 @@ final class TextEditPlan {
     }
 
     void validate() throws IOException {
+        if (edits.size() > 200) throw new IOException("At most 200 edits can be applied at once; select fewer fixes.");
         if (!new DocumentLoader().isCurrent(snapshot)) {
             throw new StaleSourceException("Saved source changed; reload and review a new preview.");
         }
+        if (intent.operation().equals("sanitation")) validateSanitation();
         for (Map.Entry<Path, List<Edit>> group : byFile().entrySet()) {
+            if (!snapshot.files().containsKey(group.getKey())) throw new IOException("Unknown edit file.");
             byte[] original = snapshot.files().get(group.getKey()).bytes();
+            var scanner = new TexSourceScanner(new String(original, StandardCharsets.UTF_8));
             int previousEnd = 0;
             for (Edit edit : group.getValue()) {
                 if (edit.start() < previousEnd || edit.end() > original.length
@@ -77,6 +96,17 @@ final class TextEditPlan {
                         || !Arrays.equals(original, edit.start(), edit.end(), edit.expected(),
                                 0, edit.expected().length)) {
                     throw new IOException("Edit spans overlap or expected source bytes differ.");
+                }
+                try {
+                    scanner.charIndex(edit.start());
+                    scanner.charIndex(edit.end());
+                } catch (IllegalArgumentException exception) {
+                    throw new IOException("Edit span is not aligned to UTF-8 boundaries.", exception);
+                }
+                if (edit.replacement() == null || (intent.operation().equals("sanitation")
+                        && (!edit.path().equals(snapshot.main()) || !SanitationPlanner.validFix(
+                                edit.rule(), new String(edit.expected(), StandardCharsets.UTF_8), edit.replacement())))) {
+                    throw new IOException("Invalid sanitation patch or provenance.");
                 }
                 previousEnd = edit.end();
             }
@@ -87,6 +117,33 @@ final class TextEditPlan {
                 throw new IOException("Replacement changes the source's structural diagnostics.");
             }
         }
+    }
+
+    private void validateSanitation() throws IOException {
+        var report = new SanitationPlanner().inspect(snapshot);
+        var allowed = new ArrayList<>(report.trailing());
+        allowed.addAll(report.lf());
+        allowed.addAll(report.crlf());
+        for (var edit : edits) {
+            if (allowed.stream().noneMatch(candidate -> samePatch(edit, candidate))) {
+                throw new IOException("Sanitation patch is outside the supported safe fixes.");
+            }
+        }
+        var endings = edits.stream().filter(edit -> SanitationPlanner.EOL.equals(edit.rule())).toList();
+        if (!endings.isEmpty()) {
+            var wholeGroup = endings.getFirst().replacement().equals("\n") ? report.lf() : report.crlf();
+            if (endings.size() != wholeGroup.size()
+                    || wholeGroup.stream().anyMatch(candidate -> endings.stream().noneMatch(edit -> samePatch(edit, candidate)))) {
+                throw new IOException("Line-ending normalization must include every eligible changed terminator.");
+            }
+        }
+    }
+
+    private static boolean samePatch(Edit edit, Edit candidate) {
+        return edit.path().equals(candidate.path()) && edit.start() == candidate.start() && edit.end() == candidate.end()
+                && Arrays.equals(edit.expected(), candidate.expected())
+                && java.util.Objects.equals(edit.replacement(), candidate.replacement())
+                && java.util.Objects.equals(edit.rule(), candidate.rule());
     }
 
     Path apply() throws IOException {
@@ -116,7 +173,7 @@ final class TextEditPlan {
         boolean journalWritten = false;
         try {
             stageBackups(recovery, updates, staged);
-            EditHistory.write(recovery, snapshot, edits, new String(replacement, StandardCharsets.UTF_8), updates, intent);
+            EditHistory.write(recovery, snapshot, edits, updates, intent);
             TextRecovery.writeJournal(recovery, "pending", snapshot, updates);
             journalWritten = true;
             if (!new DocumentLoader().isCurrent(snapshot)) {
@@ -249,7 +306,7 @@ final class TextEditPlan {
         int previous = 0;
         for (Edit edit : group) {
             output.write(original, previous, edit.start() - previous);
-            output.write(replacement, 0, replacement.length);
+            output.writeBytes(edit.replacement().getBytes(StandardCharsets.UTF_8));
             previous = edit.end();
         }
         output.write(original, previous, original.length - previous);
@@ -287,7 +344,12 @@ final class TextEditPlan {
         }
     }
 
-    record Edit(Path path, int start, int end, byte[] expected, int line, int column) {
+    record Edit(Path path, int start, int end, byte[] expected, int line, int column,
+            String replacement, String rule) {
+        Edit(Path path, int start, int end, byte[] expected, int line, int column) {
+            this(path, start, end, expected, line, column, null, null);
+        }
+
         Edit {
             expected = expected.clone();
         }

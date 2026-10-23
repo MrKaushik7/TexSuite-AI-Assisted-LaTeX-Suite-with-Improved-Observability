@@ -95,7 +95,11 @@ final class DocumentSession {
                                     debug, compileGate, modelClient()).run();
                             if (status != CommandLine.ExitCode.OK) return status;
                         }
-                        case "3", "4" -> out.println("This operation is unavailable in this build.");
+                        case "3" -> {
+                            int status = new SanitationWorkflow(input, out, err, selectedFile, compileGate).run();
+                            if (status != CommandLine.ExitCode.OK) return status;
+                        }
+                        case "4" -> out.println("This operation is unavailable in this build.");
                         case "5" -> settings();
                         case "6" -> {
                             out.println("Session ended.");
