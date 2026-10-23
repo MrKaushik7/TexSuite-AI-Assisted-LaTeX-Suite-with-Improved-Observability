@@ -16,10 +16,79 @@ final class TextReplacementWorkflowTest {
     @TempDir Path directory;
 
     @Test
+    void wholeWordDefaultReplacesGreetingsAndPreservesLargerWordsAndProtectedText() throws Exception {
+        String original = "\\begin{document}\nThe greeting is hi today.\nWe say hi again.\n"
+                + "This sentence ends with hi.\nthis high \\cite{hi} \\verb|hi|\n% hi\n\\end{document}";
+        Path source = Files.writeString(directory.resolve("main.tex"), original).toRealPath();
+        Result result = run(source, "hi\nhello\n\n\n\ny\ny\ny\napply\n",
+                new TexCompileGate(null, true, null, null));
+
+        assertEquals(0, result.code(), result.errors());
+        assertEquals(original.replace("hi today", "hello today").replace("hi again", "hello again")
+                .replace("with hi.", "with hello."), Files.readString(source));
+        assertTrue(result.output().contains("inside a larger word=3"), result.output());
+        assertTrue(result.output().contains("Matching: whole words"));
+        var history = EditHistory.list(directory.toRealPath()).getFirst().record();
+        assertEquals(3, history.edits().size());
+        assertEquals("DOCUMENT_TEXT:WHOLE_WORD", history.intent().region());
+    }
+
+    @Test
+    void explicitSubstringModeStillAllowsEmbeddedMatches() throws Exception {
+        Path source = Files.writeString(directory.resolve("main.tex"), "This high hi.").toRealPath();
+        Result result = run(source, "hi\nhello\n\n\ninvalid\n2\ny\ny\ny\napply\n",
+                new TexCompileGate(null, true, null, null));
+
+        assertEquals(0, result.code(), result.errors());
+        assertEquals("Thellos hellogh hello.", Files.readString(source));
+        assertTrue(result.output().contains("Choose 1 for whole words"));
+        assertTrue(result.output().contains("Matching: substrings"));
+    }
+
+    @Test
+    void unicodeWordBoundariesAndPunctuationKeepByteOffsetsExact() throws Exception {
+        String original = "hi (hi), hi! éhi hié 1hi hi2 _hi hi_ \u0301hi hi\u0301 𐐀hi hi𐐀 😀hi😀 hi";
+        Path source = Files.writeString(directory.resolve("main.tex"), original).toRealPath();
+        Result result = run(source, "hi\nhello\n\n\n1\n" + "y\n".repeat(5) + "apply\n",
+                new TexCompileGate(null, true, null, null));
+
+        assertEquals(0, result.code(), result.errors());
+        assertEquals("hello (hello), hello! éhi hié 1hi hi2 _hi hi_ \u0301hi hi\u0301 𐐀hi hi𐐀 😀hello😀 hello",
+                Files.readString(source));
+    }
+
+    @Test
+    void whitespaceAndPunctuationInSearchRemainLiteral() throws Exception {
+        Path source = Files.writeString(directory.resolve("main.tex"), "x hi y hi.").toRealPath();
+        Result spaced = run(source, " hi \n hello \n\n\n\ny\napply\n",
+                new TexCompileGate(null, true, null, null));
+        assertEquals(0, spaced.code(), spaced.errors());
+        assertEquals("x hello y hi.", Files.readString(source));
+
+        Result punctuation = run(source, "hi.\nhello!\n\n\n\ny\napply\n",
+                new TexCompileGate(null, true, null, null));
+        assertEquals(0, punctuation.code(), punctuation.errors());
+        assertEquals("x hello y hello!", Files.readString(source));
+    }
+
+    @Test
+    void embeddedMatchesOnlyNeverReachReviewOrCompilation() throws Exception {
+        Path source = Files.writeString(directory.resolve("main.tex"), "This high").toRealPath();
+        Result result = run(source, "hi\nhello\n\n\n\n",
+                new TexCompileGate(Path.of("/fake/pdflatex"), false, source,
+                        (command, cwd, timeout) -> { fail("No eligible matches must not compile"); return 1; }));
+        assertEquals(0, result.code(), result.errors());
+        assertTrue(result.output().contains("2 match(es), 0 proposed, 2 skipped"));
+        assertFalse(result.output().contains("Replace this occurrence?"));
+        assertEquals("This high", Files.readString(source));
+        assertFalse(Files.exists(directory.resolve(".tex-suite")));
+    }
+
+    @Test
     void eachStaleApprovalNeedsNewPreviewAndStopsAfterThreeAttempts() throws Exception {
         Path source = Files.writeString(directory.resolve("main.tex"), "hello").toRealPath();
         int[] approvals = {0};
-        BufferedReader input = new BufferedReader(new StringReader("hello\nworld\n1\n2\ny\napply\ny\napply\ny\napply\n")) {
+        BufferedReader input = new BufferedReader(new StringReader("hello\nworld\n1\n2\n\ny\napply\ny\napply\ny\napply\n")) {
             @Override public String readLine() throws IOException {
                 String answer = super.readLine();
                 if ("apply".equals(answer)) {
@@ -61,7 +130,7 @@ final class TextReplacementWorkflowTest {
                 }
             }
         };
-        int code = new TextReplacementWorkflow(new BufferedReader(new StringReader("hello\nworld\n1\n2\ny\ny\ny\n")),
+        int code = new TextReplacementWorkflow(new BufferedReader(new StringReader("hello\nworld\n1\n2\n\ny\ny\ny\n")),
                 out, new PrintWriter(errors), source, false, new TexCompileGate(null, true, null, null)).run();
 
         assertEquals(2, code);
@@ -87,7 +156,7 @@ final class TextReplacementWorkflowTest {
             StringWriter output = new StringWriter();
             StringWriter errors = new StringWriter();
             int code = new TextReplacementWorkflow(new BufferedReader(new StringReader(
-                    "hello\nworld\n1\n2\ny\napply\ny\n\n")), new PrintWriter(output), new PrintWriter(errors),
+                    "hello\nworld\n1\n2\n\ny\napply\ny\n\n")), new PrintWriter(output), new PrintWriter(errors),
                     source, false, gate).run();
 
             assertEquals(stale ? 0 : 2, code);
@@ -104,7 +173,7 @@ final class TextReplacementWorkflowTest {
         for (boolean debug : new boolean[] {true, false}) {
             StringWriter output = new StringWriter();
             StringWriter errors = new StringWriter();
-            int code = new TextReplacementWorkflow(new BufferedReader(new StringReader("hello\nworld\n1\n2\n")),
+            int code = new TextReplacementWorkflow(new BufferedReader(new StringReader("hello\nworld\n1\n2\n\n")),
                     new PrintWriter(output), new PrintWriter(errors), source, debug,
                     new TexCompileGate(null, true, null, null)).run();
             assertEquals(0, code);
@@ -121,7 +190,7 @@ final class TextReplacementWorkflowTest {
     @Test
     void reviewsEachOccurrenceAndPreviewsOnlyAcceptedEdits() throws Exception {
         Path source = Files.writeString(directory.resolve("main.tex"), "hello hello").toRealPath();
-        Result result = run(source, "hello\nworld\n1\n2\nmaybe\ny\nn\napply\n",
+        Result result = run(source, "hello\nworld\n1\n2\n\nmaybe\ny\nn\napply\n",
                 new TexCompileGate(null, true, null, null));
 
         assertEquals(0, result.code(), result.errors());
@@ -137,7 +206,7 @@ final class TextReplacementWorkflowTest {
     void emptySelectionAndCancellationNeverCompileOrWrite() throws Exception {
         Path source = Files.writeString(directory.resolve("main.tex"), "hello hello").toRealPath();
         for (String answers : new String[] {"\nn\n", "y\nquit\n", "y\n", "y\ny\n\n"}) {
-            Result result = run(source, "hello\nworld\n1\n2\n" + answers,
+            Result result = run(source, "hello\nworld\n1\n2\n\n" + answers,
                     new TexCompileGate(Path.of("/fake/pdflatex"), false, source,
                             (command, cwd, timeout) -> { fail("Must not compile"); return 1; }));
 
@@ -151,7 +220,7 @@ final class TextReplacementWorkflowTest {
     void staleReloadRepeatsIndividualDecisions() throws Exception {
         Path source = Files.writeString(directory.resolve("main.tex"), "hello hello").toRealPath();
         BufferedReader input = new BufferedReader(new StringReader(
-                "hello\nworld\n1\n2\ny\nn\napply\nn\ny\napply\n")) {
+                "hello\nworld\n1\n2\n\ny\nn\napply\nn\ny\napply\n")) {
             private boolean changed;
             @Override public String readLine() throws IOException {
                 String answer = super.readLine();
@@ -189,7 +258,7 @@ final class TextReplacementWorkflowTest {
                         Files.writeString(cwd.resolve(".texsuite-validation/texsuite-validation.pdf"), "pdf");
                         return 0;
                     });
-            Result result = run(chapter, "hello\nworld\n1\n1\ny\nn\n" + selection + "apply\n", gate);
+            Result result = run(chapter, "hello\nworld\n1\n1\n\ny\nn\n" + selection + "apply\n", gate);
 
             assertEquals(0, result.code(), result.errors());
             assertEquals(1, calls[0]);
@@ -204,7 +273,7 @@ final class TextReplacementWorkflowTest {
         Files.writeString(directory.resolve("broken.tex"), "\\input{chapter}\\input{missing}");
         Files.writeString(directory.resolve("conditional.tex"), "\\iftrue\\input{chapter}\\fi");
         Path chapter = Files.writeString(directory.resolve("chapter.tex"), "hello").toRealPath();
-        Result result = run(chapter, "hello\nworld\n1\n1\ny\nwrong.tex\nbroken.tex\nconditional.tex\n\n",
+        Result result = run(chapter, "hello\nworld\n1\n1\n\ny\nwrong.tex\nbroken.tex\nconditional.tex\n\n",
                 new TexCompileGate(Path.of("/fake/pdflatex"), false, null,
                         (command, cwd, timeout) -> { fail("Invalid mains must not compile"); return 1; }));
 
@@ -228,7 +297,7 @@ final class TextReplacementWorkflowTest {
                         Files.writeString(cwd.resolve(".texsuite-validation/texsuite-validation.pdf"), "pdf");
                         return 0;
                     });
-            Result result = run(selected, "hello\nworld\n1\n1\ny\napply\n", gate);
+            Result result = run(selected, "hello\nworld\n1\n1\n\ny\napply\n", gate);
 
             assertEquals(0, result.code(), result.errors());
             assertFalse(result.output().contains("Use compilation main"));
@@ -242,7 +311,7 @@ final class TextReplacementWorkflowTest {
                 "% !TEX root = missing.tex\nhello").toRealPath();
         Path outside = Files.createTempFile("texsuite-outside-", ".tex");
         try {
-            Result result = run(chapter, "hello\nworld\n1\n1\ny\ny\n" + outside + "\n\n",
+            Result result = run(chapter, "hello\nworld\n1\n1\n\ny\ny\n" + outside + "\n\n",
                     new TexCompileGate(Path.of("/fake/pdflatex"), false, null,
                             (command, cwd, timeout) -> { fail("Must not compile"); return 1; }));
 

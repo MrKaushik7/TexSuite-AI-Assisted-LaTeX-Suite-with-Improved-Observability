@@ -601,7 +601,7 @@ final class TexSuiteCliTest {
         String original = "\\customsettings{widget=blue}\n"
                 + "\\hypersetup{linkcolor=blue,citecolor=blue}\n";
         Path source = Files.writeString(temporaryDirectory.resolve("colours.tex"), original);
-        RunResult result = run(true, "2\nblue\nred\n\n2\ny\ny\ny\napply\n6\n",
+        RunResult result = run(true, "2\nblue\nred\n\n2\n\ny\ny\ny\napply\n6\n",
                 Optional::empty, "--no-debug", "--allow-no-compile", "colours.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.errors());
@@ -620,7 +620,7 @@ final class TexSuiteCliTest {
     void documentTextLeavesCitationAndCommentUnchanged() throws Exception {
         String original = "\\begin{document}hello \\cite{hello} % hello\n\\end{document}";
         Path source = Files.writeString(temporaryDirectory.resolve("main.tex"), original);
-        RunResult result = run(true, "2\nhello\nworld\n\n\ny\napply\n6\n",
+        RunResult result = run(true, "2\nhello\nworld\n\n\n\ny\napply\n6\n",
                 Optional::empty, "--no-debug", "--allow-no-compile", "main.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.errors());
@@ -633,7 +633,7 @@ final class TexSuiteCliTest {
         Path source = Files.writeString(temporaryDirectory.resolve("plain.tex"),
                 "\\begin{document}hello\\end{document}");
         String original = Files.readString(source);
-        RunResult result = run(true, "2\nhello\nworld\n\n\ny\napply\n6\n",
+        RunResult result = run(true, "2\nhello\nworld\n\n\n\ny\napply\n6\n",
                 Optional::empty, "--no-debug", "plain.tex");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
@@ -647,7 +647,7 @@ final class TexSuiteCliTest {
         Path main = Files.writeString(temporaryDirectory.resolve("main.tex"),
                 "\\begin{document}café\\input{chapter}\\end{document}");
         Path chapter = Files.writeString(temporaryDirectory.resolve("chapter.tex"), "café");
-        RunResult result = run(true, "2\ncafé\nbistro\n2\n1\ny\ny\napply\n6\n",
+        RunResult result = run(true, "2\ncafé\nbistro\n2\n1\n\ny\ny\napply\n6\n",
                 Optional::empty, "--no-debug", "--allow-no-compile", "main.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode(), result.errors());
@@ -669,7 +669,7 @@ final class TexSuiteCliTest {
         Path recovery = temporaryDirectory.resolve(".tex-suite/backups/previous");
         Files.createDirectories(recovery);
         Files.writeString(recovery.resolve("recovery.properties"), "status=pending\n");
-        RunResult result = run(true, "2\nhello\nworld\n\n2\ny\napply\n",
+        RunResult result = run(true, "2\nhello\nworld\n\n2\n\ny\napply\n",
                 Optional::empty, "--no-debug", "--allow-no-compile", "plain.tex");
 
         assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
@@ -681,7 +681,7 @@ final class TexSuiteCliTest {
     void savedChangeAfterPreviewRejectsApply() throws Exception {
         String original = "\\customsettings{widget=blue}";
         Path source = Files.writeString(temporaryDirectory.resolve("stale.tex"), original);
-        BufferedReader input = new BufferedReader(new StringReader("2\nblue\nred\n\n2\ny\napply\ny\n\n6\n")) {
+        BufferedReader input = new BufferedReader(new StringReader("2\nblue\nred\n\n2\n\ny\napply\ny\n\n6\n")) {
             @Override
             public String readLine() throws java.io.IOException {
                 String answer = super.readLine();
@@ -873,7 +873,7 @@ final class TexSuiteCliTest {
     void conditionalSkipsExplainTheActualReason() throws Exception {
         Files.writeString(temporaryDirectory.resolve("main.tex"),
                 "\\begin{document}\\iftrue Engineer\\else Engineer\\fi\\end{document}");
-        RunResult result = run(true, "2\nEngineer\nYes\n1\n1\n6\n",
+        RunResult result = run(true, "2\nEngineer\nYes\n1\n1\n\n6\n",
                 Optional::empty, "--no-debug", "main.tex");
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("inside a TeX conditional"), result.output());
@@ -884,7 +884,7 @@ final class TexSuiteCliTest {
     void commentedDocumentEndDoesNotHideBodyText() throws Exception {
         Files.writeString(temporaryDirectory.resolve("main.tex"),
                 "\\begin{document}\n% \\end{document}\nEngineer\n\\end{document}");
-        RunResult result = run(true, "2\nEngineer\nYes\n1\n1\n\n6\n",
+        RunResult result = run(true, "2\nEngineer\nYes\n1\n1\n\n\n6\n",
                 Optional::empty, "--no-debug", "main.tex");
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("1 match(es), 1 proposed"), result.output());
@@ -895,7 +895,7 @@ final class TexSuiteCliTest {
         Files.writeString(temporaryDirectory.resolve("main.tex"),
                 "\\begin{document}\\iftrue\\input{child}\\fi\\end{document}");
         Files.writeString(temporaryDirectory.resolve("child.tex"), "Engineer");
-        RunResult result = run(true, "2\nEngineer\nYes\n2\n1\n6\n",
+        RunResult result = run(true, "2\nEngineer\nYes\n2\n1\n\n6\n",
                 Optional::empty, "--no-debug", "main.tex");
         assertTrue(result.output().contains("1 match(es), 0 proposed"), result.output());
         assertTrue(result.output().contains("only conditionally reachable"), result.output());
@@ -926,7 +926,7 @@ final class TexSuiteCliTest {
     void compileMainOptionReachesGateWithoutExpandingEditScope() throws Exception {
         Path main = Files.writeString(temporaryDirectory.resolve("main.tex"), "hello\\input{chapter}");
         Path chapter = Files.writeString(temporaryDirectory.resolve("chapter.tex"), "hello");
-        var input = new BufferedReader(new StringReader("2\nhello\nworld\n1\n1\ny\napply\n6\n"));
+        var input = new BufferedReader(new StringReader("2\nhello\nworld\n1\n1\n\ny\napply\n6\n"));
         var cli = new TexSuiteCli(input, true, temporaryDirectory,
                 temporaryDirectory.resolve("recent.properties"), Optional::empty);
         cli.setDependenciesForTests((path, app) -> Optional.empty(), (allow, selectedMain) -> {

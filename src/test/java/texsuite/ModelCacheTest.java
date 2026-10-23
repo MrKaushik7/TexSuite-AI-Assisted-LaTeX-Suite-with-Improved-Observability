@@ -198,8 +198,8 @@ final class ModelCacheTest {
     void textReplacementUsesCacheButManualModeDoesNot() throws Exception {
         Path source = Files.writeString(root().resolve("main.tex"), "hello world");
         var client = new Fixture();
-        for (String answers : List.of("hello\nhi\n\n\ngreeting\n1\ny\ncancel\n",
-                "hello\nhi\n\n\ngreeting\n1\ncancel\n")) {
+        for (String answers : List.of("hello\nhi\n\n\n\ngreeting\n1\ny\ncancel\n",
+                "hello\nhi\n\n\n\ngreeting\n1\ncancel\n")) {
             var output = new StringWriter();
             var errors = new StringWriter();
             int code = new TextReplacementWorkflow(reader(answers), new PrintWriter(output), new PrintWriter(errors),
@@ -210,10 +210,55 @@ final class ModelCacheTest {
         assertEquals(1, client.calls);
         assertEquals("hello world", Files.readString(source));
         var output = new StringWriter();
-        new TextReplacementWorkflow(reader("hello\nhi\n\n\ngreeting\n2\nn\n"), new PrintWriter(output),
+        new TextReplacementWorkflow(reader("hello\nhi\n\n\n\ngreeting\n2\nn\n"), new PrintWriter(output),
                 new PrintWriter(new StringWriter()), source, false, new TexCompileGate(null, true, null, null), client).run();
         assertFalse(output.toString().contains("AI cache hit"));
         assertEquals(1, client.calls);
+    }
+
+    @Test
+    void matchingModesCannotShareCacheEvenWhenCandidatesAreIdentical() throws Exception {
+        Path source = Files.writeString(root().resolve("main.tex"), "hi hi.");
+        var client = new Fixture();
+        String[] modes = {"", "2", "1", "2"};
+        for (int index = 0; index < modes.length; index++) {
+            boolean hit = index >= 2;
+            var output = new StringWriter();
+            var errors = new StringWriter();
+            String answers = "hi\nhello\n\n\n" + modes[index] + "\ngreeting\n1\n"
+                    + (hit ? "" : "y\n") + "cancel\n";
+            int code = new TextReplacementWorkflow(reader(answers), new PrintWriter(output), new PrintWriter(errors),
+                    source, false, new TexCompileGate(null, true, null, null), client).run();
+            assertEquals(0, code, errors.toString());
+            assertEquals(hit, output.toString().contains("AI cache hit"), output.toString());
+            assertEquals(Math.min(index + 1, 2), client.calls);
+        }
+        assertEquals("hi hi.", Files.readString(source));
+        assertEquals(2, new ModelCache(root()).stats().entries());
+    }
+
+    @Test
+    void cachedReplaceAllCannotSelectEmbeddedWordsOrProtectedText() throws Exception {
+        String original = "\\begin{document}\nThe greeting is hi today.\nWe say hi again.\n"
+                + "This sentence ends with hi.\nthis high \\cite{hi}\n% hi\n\\end{document}";
+        Path source = Files.writeString(root().resolve("main.tex"), original);
+        var client = new Fixture();
+        for (boolean hit : List.of(false, true)) {
+            var output = new StringWriter();
+            var errors = new StringWriter();
+            int code = new TextReplacementWorkflow(reader("hi\nhello\n\n\n\ngreeting\n1\n"
+                    + (hit ? "apply\n" : "y\ncancel\n")), new PrintWriter(output), new PrintWriter(errors),
+                    source, false, new TexCompileGate(null, true, null, null), client).run();
+            assertEquals(0, code, errors.toString());
+            assertEquals(hit, output.toString().contains("AI cache hit"), output.toString());
+            assertEquals(1, client.calls);
+            assertEquals(3, client.lastRequest.candidates().size());
+            assertTrue(output.toString().contains("selected: 3"), output.toString());
+            if (!hit) assertEquals(original, Files.readString(source));
+        }
+        assertEquals(original.replace("hi today", "hello today").replace("hi again", "hello again")
+                .replace("with hi.", "with hello."), Files.readString(source));
+        assertEquals(3, EditHistory.list(root()).getFirst().record().edits().size());
     }
 
     @Test
@@ -421,6 +466,7 @@ final class ModelCacheTest {
 
     static final class Fixture implements ModelClient {
         private int calls;
+        private Request lastRequest;
         private int failAt;
         private String endpoint = "https://fixture.invalid";
         private String name = "fixture-model";
@@ -442,6 +488,7 @@ final class ModelCacheTest {
         }
         @Override public Result classify(Request request) throws Failure {
             calls++;
+            lastRequest = request;
             if (fail || calls == failAt) throw new Failure(Problem.RATE_LIMIT, "Fixture failure");
             if (repair && request.repairOutput() == null) throw new Failure(Problem.INVALID_OUTPUT, "Invalid output", "broken");
             try {

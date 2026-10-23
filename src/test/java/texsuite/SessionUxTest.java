@@ -57,7 +57,8 @@ final class SessionUxTest {
             assertTrue(result.output().contains("Find literal text:"));
         }
         for (String prefix : List.of("", "hello\n", "hello\nworld\n", "hello\nworld\n1\n",
-                "hello\nworld\n1\n3\n", "hello\nworld\n1\n3\n1\n")) {
+                "hello\nworld\n1\n3\n", "hello\nworld\n1\n3\n1\n",
+                "hello\nworld\n1\n1\n", "hello\nworld\n1\n1\n1\n")) {
             Result result = session(source, "2\n" + prefix + "back\n1\nback\n6\n", settings, noClient());
             assertEquals(0, result.code(), result.errors());
             assertTrue(result.output().contains("Source symbol or literal LaTeX string:"));

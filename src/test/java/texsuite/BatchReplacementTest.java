@@ -84,7 +84,7 @@ final class BatchReplacementTest {
         client.allReplace = true;
         var output = new StringWriter();
         var errors = new StringWriter();
-        int code = new TextReplacementWorkflow(reader("pifont\nfont\n\n\nchange package name only\ny\n1\ny\napply\n"),
+        int code = new TextReplacementWorkflow(reader("pifont\nfont\n\n\n\nchange package name only\ny\n1\ny\napply\n"),
                 new PrintWriter(output), new PrintWriter(errors), source, false,
                 new TexCompileGate(null, true, null, null), client).run();
         assertEquals(0, code, errors.toString());
@@ -92,7 +92,7 @@ final class BatchReplacementTest {
         assertTrue(output.toString().contains("Try these matches in the LaTeX source region?"));
         assertEquals("change package name only", client.requests.getFirst().meaning());
         var history = EditHistory.list(directory.toRealPath()).getFirst().record();
-        assertEquals("SOURCE", history.intent().region());
+        assertEquals("SOURCE:WHOLE_WORD", history.intent().region());
         assertEquals("text-replacement", history.intent().operation());
         assertEquals("pifont", history.edits().getFirst().oldText());
 
@@ -111,7 +111,7 @@ final class BatchReplacementTest {
     void declinedRegionReroutingPreservesThePreamble() throws Exception {
         String original = "\\usepackage{pifont}\n\\begin{document}hello\\end{document}";
         Path source = Files.writeString(directory.resolve("main.tex"), original).toRealPath();
-        int code = new TextReplacementWorkflow(reader("pifont\nfont\n\n\nn\n"),
+        int code = new TextReplacementWorkflow(reader("pifont\nfont\n\n\n\nn\n"),
                 new PrintWriter(new StringWriter()), new PrintWriter(new StringWriter()), source,
                 false, new TexCompileGate(null, true, null, null)).run();
         assertEquals(0, code);
@@ -126,7 +126,7 @@ final class BatchReplacementTest {
         var client = new Fixture();
         client.allReplace = true;
         var errors = new StringWriter();
-        int code = new TextReplacementWorkflow(reader("hello\nworld\n\n\nbad\u0001purpose\nvalid purpose\n1\ny\napply\n"),
+        int code = new TextReplacementWorkflow(reader("hello\nworld\n\n\n\nbad\u0001purpose\nvalid purpose\n1\ny\napply\n"),
                 new PrintWriter(new StringWriter()), new PrintWriter(errors), source, false,
                 new TexCompileGate(null, true, null, null), client).run();
         assertEquals(0, code, errors.toString());

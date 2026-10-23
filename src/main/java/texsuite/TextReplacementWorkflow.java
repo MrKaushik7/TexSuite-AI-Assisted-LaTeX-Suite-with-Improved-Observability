@@ -54,7 +54,7 @@ final class TextReplacementWorkflow {
         try {
             Request request = routed == null ? collectRequest()
                     : new Request(routed.source(), routed.replacement(), routed.scope(),
-                            new Region(RegionKind.SOURCE, 0, 0), routed.meaning());
+                            new Region(RegionKind.SOURCE, 0, 0), MatchMode.SUBSTRING, routed.meaning());
             if (!selectedFile.toRealPath().equals(selectedFile)) {
                 throw new IOException("Selected file identity changed; select it again.");
             }
@@ -92,6 +92,7 @@ final class TextReplacementWorkflow {
         }
         RenameRequest.Scope scope = scope();
         Region region = region(scope);
+        MatchMode matching = matching();
         String meaning = "all eligible literal matches";
         if (aiAvailable) {
             while (true) {
@@ -105,7 +106,7 @@ final class TextReplacementWorkflow {
                 }
             }
         }
-        return new Request(source, replacement, scope, region, meaning);
+        return new Request(source, replacement, scope, region, matching, meaning);
     }
 
     private DocumentSnapshot loadSnapshot(RenameRequest.Scope scope)
@@ -131,15 +132,15 @@ final class TextReplacementWorkflow {
             out.println("Static include closure is incomplete; no text edits proposed.");
             return CommandLine.ExitCode.OK;
         }
-        Selection selection = select(snapshot, source, region);
+        Selection selection = select(snapshot, source, region, request.matching());
         printSelection(request, selection);
         if (region.kind() == RegionKind.DOCUMENT_TEXT
                 && selection.skipReasons().containsKey("outside document text")) {
             out.println("Document text excludes the preamble; LaTeX source includes eligible literal values there.");
             if (review.yes("Try these matches in the LaTeX source region? [y/N]: ")) {
                 region = new Region(RegionKind.SOURCE, 0, 0);
-                selection = select(snapshot, source, region);
-                printSelection(new Request(source, replacement, scope, region, request.meaning()), selection);
+                selection = select(snapshot, source, region, request.matching());
+                printSelection(new Request(source, replacement, scope, region, request.matching(), request.meaning()), selection);
             }
         }
         if (selection.matches() == 0) {
@@ -165,11 +166,11 @@ final class TextReplacementWorkflow {
         var context = new ContextRetriever().retrieve(snapshot, intent,
                 new RenameCandidateDiscovery.Result(candidates, snapshot.files().size()));
         String regionIdentity = region.kind().name()
-                + (region.kind() == RegionKind.LINE_RANGE ? ":" + region.firstLine() + "-" + region.lastLine() : "");
+                + (region.kind() == RegionKind.LINE_RANGE ? ":" + region.firstLine() + "-" + region.lastLine() : "")
+                + ":" + request.matching().name();
         var choice = modelReview.select(snapshot, intent, candidates, context, "text-replacement", regionIdentity);
         var approval = modelReview.approve(snapshot, intent, candidates, context, choice,
-                "text-replacement", region.kind().name()
-                        + (region.kind() == RegionKind.LINE_RANGE ? ":" + region.firstLine() + "-" + region.lastLine() : ""),
+                "text-replacement", regionIdentity,
                 selection.skipped(), compileGate);
         if (approval == null) {
             out.println("No replacements applied; cancelled or no occurrences accepted.");
@@ -196,12 +197,13 @@ final class TextReplacementWorkflow {
         out.printf("Replace text: %s -> %s; %d match(es), %d proposed, %d skipped.%n",
                 DocumentInput.safeDisplay(request.source()), DocumentInput.safeDisplay(request.replacement()),
                 selection.matches(), selection.edits().size(), selection.skipped());
+        out.println("Matching: " + (request.matching() == MatchMode.WHOLE_WORD ? "whole words" : "substrings (including inside words)"));
         if (!selection.skipReasons().isEmpty()) {
             out.println("Skipped by reason: " + selection.skipReasons());
         }
     }
 
-    private static Selection select(DocumentSnapshot snapshot, String source, Region region) {
+    private static Selection select(DocumentSnapshot snapshot, String source, Region region, MatchMode matching) {
         List<TextEditPlan.Edit> edits = new ArrayList<>();
         List<Skipped> details = new ArrayList<>();
         int matches = 0;
@@ -222,6 +224,9 @@ final class TextReplacementWorkflow {
                 int endChar = startChar + source.length();
                 String reason = skipReason(scanner, scan, index, source.length(), region,
                         reachable.contains(entry.getKey())).orElse(null);
+                if (reason == null && matching == MatchMode.WHOLE_WORD && !wholeWord(text, startChar, endChar)) {
+                    reason = "inside a larger word";
+                }
                 if (reason != null) {
                     skipped++;
                     skipReasons.merge(reason, 1, Integer::sum);
@@ -242,6 +247,19 @@ final class TextReplacementWorkflow {
                 .thenComparingInt(TextEditPlan.Edit::start));
         return new Selection(List.copyOf(edits), matches, skipped, Map.copyOf(skipReasons),
                 List.copyOf(details));
+    }
+
+    static boolean wholeWord(String text, int start, int end) {
+        // Only word-like search edges need boundaries; spaces and punctuation stay literal.
+        return !(wordCharacter(text.codePointAt(start)) && start > 0 && wordCharacter(text.codePointBefore(start)))
+                && !(wordCharacter(text.codePointBefore(end)) && end < text.length() && wordCharacter(text.codePointAt(end)));
+    }
+
+    private static boolean wordCharacter(int codePoint) {
+        int type = Character.getType(codePoint);
+        return Character.isLetterOrDigit(codePoint) || type == Character.NON_SPACING_MARK
+                || type == Character.COMBINING_SPACING_MARK || type == Character.ENCLOSING_MARK
+                || type == Character.CONNECTOR_PUNCTUATION;
     }
 
     private static Optional<String> skipReason(TexSourceScanner scanner,
@@ -329,12 +347,24 @@ final class TextReplacementWorkflow {
         }
     }
 
+    private MatchMode matching() throws IOException {
+        while (true) {
+            switch (review.answer("Matching [1=whole words (default), 2=substrings (inside words too)]: ")) {
+                case "", "1" -> { return MatchMode.WHOLE_WORD; }
+                case "2" -> { return MatchMode.SUBSTRING; }
+                default -> out.println("Choose 1 for whole words or 2 to also match inside words.");
+            }
+        }
+    }
+
+    private enum MatchMode { WHOLE_WORD, SUBSTRING }
+
     private enum RegionKind { DOCUMENT_TEXT, SOURCE, LINE_RANGE }
 
     private record Region(RegionKind kind, int firstLine, int lastLine) { }
 
     private record Request(String source, String replacement, RenameRequest.Scope scope,
-            Region region, String meaning) { }
+            Region region, MatchMode matching, String meaning) { }
 
     private record Skipped(Path path, int line, int column, String reason) { }
 
