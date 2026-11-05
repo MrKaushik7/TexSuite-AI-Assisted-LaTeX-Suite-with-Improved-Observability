@@ -133,20 +133,20 @@ final class SanitationWorkflowTest {
     }
 
     @Test
-    void menuThreeRunsOfflineAndMergeStaysUnavailable() throws Exception {
+    void menuThreeRunsOfflineAndMergeCanBeCancelled() throws Exception {
         directory = directory.toRealPath();
         Path source = source("Plain.  \n");
         var settings = new ModelSettings(directory.resolve("ai.json"), name -> null);
         settings.save(new ModelSettings.Profile("", "OPENAI_API_KEY", 60));
         var output = new StringWriter();
         var errors = new StringWriter();
-        var session = new DocumentSession(new BufferedReader(new StringReader("3\nall\n\ny\n4\n6\n")),
+        var session = new DocumentSession(new BufferedReader(new StringReader("3\nall\n\ny\n4\nback\n6\n")),
                 new PrintWriter(output, true), new PrintWriter(errors, true), source, false, () -> 0,
                 new EditorPreferences(directory.resolve("editor.json")), (path, application) -> Optional.empty(),
                 () -> Optional.empty(), gate(), profile -> { fail("Sanitation must not create a model client"); return null; }, settings);
         assertEquals(0, session.run(), errors.toString());
         assertTrue(output.toString().contains("Sanitation:"));
-        assertTrue(output.toString().contains("This operation is unavailable"));
+        assertTrue(output.toString().contains("Donor .tex document path"));
         assertEquals("Plain.\n", Files.readString(source));
     }
 

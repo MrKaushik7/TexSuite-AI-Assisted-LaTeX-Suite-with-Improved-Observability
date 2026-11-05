@@ -48,7 +48,7 @@ final class TextRecovery {
         return latest;
     }
 
-    private static java.time.Instant completedTime(Path root, Path recovery) throws IOException {
+    static java.time.Instant completedTime(Path root, Path recovery) throws IOException {
         String timestamp = journal(root, recovery).getProperty("completedAt");
         if (timestamp == null) return Files.getLastModifiedTime(recovery.resolve("recovery.properties")).toInstant();
         try {
@@ -91,6 +91,7 @@ final class TextRecovery {
         try {
             for (Entry entry : entries) {
                 Path target = root.resolve(entry.relative());
+                if (entry.created()) continue;
                 byte[] backup = readBytes(recovery.resolve(entry.relative()));
                 if (!TextEditPlan.sha256(backup).equals(entry.original())) throw new IOException("Backup changed: " + entry.relative());
                 staged.put(target, TextEditPlan.stage(target, backup));
@@ -105,6 +106,10 @@ final class TextRecovery {
             for (Entry entry : entries) {
                 Path target = root.resolve(entry.relative());
                 checkCurrent(target, entry, reverting);
+                if (entry.created()) {
+                    Files.deleteIfExists(target);
+                    continue;
+                }
                 // Re-read backups as well as targets immediately before each restoration.
                 Path backup = recovery.resolve(entry.relative());
                 if (!backup.toRealPath().equals(backup)
@@ -146,7 +151,7 @@ final class TextRecovery {
         writeJournalValues(recovery, values);
     }
 
-    private static void writeJournalValues(Path recovery, Properties values) throws IOException {
+    static void writeJournalValues(Path recovery, Properties values) throws IOException {
         Path journal = recovery.resolve("recovery.properties");
         Path temporary = Files.createTempFile(recovery, ".recovery-", ".tmp");
         try {
@@ -189,7 +194,8 @@ final class TextRecovery {
                 if (relative.toString().isBlank() || relative.isAbsolute()
                         || !relative.normalize().equals(relative) || relative.startsWith("..")
                         || relative.startsWith(".tex-suite") || !seen.add(relative)
-                        || !original.matches("[a-f0-9]{64}") || !replacement.matches("[a-f0-9]{64}")) {
+                        || !(original.matches("[a-f0-9]{64}") || (original.equals("ABSENT") && "2".equals(values.getProperty("version"))
+                            && relative.startsWith("texsuite-imports"))) || !replacement.matches("[a-f0-9]{64}")) {
                     throw new IllegalArgumentException();
                 }
                 entries.add(new Entry(relative, original, replacement));
@@ -205,6 +211,7 @@ final class TextRecovery {
         if (!status.equals(values.getProperty("status"))) throw new IOException("Recovery record is not " + status + ".");
         List<Entry> entries = entries(values);
         for (Entry entry : entries) {
+            if (entry.created()) { checkCurrent(root.resolve(entry.relative()), entry, status.equals("complete")); continue; }
             Path backup = recovery.resolve(entry.relative());
             if (!backup.toRealPath().equals(backup)
                     || !TextEditPlan.sha256(readBytes(backup)).equals(entry.original())) {
@@ -216,6 +223,10 @@ final class TextRecovery {
     }
 
     private static void checkCurrent(Path target, Entry entry, boolean requireReplacement) throws IOException {
+        if (entry.created() && !Files.exists(target, java.nio.file.LinkOption.NOFOLLOW_LINKS) && !requireReplacement) {
+            MergeTransaction.checkParents(target);
+            return;
+        }
         if (!target.toRealPath().equals(target) || !Files.isRegularFile(target)) {
             throw new IOException("Recovery target identity changed: " + entry.relative());
         }
@@ -244,5 +255,7 @@ final class TextRecovery {
         return values;
     }
 
-    record Entry(Path relative, String original, String replacement) { }
+    record Entry(Path relative, String original, String replacement) {
+        boolean created() { return original.equals("ABSENT"); }
+    }
 }

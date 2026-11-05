@@ -20,6 +20,7 @@ final class DocumentSession {
     private final EditorLauncher editorLauncher;
     private final EditorPicker editorPicker;
     private final TexCompileGate compileGate;
+    private final java.util.Set<Path> mergeHistoryRoots = new java.util.LinkedHashSet<>();
     private final ModelSettings modelSettings;
     private final Function<ModelSettings.Profile, ModelClient> modelFactory;
 
@@ -61,8 +62,11 @@ final class DocumentSession {
             initializeEditor();
             out.println("Enter back at any prompt to return to the menu.");
             initializeAi();
-            if (!TextRecovery.pending(selectedFile.getParent()).isEmpty()) {
-                out.println("An interrupted text edit needs recovery. Use Settings option 7 before applying edits.");
+            for (Path root : historyRoots()) {
+                if (!TextRecovery.pending(root).isEmpty()) {
+                    out.println("An interrupted text edit needs recovery. Use Settings option 7 before applying edits.");
+                    break;
+                }
             }
             while (true) {
                 out.println("What would you like to do?");
@@ -82,6 +86,17 @@ final class DocumentSession {
                 out.println("  7. Revert last change");
                 try {
                     String choice = ask("> ");
+                    if (java.util.Set.of("1","2","3","4").contains(choice)) {
+                        boolean pending = false;
+                        for (Path root : historyRoots()) {
+                            // Existing workflows retain their own-root preview/recovery behavior.
+                            if (choice.equals("4") || !root.equals(selectedFile.getParent())) pending |= !TextRecovery.pending(root).isEmpty();
+                        }
+                        if (pending) {
+                            out.println("Resolve interrupted edits in Settings option 7 before applying another operation.");
+                            continue;
+                        }
+                    }
                     switch (choice) {
                         case "1" -> {
                             RenameRequest request = collectRequest();
@@ -99,7 +114,11 @@ final class DocumentSession {
                             int status = new SanitationWorkflow(input, out, err, selectedFile, compileGate).run();
                             if (status != CommandLine.ExitCode.OK) return status;
                         }
-                        case "4" -> out.println("This operation is unavailable in this build.");
+                        case "4" -> {
+                            var workflow = new MergeWorkflow(input, out, err, selectedFile, compileGate);
+                            workflow.run();
+                            mergeHistoryRoots.add(workflow.historyRoot());
+                        }
                         case "5" -> settings();
                         case "6" -> {
                             out.println("Session ended.");
@@ -358,19 +377,23 @@ final class DocumentSession {
 
     private void recoverEdits() throws IOException, QuitRequest {
         try {
-            var pending = TextRecovery.pending(selectedFile.getParent());
-            if (pending.isEmpty()) out.println("No interrupted text edits need recovery.");
-            for (Path recovery : pending) {
-                var targets = TextRecovery.targets(selectedFile.getParent(), recovery);
+            boolean found = false;
+            for (Path root : historyRoots()) {
+                var pending = TextRecovery.pending(root);
+                found |= !pending.isEmpty();
+                for (Path recovery : pending) {
+                    var targets = TextRecovery.targets(root, recovery);
 
-                out.println("Restore original saved files from: " + DocumentInput.safeDisplay(recovery));
-                for (Path target : targets) out.println("  " + DocumentInput.safeDisplay(target));
-                if (ask("Type restore to restore these files, or Enter to cancel: ").equals("restore")) {
-                    TextRecovery.restore(selectedFile.getParent(), recovery);
+                    out.println("Restore original saved files from: " + DocumentInput.safeDisplay(recovery));
+                    for (Path target : targets) out.println("  " + DocumentInput.safeDisplay(target));
+                    if (ask("Type restore to restore these files, or Enter to cancel: ").equals("restore")) {
+                        TextRecovery.restore(root, recovery);
 
-                    out.println("Original files restored. Prepare a new preview before editing.");
+                        out.println("Original files restored. Prepare a new preview before editing.");
+                    }
                 }
             }
+            if (!found) out.println("No interrupted text edits need recovery.");
         } catch (EditReview.Back exception) {
             throw exception;
         } catch (IOException exception) {
@@ -378,9 +401,18 @@ final class DocumentSession {
         }
     }
 
+    private java.util.Set<Path> historyRoots() throws IOException {
+        var roots = new java.util.LinkedHashSet<Path>();
+        roots.add(selectedFile.getParent());
+        roots.addAll(mergeHistoryRoots);
+        Path explicit = compileGate.explicitMainRoot();
+        if (explicit != null) roots.add(explicit);
+        return roots;
+    }
+
     private void showHistory() {
         try {
-            EditHistory.print(selectedFile.getParent(), out, false);
+            for (Path root : historyRoots()) EditHistory.print(root, out, false);
         } catch (IOException exception) {
             err.println("Could not read edit history: " + DocumentInput.safeDisplay(exception.getMessage()));
         }
@@ -388,8 +420,15 @@ final class DocumentSession {
 
     private void revertLastChange() throws IOException, QuitRequest {
         try {
-            Path root = selectedFile.getParent();
-            Path recovery = TextRecovery.lastCompleted(root);
+            Path root = null, recovery = null;
+            for (Path candidateRoot : historyRoots()) {
+                Path candidate = TextRecovery.lastCompleted(candidateRoot);
+                if (candidate != null && (recovery == null || TextRecovery.completedTime(candidateRoot,candidate)
+                        .isAfter(TextRecovery.completedTime(root,recovery)))) {
+                    root = candidateRoot;
+                    recovery = candidate;
+                }
+            }
             if (recovery == null) {
                 out.println("No completed change is available to revert.");
                 return;

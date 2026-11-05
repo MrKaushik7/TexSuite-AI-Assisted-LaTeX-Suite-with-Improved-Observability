@@ -105,6 +105,10 @@ final class TexSourceScanner {
         return value == 0 ? SourceContext.UNKNOWN : CONTEXTS[value - 1];
     }
 
+    boolean groupedAt(int index) {
+        return capturedGrouped[index];
+    }
+
     boolean unconditional(int start, int end) {
         for (int index = start; index < end; index++) {
             if (capturedConditional[index]) return false;

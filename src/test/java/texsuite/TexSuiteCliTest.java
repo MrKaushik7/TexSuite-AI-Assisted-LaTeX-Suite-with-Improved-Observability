@@ -351,13 +351,12 @@ final class TexSuiteCliTest {
         Path source = Files.writeString(temporaryDirectory.resolve("chapter.tex"),
                 "$x$\\input{missing}\\includegraphics{missing.pdf}");
         byte[] before = Files.readAllBytes(source);
-        RunResult result = run(true, "0\n4\n1\n \nx\n \nlength\nx\n"
+        RunResult result = run(true, "0\n1\n \nx\n \nlength\nx\n"
                 + "\\number\nother\n\nquit\n", Optional::empty,
                 "--no-debug", "chapter.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
         assertTrue(result.output().contains("Choose a number from 1 to 7"));
-        assertTrue(result.output().contains("This operation is unavailable"));
         assertTrue(result.output().contains("source must not be blank"));
         assertTrue(result.output().contains("Describe the intended meaning"));
         assertTrue(result.output().contains("replacement must differ"));

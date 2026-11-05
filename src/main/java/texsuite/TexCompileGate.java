@@ -38,6 +38,10 @@ final class TexCompileGate {
         return compilationMain != null;
     }
 
+    Path explicitMainRoot() throws IOException {
+        return compilationMain == null ? null : compilationMain.toRealPath().getParent();
+    }
+
     TexCompileGate withMain(Path main) {
         return new TexCompileGate(executable, allowNoCompile, main, runner);
     }
@@ -139,6 +143,86 @@ final class TexCompileGate {
         };
         freshness.check();
         return freshness;
+    }
+
+    Freshness validateMerge(DocumentSnapshot master, Map<Path, byte[]> updates, Map<Path, byte[]> creates) throws IOException {
+        return validateMerge(master, updates, creates, warning -> { });
+    }
+
+    Freshness validateMerge(DocumentSnapshot master, Map<Path, byte[]> updates, Map<Path, byte[]> creates,
+            java.util.function.Consumer<String> report) throws IOException {
+        if (executable == null) throw new IOException("Merge requires pdflatex; the no-compile override does not apply.");
+        if (!new DocumentLoader().isCurrent(master)) throw new StaleSourceException("Master changed before merge validation.");
+        Map<Path,byte[]> inputs = readInputs(master.root());
+        Map<Path,String> originalHashes = hashes(inputs);
+        if (inputs.keySet().stream().anyMatch(p -> p.startsWith("texsuite-validation-work"))) throw new IOException("Reserved validation directory exists in master inputs.");
+        Path temporary = Files.createTempDirectory("texsuite-merge-");
+        try {
+            for (var entry : inputs.entrySet()) {
+                Path path = temporary.resolve(entry.getKey()); Files.createDirectories(path.getParent()); Files.write(path,entry.getValue());
+            }
+            java.util.Set<String> baseline = mergeCompile(temporary, master.main());
+            for (String warning : baseline) report.accept("Pre-existing master warning: " + DocumentInput.safeDisplay(warning));
+            for (var entry : updates.entrySet()) {
+                if (!master.files().containsKey(entry.getKey()) || !java.util.Arrays.equals(inputs.get(entry.getKey()),master.files().get(entry.getKey()).bytes())) throw new StaleSourceException("Merge baseline differs from approved source.");
+                Files.write(temporary.resolve(entry.getKey()),entry.getValue());
+            }
+            for (var entry : creates.entrySet()) {
+                Path path = temporary.resolve(entry.getKey()).normalize();
+                if (!path.startsWith(temporary.resolve("texsuite-imports"))) throw new IOException("Invalid merge import path.");
+                Files.createDirectories(path.getParent()); Files.write(path,entry.getValue(),java.nio.file.StandardOpenOption.CREATE_NEW);
+            }
+            try {
+                if (!new DocumentLoader().load(temporary.resolve(master.main())).complete()) throw new IOException("Merged dependency closure is incomplete.");
+            } catch (DocumentLoader.LoadException e) { throw new IOException("Merged dependency closure failed: " + e.getMessage(),e); }
+            java.util.Set<String> merged = mergeCompile(temporary,master.main());
+            merged.removeAll(baseline);
+            if (!merged.isEmpty()) throw new IOException("Merge introduces unresolved references/citations: " + String.join("; ",merged));
+        } finally {
+            try (var paths = Files.walk(temporary)) { for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path); }
+        }
+        Freshness freshness = () -> {
+            if (!new DocumentLoader().isCurrent(master) || !originalHashes.equals(hashes(readInputs(master.root())))) throw new StaleSourceException("Master validation inputs changed; review again.");
+        };
+        freshness.check();
+        return freshness;
+    }
+
+    private java.util.Set<String> mergeCompile(Path temporary, Path main) throws IOException {
+        Path output = temporary.resolve("texsuite-validation-work");
+        if (Files.exists(output)) try (var paths=Files.walk(output)) { for (Path path:paths.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path); }
+        Files.createDirectory(output);
+        List<String> command = List.of(executable.toString(),"-interaction=nonstopmode","-halt-on-error","-no-shell-escape",
+                "-jobname=texsuite-validation","-output-directory=texsuite-validation-work","./"+main);
+        for (int pass=0; pass<3; pass++) {
+            int status=runner.run(command,temporary,30);
+            if (status!=0) throw new IOException("Merge compilation failed: " + diagnostic(output,status));
+            if (pass==0) {
+                Path aux=output.resolve("texsuite-validation.aux");
+                String auxiliary=Files.exists(aux) ? Files.readString(aux) : "";
+                if (auxiliary.contains("\\bibdata") && auxiliary.contains("\\citation")) {
+                    Path bibtex=executable.getParent().resolve("bibtex");
+                    if (!Files.isExecutable(bibtex)) throw new IOException("BibTeX is required for this merge.");
+                    int statusBib=runner.run(List.of(bibtex.toString(),"texsuite-validation-work/texsuite-validation"),temporary,30);
+                    if (statusBib!=0) {
+                        Path log=output.resolve("texsuite-validation.blg");
+                        String details=Files.exists(log) ? Files.readString(log) : "No BibTeX log available.";
+                        throw new IOException("BibTeX validation failed (exit " + statusBib + "); no source changes. " + DocumentInput.safeDisplay(details.substring(0,Math.min(details.length(),3000))));
+                    }
+                }
+            }
+        }
+        Path pdf=output.resolve("texsuite-validation.pdf");
+        if (!Files.isRegularFile(pdf) || Files.size(pdf)==0) throw new IOException("Merge compiler produced no nonempty PDF.");
+        var warnings=new java.util.TreeSet<String>();
+        Path log=output.resolve("texsuite-validation.log");
+        if (Files.exists(log)) {
+            for (String line:Files.readString(log).split("\\R")) {
+                if ((line.contains("Reference") || line.contains("Citation")) && line.contains("undefined")) warnings.add(line.replaceAll(" on input line [0-9]+", ""));
+                if (line.contains("multiply defined")) throw new IOException("Merge compilation has multiply defined labels.");
+            }
+        }
+        return warnings;
     }
 
     private static String diagnostic(Path output, int status) throws IOException {

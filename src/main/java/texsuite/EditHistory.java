@@ -86,7 +86,8 @@ final class EditHistory {
             for (var file : files) {
                 Path current = root.resolve(file.relative());
                 String expected = journal.getProperty("status").equals("restored") ? file.original() : file.replacement();
-                boolean stale = !Files.isRegularFile(current) || !current.toRealPath().equals(current)
+                boolean stale = file.created() && journal.getProperty("status").equals("restored")
+                        ? Files.exists(current, java.nio.file.LinkOption.NOFOLLOW_LINKS) : !Files.isRegularFile(current) || !current.toRealPath().equals(current)
                         || !TextEditPlan.sha256(TextRecovery.readBytes(current)).equals(expected);
                 displayed.add(new FileState(file.relative().toString(), file.original(), file.replacement(), stale));
             }
@@ -113,6 +114,14 @@ final class EditHistory {
                 continue;
             }
             var record = entry.record();
+            if (record.version() == 3) {
+                out.println("  merge; " + record.timestamp());
+                out.println("  " + DocumentInput.safeDisplay(record.intent().meaning()));
+                for (var file : entry.files()) out.println("  " + DocumentInput.safeDisplay(file.path())
+                        + (file.beforeHash().equals("ABSENT") ? " (created)" : " (modified)")
+                        + (file.currentLinkStale() ? " (current source differs)" : ""));
+                continue;
+            }
             out.printf("  %s; %s; %s; %s%n", record.timestamp(), record.intent().operation(),
                     record.intent().scope(), record.intent().decisionSource());
             out.println("  Meaning/purpose: " + DocumentInput.safeDisplay(record.intent().meaning()));
@@ -134,6 +143,7 @@ final class EditHistory {
     }
 
     private static void validate(Record record, Path recovery, List<TextRecovery.Entry> journal) throws IOException {
+        if (record.version() == 3) { MergeTransaction.validateHistory(record, recovery, journal); return; }
         if ((record.version() != 1 && record.version() != 2) || !"UTF-16".equals(record.columnEncoding()) || !record.operationId().equals(recovery.getFileName().toString())
                 || record.intent() == null || record.edits().isEmpty() || record.edits().size() > 200
                 || record.files().size() != journal.size()) throw new IOException("Invalid edit history header.");
