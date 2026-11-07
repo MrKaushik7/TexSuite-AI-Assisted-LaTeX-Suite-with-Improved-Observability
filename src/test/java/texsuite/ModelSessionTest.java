@@ -22,6 +22,37 @@ final class ModelSessionTest {
     }
 
     @ParameterizedTest
+    @ValueSource(ints = {1, 2, 3})
+    void initialSetupAcceptsProviderDefaultsAndPersistsWithoutACall(int choice) throws Exception {
+        Path source = Files.writeString(directory.resolve("main.tex"), "text").toRealPath();
+        var settings = new ModelSettings(directory.resolve("ai.json"), name -> null);
+        var output = new StringWriter();
+        String expectedModel = switch (choice) {
+            case 1 -> "gpt-6-luna";
+            case 2 -> "nvidia/nemotron-3-ultra-550b-a55b:free";
+            default -> "gemini-2.5-flash";
+        };
+
+        assertEquals(0, session(source, "y\n" + choice + "\n\n\n\n" + (choice == 2 ? "\n" : "") + "quit\n",
+                output, new StringWriter(), profile -> { throw new AssertionError("Setup must not create a provider"); }, settings));
+
+        var profile = new ModelSettings(directory.resolve("ai.json"), name -> null).load();
+        assertEquals(expectedModel, profile.model());
+        assertEquals(choice == 1 ? ModelSettings.Provider.OPENAI : choice == 2
+                ? ModelSettings.Provider.OPENROUTER : ModelSettings.Provider.GEMINI, profile.provider());
+        assertEquals(profile.provider().keyEnvironment(), profile.keyEnvironment());
+        assertEquals(60, profile.timeoutSeconds());
+        assertEquals(choice == 2 ? ModelSettings.OutputMode.PROMPT_JSON : ModelSettings.OutputMode.JSON_SCHEMA,
+                profile.outputMode());
+        assertTrue(output.toString().contains(expectedModel + "; Enter=default, off=disable AI"));
+        var reused = new StringWriter();
+        assertEquals(0, session(source, "quit\n", reused, new StringWriter(),
+                ignored -> { throw new AssertionError("No startup provider"); }, settings));
+        assertFalse(reused.toString().contains("Configure AI now?"));
+        assertEquals(profile, settings.load());
+    }
+
+    @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {" ", "secret with spaces", "secret\nvalue", "secret-é", "denied", "secret-valid"})
     void startupChecksLocalKeyWithoutCreatingProviderOrLeakingValues(String key) throws Exception {
@@ -54,6 +85,18 @@ final class ModelSessionTest {
         assertTrue(transcript.contains("startup sends no API request"));
         assertFalse((transcript + errors + Files.readString(directory.resolve("ai.json"))).contains("secret"));
         assertEquals("private document", Files.readString(source));
+    }
+
+    @Test
+    void nemotronPresetStillAllowsExplicitOutputOverrideInSettings() throws Exception {
+        Path source = Files.writeString(directory.resolve("main.tex"), "text").toRealPath();
+        var settings = new ModelSettings(directory.resolve("ai.json"), name -> null);
+        settings.save(new ModelSettings.Profile("", "OPENAI_API_KEY", 60));
+
+        assertEquals(0, session(source, "5\n8\n1\n2\n\n\n\n1\n3\n6\nquit\n", new StringWriter(),
+                new StringWriter(), profile -> { throw new AssertionError("No provider without consent"); }, settings));
+        assertEquals("nvidia/nemotron-3-ultra-550b-a55b:free", settings.load().model());
+        assertEquals(ModelSettings.OutputMode.JSON_SCHEMA, settings.load().outputMode());
     }
 
     @Test

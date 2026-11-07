@@ -138,18 +138,23 @@ final class ModelSettings {
     }
 
     enum Provider {
-        OPENAI("openai", "OPENAI_API_KEY"), OPENROUTER("openrouter", "OPENROUTER_API_KEY"), GEMINI("gemini", "GEMINI_API_KEY");
+        OPENAI("openai", "OPENAI_API_KEY", "gpt-6-luna"),
+        OPENROUTER("openrouter", "OPENROUTER_API_KEY", "nvidia/nemotron-3-ultra-550b-a55b:free"),
+        GEMINI("gemini", "GEMINI_API_KEY", "gemini-2.5-flash");
 
         private final String id;
         private final String keyEnvironment;
+        private final String defaultModel;
 
-        Provider(String id, String keyEnvironment) {
+        Provider(String id, String keyEnvironment, String defaultModel) {
             this.id = id;
             this.keyEnvironment = keyEnvironment;
+            this.defaultModel = defaultModel;
         }
 
         String id() { return id; }
         String keyEnvironment() { return keyEnvironment; }
+        String defaultModel() { return defaultModel; }
 
         static Provider parse(String value) {
             for (Provider provider : values()) if (provider.id.equals(value)) return provider;

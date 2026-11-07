@@ -129,7 +129,7 @@ final class SessionUxTest {
             assertTrue(result.output().contains("Configure AI now?"));
             assertFalse(settings.saved());
         }
-        Result disabled = session(source, "y\n1\n\n\n\n6\n", settings, noClient());
+        Result disabled = session(source, "y\n1\noff\n\n\n6\n", settings, noClient());
         assertEquals(0, disabled.code(), disabled.errors());
         assertTrue(settings.saved());
         assertFalse(settings.load().configured());

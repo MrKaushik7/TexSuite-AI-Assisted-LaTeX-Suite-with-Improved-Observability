@@ -373,14 +373,25 @@ final class DocumentSession {
                 case "3" -> ModelSettings.Provider.GEMINI;
                 default -> throw new IllegalArgumentException("Choose a provider explicitly.");
             };
-            String model = ask("Explicit model ID (Enter disables AI): ");
+            String model = ask("Model ID [" + provider.defaultModel() + "; Enter=default, off=disable AI]: ");
+            if (model.isEmpty()) model = provider.defaultModel();
+            else if (model.equalsIgnoreCase("off")) model = "";
+
             out.println("Use the key variable NAME, not the API key. Export its value before launching TexSuite.");
             String keyEnvironment = ask("API key environment-variable NAME [" + provider.keyEnvironment() + "]: ");
             String timeout = ask("Request timeout in seconds [60]: ");
-            ModelSettings.OutputMode mode = ModelSettings.OutputMode.JSON_SCHEMA;
+            ModelSettings.OutputMode mode = provider == ModelSettings.Provider.OPENROUTER
+                    && model.equals(provider.defaultModel())
+                    ? ModelSettings.OutputMode.PROMPT_JSON : ModelSettings.OutputMode.JSON_SCHEMA;
             if (provider == ModelSettings.Provider.OPENROUTER) {
-                mode = switch (ask("Output [1=JSON Schema (default), 2=prompt JSON]: ")) {
-                    case "", "1" -> ModelSettings.OutputMode.JSON_SCHEMA;
+                if (mode == ModelSettings.OutputMode.PROMPT_JSON) {
+                    out.println("Nemotron uses prompt JSON because this endpoint does not support JSON Schema output.");
+                }
+
+                mode = switch (ask("Output [1=JSON Schema, 2=prompt JSON; Enter="
+                        + (mode == ModelSettings.OutputMode.PROMPT_JSON ? "2" : "1") + "]: ")) {
+                    case "" -> mode;
+                    case "1" -> ModelSettings.OutputMode.JSON_SCHEMA;
                     case "2" -> ModelSettings.OutputMode.PROMPT_JSON;
                     default -> throw new IllegalArgumentException("Choose an output mode.");
                 };
