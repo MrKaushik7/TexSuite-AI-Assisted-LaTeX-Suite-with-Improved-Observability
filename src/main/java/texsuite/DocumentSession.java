@@ -60,6 +60,7 @@ final class DocumentSession {
     int run() {
         try {
             initializeEditor();
+            out.println();
             out.println("Enter back at any prompt to return to the menu.");
             initializeAi();
             for (Path root : historyRoots()) {
@@ -297,20 +298,32 @@ final class DocumentSession {
 
             if (!profile.configured()) return;
 
+            out.println();
+
             if (modelSettings.keyAvailable(profile)) {
                 out.printf("API key: %s is readable in this session. Validity/expiration has not been checked.%n",
                         profile.keyEnvironment());
+                out.println();
+
                 out.println("If you changed the key since launch, quit and restart TexSuite from the terminal with the updated export.");
             } else {
                 out.printf("API key: %s is missing, unreadable, or has invalid characters in this session.%n",
                         profile.keyEnvironment());
+                out.println();
+
                 out.println("Before using AI, type quit, then export your key in the terminal:");
+                out.println();
+
                 out.printf("  export %s='your-api-key'%n", profile.keyEnvironment());
+                out.println();
+
                 out.println("Replace the placeholder with your key, then relaunch TexSuite from that same terminal.");
                 out.println("A running session cannot pick up later exports. Manual operations remain available.");
             }
 
+            out.println();
             out.println("Settings 8 offers a provider test with separate consent; startup sends no API request.");
+            out.println();
         } catch (EditReview.Back exception) {
             // Returning from startup setup leaves manual operations available.
         } catch (IOException exception) {
