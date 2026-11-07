@@ -77,6 +77,8 @@ Choose **7: Revert last change** from the main menu, then confirm `[y/N]`. It re
 
 ### Smart merge
 
+At the menu4 donor prompt, press Enter or type `browse` to open the native file picker, or type a path. The master-main prompt also accepts `browse`; Enter keeps its displayed default. A valid donor opens in your configured text editor before the merge questions when automatic opening is enabled (Settings → Toggle automatic opening). Canceling the picker returns to the prompt. If browsing is unavailable, enter a path instead.
+
 Menu **4** combines a donor body, selected section or balanced line range with one explicit master insertion target. Master class/options and existing definitions remain in place. Identical supported definitions are reused; differing compatible definitions require explicit approval to adopt the master's meaning. Incompatible signatures require a donor rename or compatible mapping. If only the master defines a command, its declaration is shown for explicit acceptance because the donor signature is unknown. Missing definitions may be entered in the wizard (finish with a line containing only `.`). The source donor is never rewritten.
 
 The preview includes required definitions/packages, label/citation mappings and every imported file. Static includes/images are imported beneath `texsuite-imports/<id>/`; BibTeX imports contain only required entries/string/crossref dependencies and retain the master's bibliography style. Conflicting package options, dynamic/conditional syntax, local styles, body-local definitions and unsupported macro dependency syntax refuse the affected merge. biblatex/Biber is not supported. A master bibliography must already be configured before new citations can be imported.

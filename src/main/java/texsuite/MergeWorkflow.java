@@ -7,6 +7,9 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.function.Consumer;
 
 /** Interactive resolution only; planner and transaction retain all authorization checks. */
 final class MergeWorkflow {
@@ -15,10 +18,24 @@ final class MergeWorkflow {
     private final PrintWriter err;
     private final Path selected;
     private final TexCompileGate gate;
+    private final Supplier<Optional<Path>> filePicker;
+    private final Consumer<Path> donorSelected;
     private Path historyRoot;
 
     MergeWorkflow(BufferedReader input, PrintWriter out, PrintWriter err, Path selected, TexCompileGate gate) {
+        this(input, out, err, selected, gate, DocumentInput::openNativePicker);
+    }
+
+    MergeWorkflow(BufferedReader input, PrintWriter out, PrintWriter err, Path selected, TexCompileGate gate,
+            Supplier<Optional<Path>> filePicker) {
+        this(input, out, err, selected, gate, filePicker, donor -> { });
+    }
+
+    MergeWorkflow(BufferedReader input, PrintWriter out, PrintWriter err, Path selected, TexCompileGate gate,
+            Supplier<Optional<Path>> filePicker, Consumer<Path> donorSelected) {
         this.review = new EditReview(input,out); this.out=out; this.err=err; this.selected=selected; this.gate=gate;
+        this.filePicker = filePicker;
+        this.donorSelected = donorSelected;
         historyRoot=selected.getParent();
     }
 
@@ -26,9 +43,10 @@ final class MergeWorkflow {
 
     int run() {
         try {
-            Path donor = path("Donor .tex document path: ",null);
+            Path donor = path("Donor .tex document path [Enter=browse, or type a path]: ",null);
+            donorSelected.accept(donor);
             Path defaultMain = gate.mainFor(new DocumentLoader().load(selected));
-            Path main = path("Master compilation main [Enter=" + DocumentInput.safeDisplay(defaultMain) + "]: ",defaultMain);
+            Path main = path("Master compilation main [Enter=" + DocumentInput.safeDisplay(defaultMain) + ", or browse]: ",defaultMain);
             for (int attempt=0; attempt<3; attempt++) {
                 try {
                     var masterSnapshot=new DocumentLoader().load(main);
@@ -93,9 +111,21 @@ final class MergeWorkflow {
         while(true) {
             String answer=review.answer(prompt).trim();
             try {
-                Path path=answer.isEmpty()&&fallback!=null ? fallback : Path.of(answer).toAbsolutePath().normalize();
+                Path path;
+                if (answer.equalsIgnoreCase("browse") || (answer.isEmpty() && fallback == null)) {
+                    Optional<Path> picked = filePicker.get();
+                    if (picked.isEmpty()) {
+                        out.println("No file selected; enter a path, browse again, or back.");
+                        continue;
+                    }
+                    path = picked.get().toAbsolutePath().normalize();
+                } else {
+                    path = answer.isEmpty() ? fallback : Path.of(answer).toAbsolutePath().normalize();
+                }
                 if(!path.toString().endsWith(".tex")) throw new IOException("Choose a .tex file.");
                 path=path.toRealPath(); new DocumentLoader().load(path); return path;
+            } catch (java.awt.HeadlessException | java.awt.AWTError | SecurityException error) {
+                out.println("Native file picker is unavailable here; enter a path instead, or back.");
             } catch(IOException | DocumentLoader.LoadException | java.nio.file.InvalidPathException error) {
                 out.println("Cannot use that file: " + DocumentInput.safeDisplay(error.getMessage()));
             }

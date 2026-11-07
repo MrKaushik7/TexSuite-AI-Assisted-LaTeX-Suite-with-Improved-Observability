@@ -115,7 +115,10 @@ final class DocumentSession {
                             if (status != CommandLine.ExitCode.OK) return status;
                         }
                         case "4" -> {
-                            var workflow = new MergeWorkflow(input, out, err, selectedFile, compileGate);
+                            var workflow = new MergeWorkflow(input, out, err, selectedFile, compileGate,
+                                    DocumentInput::openNativePicker, donor -> {
+                                        if (editorPreferences.automatic()) openEditor(donor);
+                                    });
                             workflow.run();
                             mergeHistoryRoots.add(workflow.historyRoot());
                         }
@@ -155,7 +158,11 @@ final class DocumentSession {
     }
 
     private void openEditor() {
-        editorLauncher.open(selectedFile, editorPreferences.application())
+        openEditor(selectedFile);
+    }
+
+    private void openEditor(Path file) {
+        editorLauncher.open(file, editorPreferences.application())
                 .ifPresent(message -> err.println(DocumentInput.safeDisplay(message)));
     }
 

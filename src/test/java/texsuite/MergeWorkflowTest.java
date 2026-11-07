@@ -78,13 +78,97 @@ class MergeWorkflowTest {
         return output.toString();
     }
 
+    @Test void browseValidatesSelectedFilesAndAcceptsPathsWithSpaces() throws Exception {
+        Path master=source("master folder/main.tex",MergePlannerTest.doc("","Master."));
+        Path donor=source("donor folder/main.tex",MergePlannerTest.doc("","Donor."));
+        Path invalid=source("donor folder/notes.txt","Not TeX");
+        var selections=new java.util.ArrayDeque<>(java.util.List.of(invalid,donor,master));
+        var opened=new java.util.ArrayList<Path>();
+        String output=run(master,"\nbrowse\nBROWSE\n\n\nn\n",true,
+                ()->java.util.Optional.of(selections.removeFirst()),opened::add);
+
+        assertTrue(selections.isEmpty());
+        assertEquals(java.util.List.of(donor),opened);
+        assertTrue(output.contains("Enter=browse"));
+        assertTrue(output.contains("Choose a .tex file"));
+        assertTrue(output.contains("Resolved merge:"),output);
+        assertTrue(output.contains("Donor."));
+        assertEquals(MergePlannerTest.doc("","Master."),Files.readString(master));
+        assertFalse(Files.exists(master.getParent().resolve(".tex-suite")));
+    }
+
+    @Test void cancellingPickerReturnsToPromptAndBackLeavesSourcesUntouched() throws Exception {
+        Path master=source("master/main.tex",MergePlannerTest.doc("","Master."));
+        String output=run(master,"browse\nback\n",true,java.util.Optional::empty);
+
+        assertTrue(output.contains("No file selected"));
+        assertTrue(output.contains("Merge cancelled"));
+        assertFalse(output.contains("Resolved merge:"));
+        assertEquals(MergePlannerTest.doc("","Master."),Files.readString(master));
+        assertFalse(Files.exists(master.getParent().resolve(".tex-suite")));
+    }
+
+    @Test void unavailablePickerAllowsTypedPathFallback() throws Exception {
+        Path master=source("master/main.tex",MergePlannerTest.doc("","Master."));
+        Path donor=source("donor/main.tex",MergePlannerTest.doc("","Donor."));
+        String output=run(master,"browse\n"+donor+"\n\n\n\nn\n",true,
+                ()->{throw new java.awt.HeadlessException();});
+
+        assertTrue(output.contains("Native file picker is unavailable"));
+        assertTrue(output.contains("Resolved merge:"),output);
+        assertEquals(MergePlannerTest.doc("","Master."),Files.readString(master));
+        assertFalse(Files.exists(master.getParent().resolve(".tex-suite")));
+    }
+
+    @Test void sessionOpensOnlyValidDonorAndRespectsEditorPreferenceAndFailure() throws Exception {
+        directory=directory.toRealPath();
+        Path master=source("master/main.tex",MergePlannerTest.doc("","Master."));
+        Path donor=source("donor/main.tex",MergePlannerTest.doc("","Donor."));
+        Path invalid=source("notes.txt","Not TeX");
+        var settings=new ModelSettings(directory.resolve("ai.json"),name->null);
+        settings.save(new ModelSettings.Profile("","OPENAI_API_KEY",60));
+        for (int mode=0;mode<3;mode++) {
+            boolean enabled=mode!=1,failLaunch=mode==2;
+            var preferences=new EditorPreferences(directory.resolve("editor.properties"));
+            preferences.setAutomatic(enabled); preferences.save();
+            var opened=new java.util.ArrayList<Path>();
+            var output=new StringWriter(); var errors=new StringWriter();
+            EditorLauncher launcher=(path,app)-> {
+                opened.add(path);
+                return failLaunch&&path.equals(donor) ? java.util.Optional.of("Donor editor unavailable") : java.util.Optional.empty();
+            };
+            var session=new DocumentSession(new BufferedReader(new StringReader("4\n"+invalid+"\n"+donor+"\nback\n6\n")),
+                    new PrintWriter(output,true),new PrintWriter(errors,true),master,false,()->0,preferences,launcher,
+                    java.util.Optional::empty,new TexCompileGate(null,true,null,null),
+                    profile->{fail("Merge must not call AI");return null;},settings);
+
+            assertEquals(0,session.run(),errors.toString());
+            assertEquals(enabled?java.util.List.of(master,donor):java.util.List.of(),opened);
+            assertTrue(output.toString().contains("Master compilation main"));
+            assertTrue(output.toString().contains("Merge cancelled"));
+            assertEquals(failLaunch,errors.toString().contains("Donor editor unavailable"));
+            assertEquals(MergePlannerTest.doc("","Master."),Files.readString(master));
+            assertEquals(MergePlannerTest.doc("","Donor."),Files.readString(donor));
+            assertFalse(Files.exists(master.getParent().resolve(".tex-suite")));
+        }
+    }
+
     private Path source(String path,String text) throws Exception { Path file=directory.resolve(path); Files.createDirectories(file.getParent()); Files.writeString(file,text); return file.toRealPath(); }
     private String run(Path master,String input,boolean missing) throws Exception {
+        return run(master,input,missing,()->{fail("Typed-path tests must not open a native picker"); return java.util.Optional.empty();});
+    }
+
+    private String run(Path master,String input,boolean missing,java.util.function.Supplier<java.util.Optional<Path>> picker) throws Exception {
+        return run(master,input,missing,picker,donor->{ });
+    }
+
+    private String run(Path master,String input,boolean missing,java.util.function.Supplier<java.util.Optional<Path>> picker,
+            java.util.function.Consumer<Path> donorSelected) throws Exception {
         StringWriter output=new StringWriter(); PrintWriter writer=new PrintWriter(output,true);
         TexCompileGate gate=new TexCompileGate(missing?null:directory.resolve("pdflatex"),true,null,(command,working,timeout)-> {
             Files.writeString(working.resolve("texsuite-validation-work/texsuite-validation.pdf"),"PDF"); return 0;
         });
-        assertEquals(0,new MergeWorkflow(new BufferedReader(new StringReader(input)),writer,writer,master,gate).run());
+        assertEquals(0,new MergeWorkflow(new BufferedReader(new StringReader(input)),writer,writer,master,gate,picker,donorSelected).run());
         return output.toString();
     }
 }
