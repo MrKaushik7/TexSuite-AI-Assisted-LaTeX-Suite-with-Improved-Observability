@@ -20,6 +20,29 @@ final class SessionUxTest {
     @TempDir Path directory;
 
     @Test
+    void helpPreservesLiteralInputsAndPendingDecisions() throws Exception {
+        ModelSettings settings = settings();
+        settings.save(disabled());
+        int index = 0;
+        for (var pair : List.of(List.of("?", "help"), List.of("help", "?"))) {
+            String original = "\\documentclass{article}\n\\begin{document}\n" + pair.get(0)
+                    + "\n\\end{document}\n";
+            Path source = Files.writeString(directory.resolve("help-" + index++ + ".tex"), original).toRealPath();
+            Result result = session(source, "8\n2\n" + pair.get(0) + "\n" + pair.get(1)
+                    + "\n?\n\n?\n\n?\n\n?\ny\n?\napply\n7\n?\nn\n6\n", settings, noClient());
+
+            assertEquals(0, result.code(), result.errors());
+            assertTrue(result.output().contains("Help — choose a task"));
+            assertTrue(result.output().contains(HelpText.SCOPE));
+            assertTrue(result.output().contains(HelpText.REGION));
+            assertTrue(result.output().contains(HelpText.MATCHING));
+            assertEquals(original.replace("\n" + pair.get(0) + "\n", "\n" + pair.get(1) + "\n"),
+                    Files.readString(source));
+            assertEquals(index, EditHistory.list(directory.toRealPath()).size());
+        }
+    }
+
+    @Test
     void emptyRenameHasThreeUsefulLinesAndDebugRetainsReasons() throws Exception {
         Path source = Files.writeString(directory.resolve("tradeoff.tex"), "\\Pr_h ".repeat(12)).toRealPath();
         String original = Files.readString(source);

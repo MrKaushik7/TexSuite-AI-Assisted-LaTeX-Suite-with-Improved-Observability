@@ -17,6 +17,14 @@ import picocli.CommandLine.Model.CommandSpec;
 @Command(
         name = "texsuite",
         description = "Safely plan and apply context-aware edits to LaTeX projects.",
+        footerHeading = "%nExamples:%n",
+        footer = {"  texsuite main.tex",
+                "  texsuite --compile-main main.tex chapters/intro.tex",
+                "  texsuite main.tex --history",
+                "  texsuite main.tex --history --json",
+                "%nFirst use: save source, choose 2 (Replace text), review, then type apply.",
+                "AI is optional. Main-menu 8 opens task help; back cancels a flow.",
+                "Offline guides: README.md and docs/ beside the installed JAR."},
         mixinStandardHelpOptions = true,
         version = "TexSuite 0.1.0-SNAPSHOT")
 public final class TexSuiteCli implements Callable<Integer> {

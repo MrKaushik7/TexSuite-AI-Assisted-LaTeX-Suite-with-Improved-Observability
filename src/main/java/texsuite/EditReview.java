@@ -34,11 +34,22 @@ final class EditReview {
 
     boolean yes(String prompt) throws IOException {
         while (true) {
-            switch (answer(prompt).trim().toLowerCase(java.util.Locale.ROOT)) {
+            switch (choice(prompt, "y/yes approves this step; Enter/n/no declines. "
+                    + "back returns to the menu; quit cancels. No approval is assumed.").trim().toLowerCase(java.util.Locale.ROOT)) {
                 case "y", "yes" -> { return true; }
                 case "", "n", "no" -> { return false; }
                 default -> out.println("Choose y or n (Enter skips).");
             }
+        }
+    }
+
+    String choice(String prompt, String help) throws IOException {
+        while (true) {
+            String value = answer(prompt);
+            if (!value.strip().equals("?") && !value.strip().equalsIgnoreCase("help")) return value;
+
+            out.println(help);
+            out.println("Your selection is unchanged. Answer the same question, or enter back to cancel.");
         }
     }
 
@@ -66,25 +77,10 @@ final class EditReview {
                     before, DiffUtils.diff(before, after), 1);
 
             out.println();
-            out.println("========== File: " + DocumentInput.safeDisplay(file) + " ==========");
-            char previousKind = ' ';
-            for (int index = 0; index < diff.size(); index++) {
-                String line = diff.get(index);
-                // The first two lines are file headers, not removed/added source.
-                char kind = index < 2 || line.isEmpty() ? ' ' : line.charAt(0);
-                if ((kind == '-' || kind == '+') && kind != previousKind) {
-                    out.println();
-                    out.println(kind == '-' ? "----- OLD: saved source -----"
-                            : "----- NEW: proposed source -----");
-                } else if (kind != '-' && kind != '+'
-                        && (previousKind == '-' || previousKind == '+')) {
-                    out.println("----- Unchanged context -----");
-                }
-
+            out.println("File: " + DocumentInput.safeDisplay(file));
+            for (String line : diff) {
                 out.println(DocumentInput.safeDisplay(line));
-                previousKind = kind;
             }
-            out.println("========== End of file diff ==========");
         }
         out.println(preserveEndings ? "Source line endings and final newline are preserved."
                 : "See the whitespace preview for exact line-ending changes; final-newline presence is preserved.");

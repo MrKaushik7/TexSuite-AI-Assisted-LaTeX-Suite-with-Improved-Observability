@@ -22,6 +22,21 @@ final class SanitationWorkflowTest {
     @TempDir Path directory;
 
     @Test
+    void helpNeverApprovesOrDiscardsSelectedWhitespaceFixes() throws Exception {
+        Path source = source("One.  \n");
+        String original = Files.readString(source);
+        var result = run(source, "?\nall\n?\n\n?\n\n", gate());
+
+        assertEquals(0, result.code(), result.errors());
+        assertTrue(result.output().contains(HelpText.TRAILING));
+        assertTrue(result.output().contains(HelpText.ENDINGS));
+        assertTrue(result.output().contains("␠␠ -> ∅"));
+        assertTrue(result.output().contains("Cancelled without source changes."));
+        assertEquals(original, Files.readString(source));
+        assertTrue(EditHistory.list(directory.toRealPath()).isEmpty());
+    }
+
+    @Test
     void selectionPreviewApplyAndNoOpAreTruthful() throws Exception {
         Path source = source("One.  \r\nTwo.\t\rLast.");
         var result = run(source, "bad\n1 1 2\ninvalid\nlf\ny\n", gate());
@@ -30,7 +45,7 @@ final class SanitationWorkflowTest {
         assertTrue(result.output().contains("<CR><LF> -> <LF>"));
         assertTrue(result.output().contains("final-newline presence is preserved"));
         assertFalse(result.output().contains("Source line endings and final newline are preserved."));
-        assertTrue(result.output().contains("Applied 4 sanitation fix(es)"));
+        assertTrue(result.output().contains("Applied 4 cleanup fix(es)"));
         assertEquals("One.\nTwo.\nLast.", Files.readString(source));
         int histories = EditHistory.list(directory.toRealPath()).size();
         result = run(source, "\n", gate());
@@ -145,7 +160,7 @@ final class SanitationWorkflowTest {
                 new EditorPreferences(directory.resolve("editor.json")), (path, application) -> Optional.empty(),
                 () -> Optional.empty(), gate(), profile -> { fail("Sanitation must not create a model client"); return null; }, settings);
         assertEquals(0, session.run(), errors.toString());
-        assertTrue(output.toString().contains("Sanitation:"));
+        assertTrue(output.toString().contains("Clean up whitespace:"));
         assertTrue(output.toString().contains("Donor .tex document path"));
         assertEquals("Plain.\n", Files.readString(source));
     }
@@ -217,7 +232,7 @@ final class SanitationWorkflowTest {
 
         var result = run(chapter, "all\n\ny\n", compiler);
         assertEquals(0, result.code(), result.errors());
-        assertTrue(result.output().contains("Applied 1 sanitation fix"));
+        assertTrue(result.output().contains("Applied 1 cleanup fix"));
         assertEquals("Plain.\n", Files.readString(chapter));
         assertArrayEquals(mainBefore, Files.readAllBytes(main));
 

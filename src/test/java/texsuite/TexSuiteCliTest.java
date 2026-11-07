@@ -45,6 +45,9 @@ final class TexSuiteCliTest {
         assertEquals(CommandLine.ExitCode.OK, exitCode);
         assertTrue(output.toString().contains("Usage: texsuite"));
         assertTrue(output.toString().contains("Root LaTeX file to open"));
+        assertTrue(output.toString().contains("texsuite --compile-main main.tex chapters/intro.tex"));
+        assertTrue(output.toString().contains("texsuite main.tex --history --json"));
+        assertFalse(output.toString().contains("Selected:"));
     }
 
     @Test
@@ -356,7 +359,7 @@ final class TexSuiteCliTest {
                 "--no-debug", "chapter.tex");
 
         assertEquals(CommandLine.ExitCode.OK, result.exitCode());
-        assertTrue(result.output().contains("Choose a number from 1 to 7"));
+        assertTrue(result.output().contains("Choose a number from 1 to 8"));
         assertTrue(result.output().contains("source must not be blank"));
         assertTrue(result.output().contains("Describe the intended meaning"));
         assertTrue(result.output().contains("replacement must differ"));
@@ -766,10 +769,13 @@ final class TexSuiteCliTest {
         preferences.load();
         assertTrue(preferences.automatic());
         assertEquals(app.toString(), preferences.application());
-        assertTrue(output.toString().contains(String.join(System.lineSeparator(),
-                "Settings:", "  1. Diagnostics", "  2. Toggle automatic opening",
-                "  3. Browse for editor…", "  4. Open file now", "  5. Reset editor",
-                "  6. Back", "  7. Recover interrupted edits")));
+        for (String label : java.util.List.of("Editor", "AI", "History and recovery",
+                "  1. Diagnostics", "  2. Toggle automatic opening", "  3. Browse for editor…",
+                "  4. Open file now", "  5. Reset editor", "  6. Back",
+                "  7. Recover interrupted edits", "  8. AI provider settings and test",
+                "  9. Edit history", "  10. AI response cache")) {
+            assertTrue(output.toString().contains(label), label);
+        }
     }
 
     @Test

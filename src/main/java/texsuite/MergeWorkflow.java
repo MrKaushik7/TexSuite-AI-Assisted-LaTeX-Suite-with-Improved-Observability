@@ -49,6 +49,8 @@ final class MergeWorkflow {
             Path main = path("Master compilation main [Enter=" + DocumentInput.safeDisplay(defaultMain) + ", or browse]: ",defaultMain);
             for (int attempt=0; attempt<3; attempt++) {
                 try {
+                    out.println("Analyzing master and donor dependencies...");
+
                     var masterSnapshot=new DocumentLoader().load(main);
                     var donorSnapshot=new DocumentLoader().load(donor);
                     if (!selected.startsWith(masterSnapshot.root())) throw new IOException("Selected master target is outside the compilation project.");
@@ -65,7 +67,7 @@ final class MergeWorkflow {
                             out.println();
                             for (int i=0;i<choices.size();i++) out.println("  " + (i+1) + ". " + choices.get(i));
                             while (true) {
-                                String answer=review.answer("Choose explicitly (Enter cancels): ").trim();
+                                String answer=review.choice("Choose explicitly (Enter cancels; ?=help): ", HelpText.CONFLICT).trim();
                                 if (answer.isEmpty()) return "cancel";
                                 if (choices.contains(answer)) return answer;
                                 try { int index=Integer.parseInt(answer); if(index>0&&index<=choices.size()) return choices.get(index-1); } catch(NumberFormatException ignored) { }
@@ -98,15 +100,28 @@ final class MergeWorkflow {
                             return text.toString();
                         }
                     });
+                    out.printf("Merge review: %d changed file(s), %d imported file(s).%n",
+                            proposal.updates().size(), proposal.creates().size());
+
+                    out.println("Master: " + DocumentInput.safeDisplay(main));
+
+                    out.println("Donor (unchanged): " + DocumentInput.safeDisplay(donor));
+
                     out.println("Resolved merge:");
                     for(String decision:proposal.decisions()) out.println("  " + DocumentInput.safeDisplay(decision));
                     out.printf("Insertion: %s, character %d; donor %s%n",DocumentInput.safeDisplay(selected),anchor,range.label());
                     review.printUnifiedDiff(masterSnapshot,proposal.updates());
                     for(var file:proposal.creates().entrySet().stream().sorted(java.util.Map.Entry.comparingByKey()).toList()) {
                         out.printf("CREATE %s (%d bytes, SHA-256 %s)%n",DocumentInput.safeDisplay(file.getKey()),file.getValue().length,TextEditPlan.sha256(file.getValue()));
-                        if(file.getKey().toString().endsWith(".tex")||file.getKey().toString().endsWith(".bib")) out.println(DocumentInput.safeDisplay(new String(file.getValue(),StandardCharsets.UTF_8)));
+
+                        if (file.getKey().toString().endsWith(".tex") || file.getKey().toString().endsWith(".bib")) {
+                            new String(file.getValue(), StandardCharsets.UTF_8).lines()
+                                    .forEach(line -> out.println(DocumentInput.safeDisplay(line)));
+                        }
                     }
                     if(!review.yes("Compile and apply this exact merge? [y/N]: ")) { out.println("Merge cancelled; no source changes."); return 0; }
+                    out.println("Compiling the baseline and merged result; saving only if all checks pass...");
+
                     Path recovery=MergeTransaction.apply(proposal,gate.withMain(main), warning -> out.println(warning));
                     out.println("Merge applied. History: " + DocumentInput.safeDisplay(recovery));
                     out.println("Use menu 7 to undo the whole merge, including unchanged imported files.");
@@ -120,6 +135,8 @@ final class MergeWorkflow {
             out.println("Merge cancelled; no source changes.");
         } catch(IOException | DocumentLoader.LoadException | IllegalArgumentException failure) {
             err.println("Merge stopped: " + DocumentInput.safeDisplay(failure.getMessage()));
+
+            err.println("Review the reported conflict or unsupported source in your editor, then start a fresh merge.");
         }
         return 0;
     }
@@ -153,7 +170,7 @@ final class MergeWorkflow {
         var sections=MergePlanner.sections(text);
         for(int i=0;i<sections.size();i++) out.println("  " + (i+1) + ". " + DocumentInput.safeDisplay(sections.get(i).label()));
         while(true) {
-            String answer=review.answer("Donor content [Enter=whole body, section number, or lines START END]: ").trim();
+            String answer=review.choice("Donor content [Enter=whole body, section number, or lines START END; ?=help]: ", HelpText.DONOR).trim();
             if(answer.isEmpty()) return MergePlanner.body(text);
             try {
                 if(answer.startsWith("lines ")) { var parts=answer.split("\\s+"); if(parts.length==3) return MergePlanner.lines(text,Integer.parseInt(parts[1]),Integer.parseInt(parts[2])); }
@@ -167,7 +184,7 @@ final class MergeWorkflow {
         var sections=MergePlanner.sections(text);
         for(int i=0;i<sections.size();i++) out.println("  " + (i+1) + ". " + DocumentInput.safeDisplay(sections.get(i).label()));
         while(true) {
-            String answer=review.answer("Master insertion [Enter=end of body, before NUMBER, after NUMBER]: ").trim();
+            String answer=review.choice("Master insertion [Enter=end of body, before NUMBER, after NUMBER; ?=help]: ", HelpText.INSERTION).trim();
             if(answer.isEmpty()) return root ? MergePlanner.body(text).end() : text.length();
             var parts=answer.split("\\s+");
             try {

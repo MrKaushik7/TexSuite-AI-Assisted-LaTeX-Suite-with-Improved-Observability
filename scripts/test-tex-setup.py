@@ -32,7 +32,10 @@ class TeXSetupTest(unittest.TestCase):
         target = self.root / "project/target"
         target.mkdir()
         shutil.copyfile(PROJECT / "target/texsuite.jar", target / "texsuite.jar")
-        for document in ("README.md", "opinions.md"):
+        for document in ("README.md", "opinions.md", "docs/getting-started.md",
+                         "docs/user-guide.md", "docs/ai-setup.md",
+                         "docs/troubleshooting.md", "docs/development.md"):
+            (target.parent / document).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(PROJECT / document, target.parent / document)
         self.installer = scripts / "install.sh"
         # Isolate the fixed macOS fallback without adding production test hooks.
@@ -159,7 +162,9 @@ class TeXSetupTest(unittest.TestCase):
         self.assertNotIn(OPEN_PROMPT, output)
         self.assertFalse(self.browser_log.exists())
         self.assertTrue((self.root / "app/texsuite.jar").is_file())
-        for document in ("README.md", "opinions.md"):
+        for document in ("README.md", "opinions.md", "docs/getting-started.md",
+                         "docs/user-guide.md", "docs/ai-setup.md",
+                         "docs/troubleshooting.md", "docs/development.md"):
             self.assertEqual((PROJECT / document).read_bytes(),
                              (self.root / "app" / document).read_bytes())
 

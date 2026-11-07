@@ -13,6 +13,27 @@ import org.junit.jupiter.api.io.TempDir;
 class MergeWorkflowTest {
     @TempDir Path directory;
 
+    @Test
+    void helpPreservesMergeChoicesAndImportedSourceKeepsReadableLines() throws Exception {
+        String masterText = MergePlannerTest.doc("", "Master.");
+        Path master = source("master/main.tex", masterText);
+        Path donor = source("donor/main.tex", MergePlannerTest.doc("", "\\input{part}"));
+        source("donor/part.tex", "First paragraph.\nSecond paragraph.\n");
+        String donorText = Files.readString(donor);
+
+        String output = run(master, donor + "\n\n?\n\n?\n\nn\n", true);
+
+        assertTrue(output.contains(HelpText.DONOR));
+        assertTrue(output.contains(HelpText.INSERTION));
+        assertTrue(output.contains("Merge review:"));
+        assertTrue(output.contains("First paragraph." + System.lineSeparator() + "Second paragraph."));
+        assertTrue(output.contains("Merge cancelled; no source changes."));
+        assertEquals(masterText, Files.readString(master));
+        assertEquals(donorText, Files.readString(donor));
+        assertFalse(Files.exists(master.getParent().resolve("texsuite-imports")));
+        assertFalse(Files.exists(master.getParent().resolve(".tex-suite")));
+    }
+
     @Test void reviewedWorkflowAppliesAndCancelDoesNot() throws Exception {
         Path master=source("master/main.tex",MergePlannerTest.doc("","Master."));
         Path donor=source("donor/main.tex",MergePlannerTest.doc("","Donor."));
@@ -61,12 +82,12 @@ class MergeWorkflowTest {
         });
         String applied=session(chapter,"4\n"+donor+"\n\n\n\ny\n3\nall\n\ny\n6\n",gate);
         assertTrue(applied.contains("Merge applied"),applied);
-        assertTrue(applied.contains("sanitation fix(es)"),applied);
+        assertTrue(applied.contains("cleanup fix(es)"),applied);
         assertTrue(Files.readString(chapter).contains("Donor."));
         assertFalse(Files.readString(chapter).contains("Chapter.  "));
 
         String undone=session(chapter,"7\ny\n7\ny\n6\n",gate);
-        assertEquals(2,undone.split("Last change reverted",-1).length-1,undone);
+        assertEquals(2,undone.split("Last change undone",-1).length-1,undone);
         assertArrayEquals(originalMain,Files.readAllBytes(main));
         assertArrayEquals(originalChapter,Files.readAllBytes(chapter));
         assertArrayEquals(originalDonor,Files.readAllBytes(donor));

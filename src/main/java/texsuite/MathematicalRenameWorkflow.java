@@ -118,6 +118,8 @@ final class MathematicalRenameWorkflow {
         TextEditPlan plan = approval.plan();
         Path savedPlan = record.save(snapshot);
         out.println("Approved intent saved: " + DocumentInput.safeDisplay(savedPlan));
+        out.println("Checking compilation and saved source before saving...");
+
         Path backup = plan.apply(context::checkCurrent);
         out.printf("Applied %d rename(s). Backup: %s%n", plan.size(), DocumentInput.safeDisplay(backup));
         out.println("Exact edit history: " + DocumentInput.safeDisplay(backup.resolve("changes.json")));

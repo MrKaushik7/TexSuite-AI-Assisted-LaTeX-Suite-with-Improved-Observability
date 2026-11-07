@@ -157,7 +157,8 @@ final class ModelReview {
                 out.println(resolved.validationNotice());
                 plan.validate();
                 context.checkCurrent();
-                if (!review.answer("Type apply to accept these changes, or Enter to cancel: ")
+                if (!review.choice("Type apply to accept these changes, or Enter to cancel (?=help): ",
+                        "Only apply approves this exact selected diff. Enter cancels without source changes.")
                         .equalsIgnoreCase("apply")) return null;
 
                 plan.validate();
@@ -180,7 +181,9 @@ final class ModelReview {
                 out.println(resolved.validationNotice());
             }
             context.checkCurrent();
-            switch (review.answer("Batch [diff/manual/apply/cancel (default)]: ").strip().toLowerCase(Locale.ROOT)) {
+            switch (review.choice("Batch [diff/manual/apply/cancel (default); ?=help]: ",
+                    "diff shows all selected changes; manual reviews individual decisions; apply approves the batch. "
+                            + "Enter/cancel stops without source changes. AI KEEP and uncertainty are not selected automatically.").strip().toLowerCase(Locale.ROOT)) {
                 case "diff" -> review.printUnifiedDiff(snapshot, plan.preview());
                 case "manual" -> selection = manual(snapshot, intent, candidates, context, selection.decisions());
                 case "apply" -> {
@@ -198,7 +201,9 @@ final class ModelReview {
 
     private int chooseAi() throws IOException {
         while (true) {
-            switch (review.answer("Selection [1=AI, 2=manual (default), 3=AI regenerate]: ").strip()) {
+            switch (review.choice("Selection [1=AI, 2=manual (default), 3=AI regenerate; ?=help]: ",
+                    "AI proposes decisions after separate payload consent; it can reuse validated cache entries. "
+                            + "Manual (Enter/2) reviews occurrences individually. Regenerate (3) bypasses cache reads.").strip()) {
                 case "1" -> { return 1; }
                 case "2", "" -> { return 2; }
                 case "3" -> { return 3; }

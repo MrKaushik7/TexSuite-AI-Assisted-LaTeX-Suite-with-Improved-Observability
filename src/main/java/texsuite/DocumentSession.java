@@ -76,15 +76,17 @@ final class DocumentSession {
 
                 out.println("  2. Replace text");
 
-                out.println("  3. Sanitize this document");
+                out.println("  3. Clean up whitespace");
 
-                out.println("  4. Merge another LaTeX document into this one");
+                out.println("  4. Merge documents");
 
                 out.println("  5. Settings and diagnostics");
 
                 out.println("  6. Quit");
 
-                out.println("  7. Revert last change");
+                out.println("  7. Undo last change");
+
+                out.println("  8. Help");
                 try {
                     String choice = ask("> ");
                     if (java.util.Set.of("1","2","3","4").contains(choice)) {
@@ -129,7 +131,8 @@ final class DocumentSession {
                             return CommandLine.ExitCode.OK;
                         }
                         case "7" -> revertLastChange();
-                        default -> out.println("Choose a number from 1 to 7, or enter quit.");
+                        case "8", "?", "help" -> HelpText.overview(out);
+                        default -> out.println("Choose a number from 1 to 8, help, or quit.");
                     }
                 } catch (EditReview.Back exception) {
                     out.println("Back to menu.");
@@ -178,7 +181,7 @@ final class DocumentSession {
 
             out.println("Settings:");
 
-            out.println("  1. Diagnostics");
+            out.println("Editor");
 
             out.println("  2. Toggle automatic opening");
 
@@ -188,15 +191,26 @@ final class DocumentSession {
 
             out.println("  5. Reset editor");
 
-            out.println("  6. Back");
-
-            out.println("  7. Recover interrupted edits");
+            out.println();
+            out.println("AI");
 
             out.println("  8. AI provider settings and test");
 
+            out.println("  10. AI response cache");
+
+            out.println();
+            out.println("History and recovery");
+
             out.println("  9. Edit history");
 
-            out.println("  10. AI response cache");
+            out.println("  7. Recover interrupted edits");
+
+            out.println();
+            out.println("  1. Diagnostics");
+
+            out.println("  6. Back");
+
+            out.println("  ?  Help");
 
             String answer = readSettingsAnswer();
             if (answer == null) continue;
@@ -222,6 +236,7 @@ final class DocumentSession {
                 case "8" -> modelSettings();
                 case "9" -> showHistory();
                 case "10" -> cacheSettings();
+                case "?", "help" -> HelpText.overview(out);
                 default -> out.println("Choose a Settings option from 1 to 10.");
             }
         }
@@ -481,24 +496,24 @@ final class DocumentSession {
                 }
             }
             if (recovery == null) {
-                out.println("No completed change is available to revert.");
+                out.println("No completed change is available to undo.");
                 return;
             }
             var targets = TextRecovery.completedTargets(root, recovery);
-            out.println("Revert the whole last completed operation: " + DocumentInput.safeDisplay(recovery.getFileName()));
+            out.println("Undo the whole last completed operation: " + DocumentInput.safeDisplay(recovery.getFileName()));
             for (Path target : targets) out.println("  " + DocumentInput.safeDisplay(target));
-            if (new EditReview(input, out).yes("Are you sure you want to revert this change? [y/N]: ")) {
+            if (new EditReview(input, out).yes("Are you sure you want to undo this change? [y/N]: ")) {
                 TextRecovery.revert(root, recovery);
-                out.println("Last change reverted. Originals restored; backups and history retained.");
+                out.println("Last change undone. Originals restored; backups and history retained.");
             } else {
-                out.println("Revert cancelled; no source changes.");
+                out.println("Undo cancelled; no source changes.");
             }
         } catch (EditReview.Cancel | EOFException exception) {
             throw new QuitRequest();
         } catch (EditReview.Back exception) {
             throw exception;
         } catch (IOException exception) {
-            err.println("Revert stopped: " + DocumentInput.safeDisplay(exception.getMessage()));
+            err.println("Undo stopped: " + DocumentInput.safeDisplay(exception.getMessage()));
         }
     }
 
@@ -559,7 +574,11 @@ final class DocumentSession {
 
     private RenameRequest.Scope askScope() throws IOException, QuitRequest {
         while (true) {
-            String answer = ask("Scope [1=file (default), 2=project]: ");
+            String answer = ask("Scope [1=file (default), 2=project; ?=help]: ");
+            if (answer.equals("?") || answer.equalsIgnoreCase("help")) {
+                out.println(HelpText.SCOPE);
+                continue;
+            }
             if (answer.isEmpty() || answer.equals("1") || answer.equalsIgnoreCase("file")) {
                 return RenameRequest.Scope.FILE;
             }

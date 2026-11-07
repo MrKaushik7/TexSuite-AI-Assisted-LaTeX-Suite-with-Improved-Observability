@@ -48,7 +48,7 @@ final class SanitationWorkflow {
             out.println("Cancelled without source changes.");
             return CommandLine.ExitCode.OK;
         } catch (IOException | DocumentLoader.LoadException exception) {
-            err.println("Could not complete sanitation: " + DocumentInput.safeDisplay(exception.getMessage()));
+            err.println("Cleanup stopped: " + DocumentInput.safeDisplay(exception.getMessage()));
             return CommandLine.ExitCode.USAGE;
         }
     }
@@ -57,23 +57,31 @@ final class SanitationWorkflow {
         DocumentSnapshot snapshot = new DocumentLoader().load(selectedFile);
         if (!snapshot.root().resolve(snapshot.main()).equals(selectedFile)) throw new IOException("Selected file identity changed.");
         var report = new SanitationPlanner().inspect(snapshot, compileGate.mainFor(snapshot));
-        out.println("Sanitation: " + DocumentInput.safeDisplay(snapshot.main()) + " (selected file only; offline).");
+        out.println("Clean up whitespace: " + DocumentInput.safeDisplay(snapshot.main()) + " (selected file only; offline).");
+
+        out.printf("Trailing fixes available: %d. Findings for manual review: %d.%n",
+                report.trailing().size(), report.findings().size() + report.omittedFindings());
 
         out.printf("Line endings: LF=%d, CRLF=%d, CR=%d.%n", report.lfCount(), report.crlfCount(), report.crCount());
 
-        out.printf("Selectable trailing-whitespace fixes: %d. Advisory findings: %d.%n",
-                report.trailing().size(), report.findings().size() + report.omittedFindings());
+        if (!report.findings().isEmpty()) out.println("Manual review (no automatic changes):");
         for (var finding : report.findings()) {
-            out.printf("  ADVISORY %s:%d:%d [%s] %s%n", DocumentInput.safeDisplay(finding.path()),
-                    finding.line(), finding.column(), finding.rule(), DocumentInput.safeDisplay(finding.message()));
+            out.printf("  %s:%d:%d — %s%n", DocumentInput.safeDisplay(finding.path()),
+                    finding.line(), finding.column(), DocumentInput.safeDisplay(finding.message()));
         }
         if (report.omittedFindings() > 0) out.printf("  %d further advisory rows omitted; inspect again after manual repairs.%n", report.omittedFindings());
-        if (report.lfBlock() != null) out.println(report.lfBlock());
-        if (report.crlfBlock() != null) out.println(report.crlfBlock());
+        out.println();
+        out.println("Line-ending conversion:");
+
+        out.println(report.lfBlock() != null ? report.lfBlock() : "LF: " + report.lf().size() + " eligible terminator change(s).");
+        out.println(report.crlfBlock() != null ? report.crlfBlock() : "CRLF: " + report.crlf().size() + " eligible terminator change(s).");
         if (report.trailing().isEmpty() && report.lf().isEmpty() && report.crlf().isEmpty()) {
             out.println("No supported safe fixes available; no source changes.");
+
+            out.println("Review any findings manually in your editor, then run cleanup again.");
             return;
         }
+        if (!report.trailing().isEmpty()) out.println("Trailing whitespace fixes:");
         for (int index = 0; index < report.trailing().size(); index++) {
             var edit = report.trailing().get(index);
             out.printf("  %d. %s:%d:%d remove %s%n", index + 1, DocumentInput.safeDisplay(edit.path()),
@@ -81,7 +89,7 @@ final class SanitationWorkflow {
         }
         List<TextEditPlan.Edit> selected = new ArrayList<>(selectTrailing(report.trailing()));
         while (true) {
-            String answer = review.answer("Normalize line endings? [Enter=keep, lf, crlf]: ").trim().toLowerCase(java.util.Locale.ROOT);
+            String answer = review.choice("Normalize line endings? [Enter=keep, lf, crlf; ?=help]: ", HelpText.ENDINGS).trim().toLowerCase(java.util.Locale.ROOT);
             if (answer.isEmpty() || answer.equals("keep")) break;
             if (answer.equals("lf") || answer.equals("crlf")) {
                 String block = answer.equals("lf") ? report.lfBlock() : report.crlfBlock();
@@ -105,7 +113,7 @@ final class SanitationWorkflow {
         out.println("Exact whitespace preview (␠ = space, ⇥ = tab, <CR>/<LF> = line-ending bytes, ∅ = deletion):");
         for (var edit : selected) {
             out.printf("  %s:%d:%d [%s] %s -> %s%n", DocumentInput.safeDisplay(edit.path()),
-                    edit.line(), edit.column(), edit.rule(), SanitationPlanner.visible(new String(edit.expected(), StandardCharsets.UTF_8)),
+                    edit.line(), edit.column(), edit.rule().equals(SanitationPlanner.EOL) ? "line ending" : "trailing whitespace", SanitationPlanner.visible(new String(edit.expected(), StandardCharsets.UTF_8)),
                     edit.replacement().isEmpty() ? "∅" : SanitationPlanner.visible(edit.replacement()));
         }
         review.printUnifiedDiff(snapshot, updates, selected.stream().noneMatch(edit -> edit.rule().equals(SanitationPlanner.EOL)));
@@ -115,18 +123,20 @@ final class SanitationWorkflow {
         }
         TexCompileGate resolved = review.compilationMain(snapshot, selected, compileGate);
         // Rebuild only the gate; selected bytes and their approval remain tied to this snapshot.
+        out.println("Checking compilation and saved source before saving...");
+
         Path backup = new TextEditPlan(snapshot, selected, resolved).apply();
-        out.printf("Applied %d sanitation fix(es). Backup: %s%n", selected.size(), DocumentInput.safeDisplay(backup));
+        out.printf("Applied %d cleanup fix(es). Backup: %s%n", selected.size(), DocumentInput.safeDisplay(backup));
 
         out.println("Exact edit history: " + DocumentInput.safeDisplay(backup.resolve("changes.json")));
 
-        out.println("Use Revert last change to restore the exact original bytes.");
+        out.println("Use menu 7: Undo last change to restore the exact original bytes.");
     }
 
     private List<TextEditPlan.Edit> selectTrailing(List<TextEditPlan.Edit> fixes) throws IOException {
         if (fixes.isEmpty()) return List.of();
         while (true) {
-            String answer = review.answer("Select trailing fixes [Enter=none, all, or numbers separated by spaces]: ").trim();
+            String answer = review.choice("Select trailing fixes [Enter=none, all, or numbers separated by spaces; ?=help]: ", HelpText.TRAILING).trim();
             if (answer.isEmpty()) return List.of();
             if (answer.equalsIgnoreCase("all")) return fixes;
             try {

@@ -177,6 +177,8 @@ final class TextReplacementWorkflow {
             return CommandLine.ExitCode.OK;
         }
         TextEditPlan plan = approval.plan();
+        out.println("Checking compilation and saved source before saving...");
+
         Path backup = plan.apply(context::checkCurrent);
         out.printf("Applied %d replacement(s). Backup: %s%n", plan.size(),
                 DocumentInput.safeDisplay(backup));
@@ -308,7 +310,7 @@ final class TextReplacementWorkflow {
 
     private RenameRequest.Scope scope() throws IOException, Cancel {
         while (true) {
-            switch (review.answer("Scope [1=file (default), 2=project]: ")) {
+            switch (review.choice("Scope [1=file (default), 2=project; ?=help]: ", HelpText.SCOPE)) {
                 case "", "1" -> { return RenameRequest.Scope.FILE; }
                 case "2" -> { return RenameRequest.Scope.PROJECT; }
                 default -> out.println("Choose 1 for this file or 2 for its static include closure.");
@@ -320,8 +322,8 @@ final class TextReplacementWorkflow {
         out.println("Document text: prose inside the document. LaTeX source: eligible literal values, including the preamble.");
         out.println("Comments, verbatim, definitions, command names and metadata remain protected in every region.");
         while (true) {
-            String choice = review.answer("Region [1=document text (default), "
-                    + "2=LaTeX source, 3=line range]: ");
+            String choice = review.choice("Region [1=document text (default), "
+                    + "2=LaTeX source, 3=line range; ?=help]: ", HelpText.REGION);
             if (choice.isEmpty() || choice.equals("1")) {
                 return new Region(RegionKind.DOCUMENT_TEXT, 0, 0);
             }
@@ -349,7 +351,7 @@ final class TextReplacementWorkflow {
 
     private MatchMode matching() throws IOException {
         while (true) {
-            switch (review.answer("Matching [1=whole words (default), 2=substrings (inside words too)]: ")) {
+            switch (review.choice("Matching [1=whole words (default), 2=substrings (inside words too); ?=help]: ", HelpText.MATCHING)) {
                 case "", "1" -> { return MatchMode.WHOLE_WORD; }
                 case "2" -> { return MatchMode.SUBSTRING; }
                 default -> out.println("Choose 1 for whole words or 2 to also match inside words.");

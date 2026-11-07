@@ -12,17 +12,20 @@ if [ ! -f "$SOURCE_JAR" ]; then
     exit 1
 fi
 
-for document in README.md opinions.md; do
+DOCUMENTS='README.md opinions.md docs/getting-started.md docs/user-guide.md docs/ai-setup.md docs/troubleshooting.md docs/development.md'
+
+for document in $DOCUMENTS; do
     if [ ! -f "$PROJECT_DIR/$document" ]; then
         printf 'Missing user documentation: %s\n' "$PROJECT_DIR/$document" >&2
         exit 1
     fi
 done
 
-mkdir -p "$INSTALL_DIR" "$BIN_DIR"
+mkdir -p "$INSTALL_DIR/docs" "$BIN_DIR"
 install -m 0644 "$SOURCE_JAR" "$INSTALL_DIR/texsuite.jar"
-install -m 0644 "$PROJECT_DIR/README.md" "$INSTALL_DIR/README.md"
-install -m 0644 "$PROJECT_DIR/opinions.md" "$INSTALL_DIR/opinions.md"
+for document in $DOCUMENTS; do
+    install -m 0644 "$PROJECT_DIR/$document" "$INSTALL_DIR/$document"
+done
 
 cat > "$BIN_DIR/texsuite" <<EOF
 #!/bin/bash
@@ -69,7 +72,7 @@ fi
 
 printf 'Installed TexSuite JAR: %s\n' "$INSTALL_DIR/texsuite.jar"
 printf 'Installed command: %s\n' "$BIN_DIR/texsuite"
-printf 'User guide and assumptions: %s\n' "$INSTALL_DIR/README.md"
+printf 'Start here (offline guides): %s\n' "$INSTALL_DIR/README.md"
 printf 'Add %s to PATH if needed.\n' "$BIN_DIR"
 
 find_compiler() (

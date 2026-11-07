@@ -24,6 +24,10 @@ TEXSUITE_INSTALL_DIR="$fixture_root/app" TEXSUITE_BIN_DIR="$fixture_root/launche
 
 cmp "$script_dir/../README.md" "$fixture_root/app/README.md"
 cmp "$script_dir/../opinions.md" "$fixture_root/app/opinions.md"
+for document in getting-started user-guide ai-setup troubleshooting development; do
+    cmp "$script_dir/../docs/$document.md" "$fixture_root/app/docs/$document.md"
+done
+python3 "$script_dir/check-docs.py" "$fixture_root/app"
 
 PATH="$fixture_root/bin:$PATH" TEXSUITE_LOG_DIR="$fixture_root/logs" \
     "$fixture_root/launchers/texsuite" --clean \
@@ -67,6 +71,7 @@ grep -Fq "The class 'NSOpenPanel' overrides the method identifier" "$fixture_roo
 
 "$fixture_root/launchers/texsuite" --help > "$fixture_root/help.stdout" 2> "$fixture_root/help.stderr"
 grep -Fq 'Usage: texsuite' "$fixture_root/help.stdout"
+grep -Fq 'texsuite --compile-main main.tex chapters/intro.tex' "$fixture_root/help.stdout"
 test ! -s "$fixture_root/help.stderr"
 
 printf '%s\n' 'Installed documentation and launcher warning filter passed.'

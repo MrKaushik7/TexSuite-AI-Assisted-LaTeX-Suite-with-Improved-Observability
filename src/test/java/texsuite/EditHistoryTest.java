@@ -157,7 +157,7 @@ final class EditHistoryTest {
             cli.setDependenciesForTests((path, application) -> Optional.empty(), (allow, main) -> gate());
             var command = new CommandLine(cli).setOut(new PrintWriter(output));
             assertEquals(0, command.execute("main.tex"));
-            assertTrue(output.toString().contains("Are you sure you want to revert this change? [y/N]"));
+            assertTrue(output.toString().contains("Are you sure you want to undo this change? [y/N]"));
             assertTrue(output.toString().contains("Edit history"));
             assertEquals(confirm ? "hello" : "world", Files.readString(directory.resolve("chapter.tex")));
             assertEquals(confirm ? "hello\\input{chapter}" : "world\\input{chapter}", Files.readString(directory.resolve("main.tex")));
