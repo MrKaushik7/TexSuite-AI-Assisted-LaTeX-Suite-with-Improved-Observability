@@ -130,6 +130,13 @@ Use **4: Merge documents** to import donor content into the selected master targ
 The donor stays unchanged. Master class/options and existing definitions remain.
 Merge is offline and requires compilation; `--allow-no-compile` cannot bypass it.
 
+You choose the location; TexSuite does not infer it. The opened file is the
+insertion target. To insert into an included chapter, open that chapter and
+select its root as the compilation main. Only headings in the target file are
+listed for `before NUMBER` / `after NUMBER`; included files are not expanded
+into insertion choices. Enter appends before `\end{document}` in a root, or
+at the end of a chapter.
+
 1. Choose the donor `.tex` path, or Enter/`browse` for a file picker. A valid donor
    opens in your editor when automatic opening is on.
 2. Confirm the master compilation main (Enter keeps its default). It also accepts
