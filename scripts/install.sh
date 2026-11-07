@@ -59,6 +59,14 @@ exit "\$java_status"
 EOF
 chmod 0755 "$BIN_DIR/texsuite"
 
+printf '%s\n' 'Checking the installed TexSuite launcher...'
+if ! "$BIN_DIR/texsuite" --version; then
+    printf '%s\n' 'Installation check failed: the installed launcher could not start TexSuite.' >&2
+    printf '%s\n' 'TexSuite requires Java 21 or newer. Make it available as java on PATH, then rerun this installer.' >&2
+    printf '%s\n' 'If Java is already compatible, inspect the error above and rebuild the JAR with ./mvnw verify.' >&2
+    exit 1
+fi
+
 printf 'Installed TexSuite JAR: %s\n' "$INSTALL_DIR/texsuite.jar"
 printf 'Installed command: %s\n' "$BIN_DIR/texsuite"
 printf 'User guide and assumptions: %s\n' "$INSTALL_DIR/README.md"

@@ -41,6 +41,7 @@ class TeXSetupTest(unittest.TestCase):
         self.installer.write_text(installer.replace("/Library/TeX/texbin", str(self.fallback)))
         for command in ("dirname", "mkdir", "install", "cat", "chmod"):
             (self.bin / command).symlink_to(shutil.which(command))
+        (self.bin / "java").symlink_to(shutil.which("java"))
         self.write_executable(self.bin / "open", "printf '%s\\n' \"$1\" >> \"$BROWSER_LOG\"\nexit \"${BROWSER_STATUS:-0}\"\n")
         self.browser_log = self.root / "browser.log"
         self.env = dict(os.environ, PATH=str(self.bin),
@@ -53,12 +54,12 @@ class TeXSetupTest(unittest.TestCase):
         path.write_text("#!/bin/sh\n" + body)
         path.chmod(0o755)
 
-    def run_noninteractive(self):
+    def run_noninteractive(self, expected_status=0):
         result = subprocess.run(["/bin/sh", str(self.installer)], env=self.env,
                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True, timeout=10,
                                 cwd=self.root)
-        self.assertEqual(0, result.returncode, result.stdout)
+        self.assertEqual(expected_status, result.returncode, result.stdout)
         return result.stdout
 
     def run_interactive(self, answers, install_on_recheck=False):
@@ -98,6 +99,36 @@ class TeXSetupTest(unittest.TestCase):
 
     def assert_browser_opened_once(self):
         self.assertEqual(DOWNLOAD_URL + "\n", self.browser_log.read_text())
+
+    def test_installed_launcher_runs_before_success_despite_path_shadow(self):
+        self.write_executable(self.bin / "texsuite", "echo 'old launcher invoked'\nexit 0\n")
+        output = self.run_noninteractive()
+        self.assertIn("TexSuite 0.1.0-SNAPSHOT", output)
+        self.assertLess(output.index("TexSuite 0.1.0-SNAPSHOT"), output.index("Installed TexSuite JAR:"))
+        self.assertNotIn("old launcher invoked", output)
+
+    def test_missing_java_fails_without_installation_success(self):
+        (self.bin / "java").unlink()
+        output = self.run_noninteractive(expected_status=1)
+        self.assertIn("Installation check failed", output)
+        self.assertIn("Java 21 or newer", output)
+        self.assertNotIn("Installed TexSuite JAR:", output)
+        self.assertFalse(self.browser_log.exists())
+
+    def test_incompatible_java_preserves_error_and_fails_installation(self):
+        (self.bin / "java").unlink()
+        self.write_executable(self.bin / "java", "echo 'UnsupportedClassVersionError' >&2\nexit 1\n")
+        output = self.run_noninteractive(expected_status=1)
+        self.assertIn("UnsupportedClassVersionError", output)
+        self.assertIn("Java 21 or newer", output)
+        self.assertNotIn("Installed TexSuite JAR:", output)
+
+    def test_broken_jar_fails_with_rebuild_guidance(self):
+        (self.installer.parent.parent / "target/texsuite.jar").write_bytes(b"invalid jar")
+        output = self.run_noninteractive(expected_status=1)
+        self.assertIn("Installation check failed", output)
+        self.assertIn("rebuild the JAR", output)
+        self.assertNotIn("Installed TexSuite JAR:", output)
 
     def test_existing_compiler_uses_path_before_fallback(self):
         self.write_executable(self.bin / "pdflatex")

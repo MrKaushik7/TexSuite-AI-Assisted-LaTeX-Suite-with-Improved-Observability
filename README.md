@@ -17,6 +17,8 @@ export PATH="$HOME/.local/bin:$PATH"
 
 The JAR, this README and `opinions.md` are installed at `~/Applications/TexSuite/`; the command is at `~/.local/bin/texsuite`.
 
+Before reporting success, the installer runs the newly installed launcher with `--version`. Java 21 or newer must be available as `java` on `PATH`. If the launcher fails, the installer exits with an error and guidance; copied files remain so you can fix Java or rebuild the JAR and rerun installation. This startup check makes no API request and does not validate a document or its TeX packages.
+
 The installer checks for `pdflatex` on absolute `PATH` entries and in `/Library/TeX/texbin`. If it is missing, it recommends [BasicTeX](https://www.tug.org/mactex/morepackages.html), a smaller TeX installation, and an interactive install offers to open its official download page. Download BasicTeX and run its macOS installer, then press Enter for one availability recheck or type `skip` to finish. You can also rerun `scripts/install.sh` later to check again. Noninteractive installs print the instructions without prompting.
 
 Some documents need extra classes, fonts or packages beyond BasicTeX; install missing packages with its `tlmgr` package manager. [Full MacTeX](https://www.tug.org/mactex/mactex-download.html) is optional for broader package coverage. An existing installation providing `pdflatex` can also be reused. Finding a compiler does not prove a document's packages are available; compilation is checked when applying an edit. Reading and inspecting documents requires no TeX installation.
