@@ -120,7 +120,7 @@ final class TextEditPlan {
     }
 
     private void validateSanitation() throws IOException {
-        var report = new SanitationPlanner().inspect(snapshot);
+        var report = new SanitationPlanner().inspect(snapshot, compileGate.mainFor(snapshot));
         var allowed = new ArrayList<>(report.trailing());
         allowed.addAll(report.lf());
         allowed.addAll(report.crlf());

@@ -103,7 +103,7 @@ final class MergeSyntax {
             p = body.end();
             if (environment) { Group end = group(text, p, '{', '}'); endBody = end.value(); p = end.end(); }
             if (!definitionsInside(body.value()).isEmpty()) throw new IOException("Nested declarations require manual repair.");
-            result.add(new Definition(environment ? "env:" + name : name.substring(1), count, optional, star,
+            result.add(new Definition(environment ? "env:" + name : name.substring(1), t.name(), count, optional, star,
                     body.value(), endBody, text.substring(t.start(), p), t.start(), p));
             consumed = p;
         }
@@ -146,7 +146,9 @@ final class MergeSyntax {
             Token t = ts.get(i);
             if (mapping.containsKey(t.name())) output.replace(t.start() + 1, t.end(), mapping.get(t.name()));
             if (Set.of("begin", "end", "newenvironment").contains(t.name())) {
-                Group g = group(text, t.end(), '{', '}');
+                int p = skip(text, t.end());
+                if (t.name().equals("newenvironment") && p < text.length() && text.charAt(p) == '*') p++;
+                Group g = group(text, p, '{', '}');
                 String replacement = mapping.get("env:" + g.value());
                 if (replacement != null) output.replace(g.start(), g.end() - 1, replacement.replace("env:", ""));
             }
@@ -156,14 +158,14 @@ final class MergeSyntax {
 
     record Token(String name, int start, int end) { }
     record Group(String value, int start, int end) { }
-    record Definition(String name, int arguments, String optional, boolean star, String body,
+    record Definition(String name, String kind, int arguments, String optional, boolean star, String body,
             String endBody, String declaration, int start, int end) {
         boolean compatible(Definition other) {
             return arguments == other.arguments && star == other.star && java.util.Objects.equals(optional, other.optional)
                     && name.startsWith("env:") == other.name.startsWith("env:");
         }
         boolean identical(Definition other) {
-            return compatible(other) && star == other.star && body.equals(other.body) && endBody.equals(other.endBody);
+            return compatible(other) && kind.equals(other.kind) && body.equals(other.body) && endBody.equals(other.endBody);
         }
     }
 }

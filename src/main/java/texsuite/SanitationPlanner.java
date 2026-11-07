@@ -1,5 +1,6 @@
 package texsuite;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -38,18 +39,45 @@ final class SanitationPlanner {
             "verbatim*", "lstlisting", "minted", "filecontents", "filecontents*", "comment");
 
     Report inspect(DocumentSnapshot snapshot) {
+        return inspect(snapshot, snapshot);
+    }
+
+    Report inspect(DocumentSnapshot snapshot, Path compilationMain) throws IOException {
+        if (snapshot.root().resolve(snapshot.main()).equals(compilationMain.toAbsolutePath().normalize())) {
+            return inspect(snapshot);
+        }
+
+        DocumentSnapshot context;
+        try {
+            context = new DocumentLoader().load(compilationMain);
+        } catch (DocumentLoader.LoadException exception) {
+            throw new IOException("Cannot inspect sanitation compilation context: " + exception.getMessage(), exception);
+        }
+        Path selected = snapshot.root().resolve(snapshot.main());
+        Path relative = context.root().relativize(selected);
+        if (!context.definitelyReachable().contains(relative)) {
+            throw new IOException("Sanitation target is not in the compilation main's unconditional include closure.");
+        }
+        if (!Arrays.equals(snapshot.files().get(snapshot.main()).bytes(), context.files().get(relative).bytes())) {
+            throw new StaleSourceException("Selected source changed during sanitation context inspection.");
+        }
+
+        return inspect(snapshot, context);
+    }
+
+    private Report inspect(DocumentSnapshot snapshot, DocumentSnapshot context) {
         var findings = new Findings();
-        for (var diagnostic : snapshot.diagnostics()) {
-            var source = snapshot.files().get(diagnostic.source());
+        for (var diagnostic : context.diagnostics()) {
+            var source = context.files().get(diagnostic.source());
             var scanner = source == null ? null : new TexSourceScanner(text(source.bytes()));
             int index = scanner == null ? 0 : scanner.charIndex(diagnostic.byteOffset());
-            findings.add(new Finding(diagnostic.source(), scanner == null ? 1 : scanner.line(index),
+            findings.add(new Finding(contextPath(snapshot, context, diagnostic.source()), scanner == null ? 1 : scanner.line(index),
                     scanner == null ? 1 : scanner.editorColumn(index), diagnostic.code(), diagnostic.detail()));
         }
 
-        boolean blocked = !snapshot.complete();
+        boolean blocked = !snapshot.complete() || !context.complete();
         // A dependency can change character/space interpretation in the selected file too.
-        for (var file : snapshot.files().values().stream().sorted(java.util.Comparator.comparing(
+        for (var file : context.files().values().stream().sorted(java.util.Comparator.comparing(
                 DocumentSnapshot.SourceFile::path)).toList()) {
             String source = text(file.bytes());
             var scanner = new TexSourceScanner(source);
@@ -58,7 +86,7 @@ final class SanitationPlanner {
             Hazard hazard = unsupported(source, scanner);
             if (hazard != null) {
                 blocked = true;
-                findings.add(new Finding(file.path(), scanner.line(hazard.index()), scanner.editorColumn(hazard.index()),
+                findings.add(new Finding(contextPath(snapshot, context, file.path()), scanner.line(hazard.index()), scanner.editorColumn(hazard.index()),
                         "UNSUPPORTED_WHITESPACE", hazard.message()
                         + "; automatic whitespace fixes withheld for this file's dependency closure."));
             }
@@ -131,6 +159,10 @@ final class SanitationPlanner {
         return new Report(List.copyOf(trailing), lfBlock == null ? List.copyOf(lf) : List.of(),
                 crlfBlock == null ? List.copyOf(crlf) : List.of(), lfBlock, crlfBlock,
                 lfCount, crlfCount, crCount, List.copyOf(findings.items), findings.omitted);
+    }
+
+    private static Path contextPath(DocumentSnapshot snapshot, DocumentSnapshot context, Path path) {
+        return snapshot.root().equals(context.root()) ? path : context.root().resolve(path);
     }
 
     private static boolean ordinaryLine(String source, TexSourceScanner scanner, int start, int end) {

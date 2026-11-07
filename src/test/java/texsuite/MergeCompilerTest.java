@@ -78,4 +78,36 @@ class MergeCompilerTest {
         TextRecovery.revert(p.master().root(),backup);
         assertFalse(Files.exists(p.master().root().resolve(p.creates().keySet().iterator().next())));
     }
+    @Test
+    void realCompilerValidatesOperatorAndStarredEnvironmentRenamesThenExactUndo() throws Exception {
+        var gate = realGate();
+        var planner = planner(MergePlannerTest.doc(
+                "\\newcommand{\\rank}{rank}\n\\newenvironment*{example}{Master.}{End.}", "Master $\\rank A$."),
+                MergePlannerTest.doc("\\usepackage{amsmath}\n\\DeclareMathOperator{\\rank}{rank}\n"
+                        + "\\newenvironment*{example}[1][Default.]{#1}{Done.}",
+                        "Donor $\\rank A$. \\begin{example}Body.\\end{example}"));
+        var renameConflicts = new MergePlanner.Resolver() {
+            public String choose(String question, List<String> choices) {
+                return choices.contains("rename") ? "rename" : choices.getFirst();
+            }
+            public String value(String question) { return ""; }
+            public String definition(String name) { return ""; }
+        };
+        var proposal = MergePlannerTest.prepare(planner, renameConflicts);
+        Path main = proposal.master().root().resolve("main.tex");
+        Path donor = directory.resolve("donor/main.tex");
+        byte[] masterBefore = Files.readAllBytes(main);
+        byte[] donorBefore = Files.readAllBytes(donor);
+
+        Path recovery = MergeTransaction.apply(proposal, gate);
+        String merged = Files.readString(main);
+        assertTrue(merged.contains("\\DeclareMathOperator{\\donorrank}{rank}"));
+        assertTrue(merged.contains("\\begin{donorexample}Body.\\end{donorexample}"));
+        assertArrayEquals(donorBefore, Files.readAllBytes(donor));
+
+        TextRecovery.revert(proposal.master().root(), recovery);
+        assertArrayEquals(masterBefore, Files.readAllBytes(main));
+        assertArrayEquals(donorBefore, Files.readAllBytes(donor));
+    }
+
 }

@@ -244,4 +244,47 @@ class MergePlannerTest {
         assertFalse(bib.contains("{par} # {ent}"));
     }
 
+    @Test
+    void equalTextFromDifferentDeclarationKindsStillNeedsExplicitMeaningChoice() throws Exception {
+        var planner = planner(doc("\\newcommand{\\rank}{rank}", "Master $\\rank A$."),
+                doc("\\usepackage{amsmath}\n\\DeclareMathOperator{\\rank}{rank}", "Donor $\\rank A$."));
+        var questions = new java.util.ArrayList<String>();
+        var refusing = new MergePlanner.Resolver() {
+            public String choose(String question, List<String> choices) {
+                questions.add(question);
+                return "cancel";
+            }
+            public String value(String question) { return ""; }
+            public String definition(String name) { return ""; }
+        };
+
+        assertThrows(IOException.class, () -> prepare(planner, refusing));
+        assertEquals(1, questions.size());
+        assertTrue(questions.getFirst().contains("Macro rank"));
+    }
+
+    @Test
+    void optionalDefaultsWithReferencesCannotBypassManualAdaptation() throws Exception {
+        var planner = planner(doc("", "Master\\label{shared}."),
+                doc("\\newcommand{\\result}[1][\\ref{shared}]{#1}",
+                        "Donor\\label{shared}: \\result."));
+        byte[] donorBefore = Files.readAllBytes(directory.resolve("donor/main.tex"));
+
+        IOException failure = assertThrows(IOException.class, () -> prepare(planner, DEFAULTS));
+        assertTrue(failure.getMessage().contains("manual adaptation"));
+        assertArrayEquals(donorBefore, Files.readAllBytes(directory.resolve("donor/main.tex")));
+    }
+
+    @Test
+    void starredEnvironmentImportsAndRenamesItsDeclarationAndUses() throws Exception {
+        var planner = planner(doc("\\newenvironment*{example}{Master.}{End.}", "Master."),
+                doc("\\newenvironment*{example}[1][Default.]{#1}{Done.}",
+                        "\\begin{example}Donor.\\end{example}"));
+        String merged = result(prepare(planner, DEFAULTS));
+
+        assertTrue(merged.contains("\\newenvironment*{donorexample}[1][Default.]{#1}{Done.}"));
+        assertTrue(merged.contains("\\begin{donorexample}Donor.\\end{donorexample}"));
+        assertTrue(merged.contains("\\newenvironment*{example}{Master.}{End.}"));
+    }
+
 }

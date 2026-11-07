@@ -164,4 +164,67 @@ final class SanitationWorkflowTest {
     }
 
     private record Result(int code, String output, String errors) { }
+    @ParameterizedTest
+    @ValueSource(strings = {"chapter.tex", "chapters/chapter.tex"})
+    void explicitCompilationMainHazardsWithholdChapterFixes(String chapterName) throws Exception {
+        Path chapterPath = directory.resolve(chapterName);
+        Files.createDirectories(chapterPath.getParent());
+        Path chapter = Files.writeString(chapterPath, "Plain.  \n").toRealPath();
+        Path main = source("\\documentclass{article}\n\\obeyspaces\n\\begin{document}\n"
+                + "\\input{" + chapterName + "}\n\\end{document}\n");
+        byte[] before = Files.readAllBytes(chapter);
+        var compiler = new TexCompileGate(Path.of("/fake/pdflatex"), false, main,
+                (command, cwd, timeout) -> {
+                    Files.writeString(cwd.resolve(".texsuite-validation/texsuite-validation.pdf"), "PDF");
+                    return 0;
+                });
+
+        var result = run(chapter, "all\n\ny\n", compiler);
+        assertEquals(0, result.code(), result.errors());
+        assertArrayEquals(before, Files.readAllBytes(chapter));
+        assertTrue(result.output().contains("No supported safe fixes"));
+        assertFalse(Files.exists(directory.resolve(".tex-suite")));
+    }
+
+    @Test
+    void compilationMainSelectedAfterPreviewStillRejectsUnsafeChapterFixes() throws Exception {
+        Path chapter = Files.writeString(directory.resolve("chapter.tex"), "Plain.  \n").toRealPath();
+        Path main = source("\\documentclass{article}\n\\obeyspaces\n\\begin{document}\n"
+                + "\\input{chapter}\n\\end{document}\n");
+        var compiler = new TexCompileGate(Path.of("/fake/pdflatex"), false, null,
+                (command, cwd, timeout) -> { fail("Unsafe fixes must be rejected before compilation"); return 0; });
+
+        var result = run(chapter, "all\n\ny\n" + main + "\n", compiler);
+        assertEquals(CommandLine.ExitCode.USAGE, result.code());
+        assertTrue(result.output().contains("Choose its compilation main"));
+        assertTrue(result.errors().contains("outside the supported safe fixes"));
+        assertEquals("Plain.  \n", Files.readString(chapter));
+        assertFalse(Files.exists(directory.resolve(".tex-suite")));
+    }
+
+    @Test
+    void safeParentCompilationContextKeepsEditsAndUndoScopedToChapter() throws Exception {
+        Path chapters = Files.createDirectories(directory.resolve("chapters"));
+        Path chapter = Files.writeString(chapters.resolve("chapter.tex"), "Plain.  \n").toRealPath();
+        Path main = source("\\documentclass{article}\n\\begin{document}\n"
+                + "\\input{chapters/chapter}\n\\end{document}\n");
+        byte[] mainBefore = Files.readAllBytes(main);
+        var compiler = new TexCompileGate(Path.of("/fake/pdflatex"), false, main,
+                (command, cwd, timeout) -> {
+                    Files.writeString(cwd.resolve(".texsuite-validation/texsuite-validation.pdf"), "PDF");
+                    return 0;
+                });
+
+        var result = run(chapter, "all\n\ny\n", compiler);
+        assertEquals(0, result.code(), result.errors());
+        assertTrue(result.output().contains("Applied 1 sanitation fix"));
+        assertEquals("Plain.\n", Files.readString(chapter));
+        assertArrayEquals(mainBefore, Files.readAllBytes(main));
+
+        Path root = chapters.toRealPath();
+        TextRecovery.revert(root, TextRecovery.lastCompleted(root));
+        assertEquals("Plain.  \n", Files.readString(chapter));
+        assertArrayEquals(mainBefore, Files.readAllBytes(main));
+    }
+
 }

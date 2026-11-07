@@ -56,9 +56,11 @@ final class SanitationWorkflow {
     private void inspectAndReview() throws IOException, DocumentLoader.LoadException {
         DocumentSnapshot snapshot = new DocumentLoader().load(selectedFile);
         if (!snapshot.root().resolve(snapshot.main()).equals(selectedFile)) throw new IOException("Selected file identity changed.");
-        var report = new SanitationPlanner().inspect(snapshot);
+        var report = new SanitationPlanner().inspect(snapshot, compileGate.mainFor(snapshot));
         out.println("Sanitation: " + DocumentInput.safeDisplay(snapshot.main()) + " (selected file only; offline).");
+
         out.printf("Line endings: LF=%d, CRLF=%d, CR=%d.%n", report.lfCount(), report.crlfCount(), report.crCount());
+
         out.printf("Selectable trailing-whitespace fixes: %d. Advisory findings: %d.%n",
                 report.trailing().size(), report.findings().size() + report.omittedFindings());
         for (var finding : report.findings()) {
@@ -115,7 +117,9 @@ final class SanitationWorkflow {
         // Rebuild only the gate; selected bytes and their approval remain tied to this snapshot.
         Path backup = new TextEditPlan(snapshot, selected, resolved).apply();
         out.printf("Applied %d sanitation fix(es). Backup: %s%n", selected.size(), DocumentInput.safeDisplay(backup));
+
         out.println("Exact edit history: " + DocumentInput.safeDisplay(backup.resolve("changes.json")));
+
         out.println("Use Revert last change to restore the exact original bytes.");
     }
 

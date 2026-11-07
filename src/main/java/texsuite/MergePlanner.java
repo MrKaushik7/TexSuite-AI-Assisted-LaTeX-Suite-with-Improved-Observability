@@ -331,11 +331,12 @@ final class MergePlanner {
 
     private void importDefinition(State state, String name, MergeSyntax.Definition definition, Set<String> active) throws IOException {
         Set<String> dependencies = uses(definition.body() + "\n" + definition.endBody());
+        if (definition.optional() != null) dependencies.addAll(uses(definition.optional()));
+
         if (dependencies.stream().anyMatch(Set.of("label", "ref", "pageref", "eqref", "cite", "citep", "citet", "includegraphics", "input", "include")::contains)) {
             throw new IOException("Path/reference-bearing macro definitions need manual adaptation: " + name);
         }
         for (String dependency : dependencies) resolve(state,dependency,active);
-        if (definition.optional() != null) for (String dependency : uses(definition.optional())) resolve(state,dependency,active);
         if (definition.declaration().startsWith("\\DeclareMathOperator")) requirePackage(state,"amsmath");
         state.imports.put(name,definition); state.decisions.add("Import definition " + name);
     }
