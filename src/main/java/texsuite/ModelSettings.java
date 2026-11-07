@@ -40,6 +40,15 @@ final class ModelSettings {
         return read().has("modelProvider");
     }
 
+    boolean keyAvailable(Profile profile) {
+        try {
+            String key = environment.apply(profile.keyEnvironment());
+            return key != null && key.matches("[!-~]+");
+        } catch (SecurityException exception) {
+            return false;
+        }
+    }
+
     Profile load() throws IOException {
         ObjectNode config = read();
         try {

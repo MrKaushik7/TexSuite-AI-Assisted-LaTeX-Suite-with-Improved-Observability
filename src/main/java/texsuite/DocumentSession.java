@@ -286,11 +286,31 @@ final class DocumentSession {
 
     private void initializeAi() throws IOException, QuitRequest {
         try {
-            if (modelSettings.load().configured() || modelSettings.saved()) return;
+            ModelSettings.Profile profile = modelSettings.load();
+            if (!profile.configured() && !modelSettings.saved()) {
+                out.println("AI is not configured. You can change it anytime in Settings 8.");
+                String choice = ask("Configure AI now? [y/N]: ");
+                if (choice.equalsIgnoreCase("y") || choice.equalsIgnoreCase("yes")) configureModel();
 
-            out.println("AI is not configured. You can change it anytime in Settings 8.");
-            String choice = ask("Configure AI now? [y/N]: ");
-            if (choice.equalsIgnoreCase("y") || choice.equalsIgnoreCase("yes")) configureModel();
+                profile = modelSettings.load();
+            }
+
+            if (!profile.configured()) return;
+
+            if (modelSettings.keyAvailable(profile)) {
+                out.printf("API key: %s is readable in this session. Validity/expiration has not been checked.%n",
+                        profile.keyEnvironment());
+                out.println("If you changed the key since launch, quit and restart TexSuite from the terminal with the updated export.");
+            } else {
+                out.printf("API key: %s is missing, unreadable, or has invalid characters in this session.%n",
+                        profile.keyEnvironment());
+                out.println("Before using AI, type quit, then export your key in the terminal:");
+                out.printf("  export %s='your-api-key'%n", profile.keyEnvironment());
+                out.println("Replace the placeholder with your key, then relaunch TexSuite from that same terminal.");
+                out.println("A running session cannot pick up later exports. Manual operations remain available.");
+            }
+
+            out.println("Settings 8 offers a provider test with separate consent; startup sends no API request.");
         } catch (EditReview.Back exception) {
             // Returning from startup setup leaves manual operations available.
         } catch (IOException exception) {

@@ -25,11 +25,20 @@ class MergeWorkflowTest {
     }
 
     @Test void wizardAcceptsMissingDefinitionAndRechecksIt() throws Exception {
-        Path master=source("master/main.tex",MergePlannerTest.doc("","Master."));
-        Path donor=source("donor/main.tex",MergePlannerTest.doc("","$\\countValue$"));
-        String output=run(master,donor+"\n\n\n\ndefine\n\\newcommand{\\countValue}{42}\n.\ny\n",false);
+        String masterDefinition="\\newcommand{\\vectorSymbol}[1]{\\mathbf{#1}}";
+        String donorDefinition="\\newcommand{\\vectorSymbol}{v}";
+        Path master=source("master/main.tex",MergePlannerTest.doc(masterDefinition,"Master."));
+        Path donor=source("donor/main.tex",MergePlannerTest.doc(donorDefinition,"$\\countValue$ $\\vectorSymbol$"));
+        String output=run(master,donor+"\n\n\n\ndefine\n\\newcommand{\\countValue}{42}\n.\nrename\ny\n",false);
         assertTrue(output.contains("Merge applied"),output);
+        assertTrue(output.contains("Macro vectorSymbol"+System.lineSeparator()+"MASTER: "+masterDefinition
+                +System.lineSeparator()+"DONOR: "+donorDefinition),output);
+        assertTrue(output.contains("\\newcommand{\\countValue}{s}"));
+        assertTrue(output.contains("\\def\\countValue{s}"));
+        assertTrue(output.contains("A bare value such as s is not a declaration."));
+        assertTrue(output.indexOf("Enter a complete LaTeX command declaration")<output.indexOf("definition>"));
         assertTrue(Files.readString(master).contains("\\newcommand{\\countValue}{42}"));
+        assertTrue(Files.readString(master).contains("\\newcommand{\\donorvectorSymbol}{v}"));
     }
 
     @Test void missingCompilerAllowsPreviewButNeverApply() throws Exception {

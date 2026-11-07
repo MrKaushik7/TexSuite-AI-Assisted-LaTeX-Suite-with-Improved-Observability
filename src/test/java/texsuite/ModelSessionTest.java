@@ -7,10 +7,82 @@ import java.nio.file.*;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 final class ModelSessionTest {
     @TempDir Path directory;
+
+    @BeforeEach
+    void resolveTemporaryDirectory() throws IOException {
+        directory = directory.toRealPath();
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "secret with spaces", "secret\nvalue", "secret-é", "denied", "secret-valid"})
+    void startupChecksLocalKeyWithoutCreatingProviderOrLeakingValues(String key) throws Exception {
+        Path source = Files.writeString(directory.resolve("main.tex"), "private document").toRealPath();
+        var settings = new ModelSettings(directory.resolve("ai.json"), name -> {
+            if (!name.equals("CUSTOM_KEY")) return null;
+            if ("denied".equals(key)) throw new SecurityException("secret-denied-details");
+            return key;
+        });
+        settings.save(new ModelSettings.Profile(ModelSettings.Provider.OPENROUTER, "fixture-model", "CUSTOM_KEY", 60));
+        var output = new StringWriter();
+        var errors = new StringWriter();
+
+        assertEquals(0, session(source, "5\nquit\n", output, errors,
+                profile -> { throw new AssertionError("Startup must not create a provider"); }, settings));
+
+        String transcript = output.toString();
+        if ("secret-valid".equals(key)) {
+            assertTrue(transcript.contains("CUSTOM_KEY is readable in this session"));
+            assertTrue(transcript.contains("Validity/expiration has not been checked"));
+            assertTrue(transcript.contains("updated export"));
+            assertFalse(transcript.contains("export CUSTOM_KEY="));
+        } else {
+            assertTrue(transcript.contains("CUSTOM_KEY is missing, unreadable, or has invalid characters"));
+            assertTrue(transcript.contains("type quit"));
+            assertTrue(transcript.contains("export CUSTOM_KEY='your-api-key'"));
+            assertTrue(transcript.contains("relaunch TexSuite from that same terminal"));
+        }
+        assertTrue(transcript.indexOf("API key:") < transcript.indexOf("What would you like to do?"));
+        assertTrue(transcript.contains("startup sends no API request"));
+        assertFalse((transcript + errors + Files.readString(directory.resolve("ai.json"))).contains("secret"));
+        assertEquals("private document", Files.readString(source));
+    }
+
+    @Test
+    void startupChecksProfileCreatedDuringInitialSetup() throws Exception {
+        Path source = Files.writeString(directory.resolve("main.tex"), "text").toRealPath();
+        var output = new StringWriter();
+        var settings = new ModelSettings(directory.resolve("ai.json"), name -> null);
+
+        assertEquals(0, session(source, "y\n2\nfixture-model\nCUSTOM_KEY\n\n1\nquit\n", output,
+                new StringWriter(), profile -> { throw new AssertionError("No startup provider"); }, settings));
+
+        assertTrue(output.toString().contains("export CUSTOM_KEY='your-api-key'"));
+        assertTrue(output.toString().indexOf("AI settings saved globally") < output.toString().indexOf("API key:"));
+    }
+
+    @Test
+    void disabledAiDoesNotReadOrWarnAboutKey() throws Exception {
+        Path source = Files.writeString(directory.resolve("main.tex"), "text").toRealPath();
+        var output = new StringWriter();
+        var settings = new ModelSettings(directory.resolve("ai.json"), name -> {
+            if (name.equals("CUSTOM_KEY")) fail("Disabled AI must not read credentials");
+            return null;
+        });
+        settings.save(new ModelSettings.Profile("", "CUSTOM_KEY", 60));
+
+        assertEquals(0, session(source, "5\nquit\n", output, new StringWriter(),
+                profile -> { throw new AssertionError("No startup provider"); }, settings));
+        assertFalse(output.toString().contains("API key:"));
+    }
 
     @Test
     void globalSettingsSelectBothNewProvidersWithTheirDefaultKeyReferences() throws Exception {
@@ -87,9 +159,13 @@ final class ModelSessionTest {
 
     private int session(Path source, String answers, StringWriter output, StringWriter errors,
             java.util.function.Function<ModelSettings.Profile, ModelClient> factory) throws IOException {
-        directory = directory.toRealPath();
         var settings = new ModelSettings(directory.resolve("ai.json"), name -> null);
         settings.save(new ModelSettings.Profile("", "OPENAI_API_KEY", 60));
+        return session(source, answers, output, errors, factory, settings);
+    }
+
+    private int session(Path source, String answers, StringWriter output, StringWriter errors,
+            java.util.function.Function<ModelSettings.Profile, ModelClient> factory, ModelSettings settings) {
         return new DocumentSession(new BufferedReader(new StringReader(answers)), new PrintWriter(output),
                 new PrintWriter(errors), source, false, () -> 0,
                 new EditorPreferences(directory.resolve("editor.properties")), (file, app) -> Optional.empty(),

@@ -60,7 +60,9 @@ final class MergeWorkflow {
                     int anchor=anchor(planner.targetText(), selected.equals(main));
                     var proposal=planner.prepare(range,anchor,new MergePlanner.Resolver() {
                         public String choose(String question,List<String> choices) throws IOException {
-                            out.println(DocumentInput.safeDisplay(question));
+                            out.println();
+                            question.lines().forEach(line -> out.println(DocumentInput.safeDisplay(line)));
+                            out.println();
                             for (int i=0;i<choices.size();i++) out.println("  " + (i+1) + ". " + choices.get(i));
                             while (true) {
                                 String answer=review.answer("Choose explicitly (Enter cancels): ").trim();
@@ -72,7 +74,22 @@ final class MergeWorkflow {
                         }
                         public String value(String prompt) throws IOException { return review.answer(prompt + ": ").trim(); }
                         public String definition(String name) throws IOException {
-                            out.println("Enter one supported definition for " + name + "; finish with a line containing only .");
+                            String displayedName = DocumentInput.safeDisplay(name);
+                            if (name.startsWith("env:")) {
+                                String environment = displayedName.substring(4);
+                                out.println("Enter a complete \\newenvironment declaration for " + environment + ".");
+                                out.println("Example of an environment that uses quote formatting:");
+                                out.println("  \\newenvironment{" + environment + "}{\\begin{quote}}{\\end{quote}}");
+                            } else {
+                                out.println("Enter a complete LaTeX command declaration for \\" + displayedName + ".");
+                                out.println("For example, to make this command expand to s, enter one of:");
+                                out.println("  \\newcommand{\\" + displayedName + "}{s}");
+                                out.println("  \\def\\" + displayedName + "{s}");
+                                out.println("Replace s with your intended definition. A bare value such as s is not a declaration.");
+                                out.println("Also supported: \\providecommand, \\DeclareRobustCommand, \\DeclareMathOperator.");
+                            }
+                            out.println("Enter exactly one declaration; it may span multiple lines.");
+                            out.println("Finish with a line containing only . (a single period).");
                             StringBuilder text=new StringBuilder();
                             while(true) {
                                 String line=review.answer("definition> "); if(line.equals(".")) break;
