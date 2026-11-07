@@ -30,7 +30,7 @@ final class ContextRetrieverTest {
         assertEquals(1, result.batches().size());
         var batch = result.batches().getFirst();
         assertEquals(3, batch.candidateIds().size());
-        assertEquals(1_500, batch.maxOutputTokens());
+        assertEquals(8_192, batch.maxOutputTokens());
         String context = text(result);
         assertTrue(context.contains("\\section{Database}"));
         assertTrue(context.contains("\\begin{definition}"));

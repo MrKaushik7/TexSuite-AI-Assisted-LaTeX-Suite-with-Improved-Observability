@@ -38,6 +38,14 @@ final class OpenRouterClient implements ModelClient {
             body.put("model", model());
             body.put("stream", false);
             body.put("max_tokens", request.maxOutputTokens());
+
+            if (profile.model().equals(ModelSettings.Provider.OPENROUTER.defaultModel())) {
+                int thinkingTokens = Math.min(2_560, request.maxOutputTokens() / 2);
+                var reasoning = body.putObject("reasoning");
+                if (thinkingTokens > 0) reasoning.put("max_tokens", thinkingTokens);
+                else reasoning.put("enabled", false);
+            }
+
             var messages = body.putArray("messages");
             boolean schemaOutput = profile.outputMode() == ModelSettings.OutputMode.JSON_SCHEMA;
             messages.addObject().put("role", "system").put("content", ModelProtocol.INSTRUCTIONS
@@ -70,12 +78,41 @@ final class OpenRouterClient implements ModelClient {
             throw new Failure(Problem.REFUSAL, "OpenRouter declined the classification request.");
         }
         if (choice.hasNonNull("error") || !choice.path("finish_reason").asText().equals("stop")) {
-            throw new Failure(Problem.INCOMPLETE, "OpenRouter did not return a completed response.");
+            throw new Failure(Problem.INCOMPLETE, incompleteMessage(envelope, choice, request));
         }
         if (!message.path("role").asText().equals("assistant") || !message.path("content").isTextual()
                 || message.hasNonNull("tool_calls")) {
             throw new Failure(Problem.INVALID_OUTPUT, "Unexpected OpenRouter message content.");
         }
         return ModelProtocol.decisions(message.path("content").textValue(), request);
+    }
+
+    private static String incompleteMessage(JsonNode envelope, JsonNode choice, Request request) {
+        String reason = switch (choice.path("finish_reason").asText()) {
+            case "stop" -> "stop";
+            case "length" -> "length";
+            case "content_filter" -> "content_filter";
+            case "tool_calls" -> "tool_calls";
+            case "error" -> "error";
+            default -> "unknown";
+        };
+        var message = new StringBuilder("OpenRouter did not return a completed response. Diagnostics: ")
+                .append("finish_reason=").append(reason).append(", output_limit=").append(request.maxOutputTokens());
+        var usage = envelope.path("usage");
+        appendNumber(message, "prompt_tokens", usage.path("prompt_tokens"));
+        appendNumber(message, "completion_tokens", usage.path("completion_tokens"));
+        appendNumber(message, "reasoning_tokens", usage.path("completion_tokens_details").path("reasoning_tokens"));
+
+        if (choice.hasNonNull("error")) {
+            message.append(", provider_error=true");
+            appendNumber(message, "provider_error_code", choice.path("error").path("code"));
+        }
+        return message.append('.').toString();
+    }
+
+    private static void appendNumber(StringBuilder message, String name, JsonNode value) {
+        if (value.isIntegralNumber() && value.canConvertToLong() && value.longValue() >= 0) {
+            message.append(", ").append(name).append('=').append(value.longValue());
+        }
     }
 }

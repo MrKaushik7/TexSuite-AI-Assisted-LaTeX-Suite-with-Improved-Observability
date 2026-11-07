@@ -200,6 +200,8 @@ final class ModelReview {
     }
 
     private int chooseAi() throws IOException {
+        out.println("For better results, use a more capable model. AI can make mistakes; review every proposed change.");
+
         while (true) {
             switch (review.choice("Selection [1=AI, 2=manual (default), 3=AI regenerate; ?=help]: ",
                     "AI proposes decisions after separate payload consent; it can reuse validated cache entries. "
@@ -297,7 +299,8 @@ final class ModelReview {
         String id = "0".repeat(64);
         ModelClient.Request request = new ModelClient.Request("x", "synthetic test symbol", "y",
                 List.of(new ModelClient.Candidate(id, "test", 0, 1)),
-                List.of(new ModelClient.Excerpt("test", List.of("synthetic provider test"), "x")), 1_500, null);
+                List.of(new ModelClient.Excerpt("test", List.of("synthetic provider test"), "x")),
+                ContextRetriever.MAX_OUTPUT_TOKENS, null);
         out.println("Provider test uses fixed synthetic text; no document source is sent.");
         try {
             if (!consent(request)) {

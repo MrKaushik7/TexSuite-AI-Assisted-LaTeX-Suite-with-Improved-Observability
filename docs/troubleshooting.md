@@ -14,6 +14,14 @@
 | API key missing or malformed | Quit, export the configured variable in the terminal, then relaunch. The [key instructions](ai-setup.md#export-the-key-and-restart) distinguish its name from its value. |
 | Readable key but provider request fails | Use the separately consented Settings **8 → 2** test. Check access, model ID, quota and timeout. Manual review remains available. |
 
+## AI requests
+
+| Symptom | Reason and next action |
+| --- | --- |
+| `INCOMPLETE. OpenRouter did not return a completed response.` | Check the appended finish reason, token counts and numeric error code when available. A length limit and a provider failure need different next steps; see [incomplete responses](ai-setup.md#incomplete-responses). Enter `y` for manual review or cancel. |
+| `TIMEOUT` | TexSuite reached the configured request deadline. It differs from a returned `INCOMPLETE` response; increase the timeout if you want to allow a longer wait. |
+| `RATE_LIMIT` | Check the selected endpoint's quota and retry after its reset, or use manual review. |
+
 ## Compilation and chapters
 
 | Symptom | Reason and next action |

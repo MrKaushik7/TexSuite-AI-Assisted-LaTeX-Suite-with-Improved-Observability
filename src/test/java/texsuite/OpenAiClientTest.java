@@ -20,18 +20,22 @@ final class OpenAiClientTest {
 
     @Test
     void sendsExactPreviewAndParsesAllActionsWithoutHistoryOrKeyInBody() throws Exception {
+        var original = request();
+        var request = new ModelClient.Request(original.source(), original.meaning(), original.replacement(),
+                original.candidates(), original.excerpts(), 8_192, null);
         String[] actual = {null};
         try (var fixture = new Fixture(200, envelope(decisions(ID, "replace", "Meaning matches", "0.8")),
                 actual, 0, "application/json")) {
             var client = fixture.client();
-            String preview = client.preview(request());
-            assertEquals(ModelClient.Action.REPLACE, client.classify(request()).decisions().getFirst().action());
+            String preview = client.preview(request);
+            assertEquals(ModelClient.Action.REPLACE, client.classify(request).decisions().getFirst().action());
             assertEquals(preview, actual[0]);
             JsonNode body = JSON.readTree(preview);
             assertFalse(body.path("store").asBoolean());
             assertFalse(body.path("stream").asBoolean());
             assertFalse(body.has("previous_response_id"));
             assertEquals("gpt-6.1-sol", body.path("model").asText());
+            assertEquals(8_192, body.path("max_output_tokens").asInt());
             assertEquals("json_schema", body.at("/text/format/type").asText());
             assertTrue(body.at("/text/format/strict").asBoolean());
             assertFalse(preview.contains("fixture-secret"));
@@ -159,7 +163,7 @@ final class OpenAiClientTest {
             var original = request();
             for (var changed : List.of(
                     new ModelClient.Request("n", "meaning", "m", List.of(new ModelClient.Candidate(ID, "slice", 3, 4)), original.excerpts(), 1500, null),
-                    new ModelClient.Request("n", "meaning", "m", original.candidates(), original.excerpts(), 1501, null),
+                    new ModelClient.Request("n", "meaning", "m", original.candidates(), original.excerpts(), 8_193, null),
                     new ModelClient.Request("n", "meaning", "m", original.candidates(), List.of(new ModelClient.Excerpt("slice", List.of(), "x".repeat(24001))), 1500, null),
                     original.repair("x".repeat(16385)))) {
                 assertThrows(ModelClient.Failure.class, () -> client.classify(changed));

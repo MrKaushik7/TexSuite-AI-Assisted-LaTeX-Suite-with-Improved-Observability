@@ -76,7 +76,7 @@ final class ModelProtocolTest {
         }
         String text = "n" + "😀".repeat(23_999);
         var excerpts = List.of(new ModelClient.Excerpt("excerpt", List.of(), text));
-        var bounded = new ModelClient.Request("n", "count", "m", candidates, excerpts, 1500, null);
+        var bounded = new ModelClient.Request("n", "count", "m", candidates, excerpts, 8_192, null);
 
         assertDoesNotThrow(() -> ModelProtocol.validateRequest(profile, bounded));
         assertDoesNotThrow(() -> ModelProtocol.validateRequest(profile, request()));
@@ -87,6 +87,10 @@ final class ModelProtocolTest {
                 List.of(new ModelClient.Excerpt("excerpt", List.of(), text + "x")), 1500, null);
         assertEquals(ModelClient.Problem.OVERSIZED, assertThrows(ModelClient.Failure.class,
                 () -> ModelProtocol.validateRequest(profile, overContext)).problem());
+
+        var overOutput = new ModelClient.Request("n", "count", "m", candidates, excerpts, 8_193, null);
+        assertEquals(ModelClient.Problem.CONFIGURATION, assertThrows(ModelClient.Failure.class,
+                () -> ModelProtocol.validateRequest(profile, overOutput)).problem());
     }
 
     @Test

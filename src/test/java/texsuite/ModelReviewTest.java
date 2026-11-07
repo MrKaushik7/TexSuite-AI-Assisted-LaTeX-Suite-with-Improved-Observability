@@ -165,6 +165,7 @@ final class ModelReviewTest {
             assertTrue(output.toString().contains("may incur API charges"));
             if (!client.requests.isEmpty()) {
                 assertEquals("x", client.requests.getFirst().excerpts().getFirst().text());
+                assertEquals(ContextRetriever.MAX_OUTPUT_TOKENS, client.requests.getFirst().maxOutputTokens());
                 assertTrue(output.toString().contains("Provider test passed"));
             }
         }

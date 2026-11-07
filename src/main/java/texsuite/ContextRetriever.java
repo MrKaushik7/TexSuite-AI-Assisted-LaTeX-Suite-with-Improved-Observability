@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 final class ContextRetriever {
     static final int MAX_CANDIDATES = 8;
     static final int MAX_SOURCE_CHARACTERS = 24_000;
-    static final int MAX_OUTPUT_TOKENS = 1_500;
+    static final int MAX_OUTPUT_TOKENS = 8_192;
 
     private static final Pattern BLANK_LINE = Pattern.compile(
             "(?:\\r\\n|\\r(?!\\n)|(?<!\\r)\\n)[\\t ]*(?:\\r\\n|\\r(?!\\n)|(?<!\\r)\\n)");

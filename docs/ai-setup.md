@@ -6,6 +6,9 @@ Rename and text replacement work with manual review. Cleanup and merge are
 always offline. AI proposes which eligible occurrences match your meaning;
 it cannot authorize writes or change your literal replacement.
 
+**For better results, use a more capable model.** AI can make semantic mistakes;
+review every proposed change.
+
 ## Configure a provider
 
 1. Choose **5: Settings → 8: AI provider settings and test → 1: Change AI settings**.
@@ -75,7 +78,9 @@ Rename context includes the enclosing equation/blank-line paragraph, nearest
 supported section/definition/theorem/proof and referenced local macro definitions.
 Static includes can supply read-only context. `--debug` lists retrieved slices.
 Batches contain at most **8 candidates** and **24,000 Unicode source characters**,
-requesting **1,500 output tokens**. Oversized, incomplete or structurally uncertain
+requesting up to **8,192 output tokens**, including reasoning where the provider
+counts it toward output. This is a ceiling, not a fixed amount consumed.
+Oversized, incomplete or structurally uncertain
 context requires manual review, without silent truncation. See
 [exact context and transport limits](../opinions.md#context-selection-and-budgets).
 
@@ -90,6 +95,73 @@ consent. Its payload contains allowed IDs and previous output, which can repeat
 source, without reattaching original excerpts. Local providers are future scope.
 Both rename and replacement support AI batch selection and manual fallback.
 
+### Budget for real papers
+
+Offline measurements of 37 batches from three real LaTeX projects suggest these
+sizes, using a rough **2–4 characters per token** estimate:
+
+| Work | Estimated tokens |
+| --- | --- |
+| One batch's input, including instructions and evidence | 1,100–5,900 |
+| Eight decisions' final JSON, with short to maximum-length ASCII reasons | 400–1,500 |
+
+These are sizing estimates, not tokenizer counts or measured provider usage.
+Reasoning is additional to the final JSON and shares the **8,192-token output
+ceiling** on OpenRouter. The selected Nemotron free preset also requests a separate
+**2,560-token reasoning limit**, leaving 5,632 of the total allowance outside
+thinking. Increasing total output alone can still let reasoning consume it all.
+See [OpenRouter's budget control](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#max-tokens-for-reasoning).
+Other/custom models retain their provider's reasoning defaults.
+
+Budget applies **per request**, not per document. A 100-candidate chapter in the
+same set needs 13 batches: roughly 24,000–48,000 input tokens in total and an
+output ceiling of **106,496 tokens**, before any separately approved schema repair.
+Actual consumption can be much lower; cached decisions avoid repeat calls.
+More reasoning can take longer or reach your configured timeout. Paid models
+can cost more; free endpoints still have quotas and availability limits.
+
+### Incomplete responses
+
+A large or complex request can fail on a free endpoint even within TexSuite's
+local context limits. For example:
+
+```text
+AI classification stopped: INCOMPLETE. OpenRouter did not return a completed response.
+All AI decisions for this operation were discarded.
+Continue with manual review? [y/N]:
+```
+
+This reports an unfinished provider response. Payload size is one possible cause;
+the message alone does not establish it. TexSuite now allows **8,192 output tokens**
+per request, increased from 1,500; even this can be exhausted before classification
+finishes. On reasoning models, thinking can consume that budget before usable JSON is produced; see
+[OpenRouter's token-budget explanation](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#reasoning-tokens-and-max_output_tokens).
+Provider errors can also cause an incomplete response. Free access has
+endpoint-specific limits and availability; it does not guarantee completion.
+
+OpenRouter failures now append safe diagnostics: a known `finish_reason`, the
+requested `output_limit`, available prompt/completion/reasoning token counts and
+a numeric choice-error code when supplied. Unknown reasons display `unknown`;
+missing or invalid counts are omitted. Raw provider text is excluded. Interpret
+the fields using [OpenRouter's response contract](https://openrouter.ai/docs/api_reference/overview#finish-reason):
+
+| Result | Next step |
+| --- | --- |
+| `finish_reason=length` | The provider reports a length limit. Compare `completion_tokens` with `output_limit`; if all completion tokens are reasoning, no allowance remained for final JSON. The Nemotron preset requests a separate thinking limit. A longer timeout does not raise token allowances. |
+| `finish_reason=error` or `provider_error=true` | Inspect the numeric code if present. This is a provider failure; elapsed time alone does not establish a provider timeout. |
+| `TIMEOUT` | TexSuite reached its configured deadline. Increase the timeout only if you want to wait longer. |
+| `finish_reason=unknown` or missing usage | The response lacks usable diagnostic fields; its cause is still unconfirmed. |
+
+Enter `y` to review occurrences manually, or Enter/`n` to cancel. No edits have
+been applied by this failed operation; all its AI suggestions, including earlier
+batches, are discarded. Manual selection still needs the normal preview,
+approval and validation before writing.
+
+For another AI attempt, choose a smaller chapter/file scope, or a narrower region
+for Replace text. If it still fails, use manual review or configure another model.
+TexSuite does not automatically truncate context or retry an incomplete response.
+Increasing the timeout does not increase the output-token budget.
+
 ### Output modes and provider policies
 
 - OpenRouter JSON Schema mode requests strict schema and `require_parameters:true`.
@@ -98,6 +170,9 @@ Both rename and replacement support AI batch selection and manual fallback.
   does not support `response_format`. The schema is placed in instructions;
   strict local validation still applies, without provider-enforced formatting.
   Other OpenRouter models default to JSON Schema; the mode remains overridable.
+  The preset's reasoning budget is included in the exact payload preview; an
+  unsupported control fails without silently removing it. A changed payload also
+  changes cache identity, so old-policy decisions are not reused as new results.
 - Gemini requests `generationConfig.responseMimeType` and `responseJsonSchema`,
   following the [Gemini SDK example](https://googleapis.github.io/python-genai/#json-response-schema).
 

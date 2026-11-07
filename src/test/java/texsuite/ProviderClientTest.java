@@ -2,6 +2,7 @@ package texsuite;
 
 import static org.junit.jupiter.api.Assertions.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -29,24 +30,44 @@ final class ProviderClientTest {
             var body = JSON.readTree(client.preview(request()));
             assertFalse(body.has("response_format"));
             assertTrue(body.at("/provider/require_parameters").asBoolean());
+            assertEquals(750, body.at("/reasoning/max_tokens").asInt());
             assertTrue(body.at("/messages/0/content").asText().contains(ModelProtocol.SCHEMA));
             assertEquals(ModelClient.Action.REPLACE, client.classify(request()).decisions().getFirst().action());
             assertFalse(JSON.readTree(fixture.body).has("response_format"));
+            assertEquals(client.preview(request()), fixture.body);
         }
         assertThrows(IllegalArgumentException.class, () -> new ModelSettings.Profile(
                 ModelSettings.Provider.GEMINI, "gemini-2.5-flash", "GEMINI_API_KEY", 60, ModelSettings.OutputMode.PROMPT_JSON));
     }
 
     @Test
+    void customOpenRouterModelsDoNotInheritNemotronReasoningBudget() throws Exception {
+        try (var fixture = new Fixture(200, envelope(ModelSettings.Provider.OPENROUTER, decision(ID, "replace")), 0)) {
+            var profile = new ModelSettings.Profile(ModelSettings.Provider.OPENROUTER,
+                    "fixture/custom-model", "TEST_KEY", 1);
+            var client = new OpenRouterClient(profile, URI.create("http://127.0.0.1:"
+                    + fixture.server.getAddress().getPort() + "/test"), HttpClient.newHttpClient(), name -> "fixture-secret");
+            String preview = client.preview(request());
+            assertFalse(JSON.readTree(preview).has("reasoning"));
+            assertEquals(ModelClient.Action.REPLACE, client.classify(request()).decisions().getFirst().action());
+            assertEquals(preview, fixture.body);
+        }
+    }
+
+    @Test
     void exactWirePayloadHeaderAuthenticationAndAllActions() throws Exception {
+        var original = request();
+        var request = new ModelClient.Request(original.source(), original.meaning(), original.replacement(),
+                original.candidates(), original.excerpts(), 8_192, null);
+
         for (var provider : PROVIDERS) {
             for (String action : List.of("replace", "keep", "needsHumanReview")) {
                 try (var fixture = new Fixture(200, envelope(provider, decision(ID, action)), 0)) {
                     var client = fixture.client(provider, "fixture-secret");
-                    String preview = client.preview(request());
+                    String preview = client.preview(request);
                     assertEquals(action.equals("replace") ? ModelClient.Action.REPLACE
                             : action.equals("keep") ? ModelClient.Action.KEEP : ModelClient.Action.NEEDS_HUMAN_REVIEW,
-                            client.classify(request()).decisions().getFirst().action());
+                            client.classify(request).decisions().getFirst().action());
                     assertEquals(preview, fixture.body);
                     assertEquals(1, fixture.calls);
                     assertEquals(provider.id() + "-reviewed", client.decisionSource());
@@ -60,14 +81,15 @@ final class ProviderClientTest {
                         assertEquals("nvidia/nemotron-3-ultra-550b-a55b:free", body.path("model").asText());
                         assertTrue(body.at("/provider/require_parameters").asBoolean());
                         assertFalse(body.has("models"));
-                        assertEquals(1500, body.path("max_tokens").asInt());
+                        assertEquals(8_192, body.path("max_tokens").asInt());
+                        assertEquals(2_560, body.at("/reasoning/max_tokens").asInt());
                         assertFalse(body.path("stream").asBoolean());
                         assertTrue(body.at("/response_format/json_schema/strict").asBoolean());
                         data = body.at("/messages/1/content").asText();
                     } else {
                         assertNull(fixture.authorization);
                         assertEquals("fixture-secret", fixture.googleKey);
-                        assertEquals(1500, body.at("/generationConfig/maxOutputTokens").asInt());
+                        assertEquals(8_192, body.at("/generationConfig/maxOutputTokens").asInt());
                         assertEquals("application/json", body.at("/generationConfig/responseMimeType").asText());
                         assertEquals(JSON.readTree(ModelProtocol.SCHEMA), body.at("/generationConfig/responseJsonSchema"));
                         assertFalse(body.path("generationConfig").has("responseFormat"));
@@ -178,6 +200,85 @@ final class ProviderClientTest {
                             () -> fixture.client(provider, "fixture-secret").classify(request()));
                     assertNull(failure.repairOutput());
                 }
+            }
+        }
+    }
+
+    @Test
+    void incompleteOpenRouterReportsFinishReasonAndTokenUsageWithoutRemoteText() throws Exception {
+        var envelope = JSON.readTree(envelope(ModelSettings.Provider.OPENROUTER, "fixture-secret private source"));
+        var choice = (ObjectNode) envelope.path("choices").get(0);
+        choice.put("finish_reason", "length").put("native_finish_reason", "fixture-secret private source");
+        ((ObjectNode) choice.path("message"))
+                .put("reasoning", "fixture-secret private source");
+        var usage = ((ObjectNode) envelope).putObject("usage");
+        usage.put("prompt_tokens", 2300).put("completion_tokens", 1500);
+        usage.putObject("completion_tokens_details").put("reasoning_tokens", 1490);
+
+        try (var fixture = new Fixture(200, envelope.toString(), 0)) {
+            var failure = assertThrows(ModelClient.Failure.class,
+                    () -> fixture.client(ModelSettings.Provider.OPENROUTER, "fixture-secret").classify(request()));
+            assertEquals(ModelClient.Problem.INCOMPLETE, failure.problem());
+            for (String detail : List.of("finish_reason=length", "output_limit=1500", "prompt_tokens=2300",
+                    "completion_tokens=1500", "reasoning_tokens=1490")) {
+                assertTrue(failure.getMessage().contains(detail), failure.getMessage());
+            }
+            assertFalse(failure.getMessage().contains("fixture-secret"));
+            assertFalse(failure.getMessage().contains("private source"));
+            assertNull(failure.repairOutput());
+            assertNull(failure.getCause());
+            assertEquals(1, fixture.calls);
+        }
+    }
+
+    @Test
+    void incompleteOpenRouterReportsNumericChoiceErrorsWithoutAcceptingDecisions() throws Exception {
+        for (String reason : List.of("error", "stop")) {
+            var envelope = JSON.readTree(envelope(ModelSettings.Provider.OPENROUTER, decision(ID, "replace")));
+            var choice = (ObjectNode) envelope.path("choices").get(0);
+            choice.put("finish_reason", reason);
+            choice.putObject("error").put("code", 408).put("message", "fixture-secret private source");
+
+            try (var fixture = new Fixture(200, envelope.toString(), 0)) {
+                var failure = assertThrows(ModelClient.Failure.class,
+                        () -> fixture.client(ModelSettings.Provider.OPENROUTER, "fixture-secret").classify(request()));
+                assertEquals(ModelClient.Problem.INCOMPLETE, failure.problem());
+                assertTrue(failure.getMessage().contains("finish_reason=" + reason));
+                assertTrue(failure.getMessage().contains("provider_error=true"));
+                assertTrue(failure.getMessage().contains("provider_error_code=408"));
+                assertFalse(failure.getMessage().contains("prompt_tokens="));
+                assertFalse(failure.getMessage().contains("fixture-secret"));
+                assertFalse(failure.getMessage().contains("private source"));
+                assertNull(failure.repairOutput());
+                assertEquals(1, fixture.calls);
+            }
+        }
+    }
+
+    @Test
+    void incompleteOpenRouterOmitsUntrustedOrMissingDiagnostics() throws Exception {
+        for (boolean malformed : List.of(false, true)) {
+            var envelope = JSON.readTree(envelope(ModelSettings.Provider.OPENROUTER, "fixture-secret"));
+            var choice = (ObjectNode) envelope.path("choices").get(0);
+            choice.remove("finish_reason");
+            if (malformed) {
+                choice.put("finish_reason", "fixture-secret private source\u001b[31m");
+                choice.putObject("error").put("code", "fixture-secret").put("message", "private source");
+                var usage = ((ObjectNode) envelope).putObject("usage");
+                usage.put("prompt_tokens", "fixture-secret").put("completion_tokens", -1);
+                usage.putObject("completion_tokens_details").put("reasoning_tokens", 1.5);
+            }
+
+            try (var fixture = new Fixture(200, envelope.toString(), 0)) {
+                var failure = assertThrows(ModelClient.Failure.class,
+                        () -> fixture.client(ModelSettings.Provider.OPENROUTER, "fixture-secret").classify(request()));
+                assertEquals(ModelClient.Problem.INCOMPLETE, failure.problem());
+                assertTrue(failure.getMessage().contains("finish_reason=unknown"));
+                for (String unsafe : List.of("fixture-secret", "private source", "\u001b", "prompt_tokens=",
+                        "completion_tokens=", "reasoning_tokens=", "provider_error_code=")) {
+                    assertFalse(failure.getMessage().contains(unsafe), failure.getMessage());
+                }
+                assertNull(failure.repairOutput());
             }
         }
     }
