@@ -1,0 +1,225 @@
+\section{Impossibility of Better ``Layered-Walk'' Attacks}\label{app:mw}
+We assume $h\in \Func([N],[N])$ here for simplicity. 
+Zero-walk attacks, as defined Akshima by et al.~\cite{AkshimaCDW20}, assume that an attacker works as follows: in the first unbounded phase, the adversary finds collisions for roughly $S$ points $a_1,a_2,\ldots,a_S\in [N]$ with respect ot $h$, and in the second online phase, it tries to ``walk'' to any of these salts by repeatedly evaluating $h(\cdot,0)$. 
+
+The attack of Akshima et al.~\cite{AkshimaCDW20} that achieves advantage $\Omega({STB}/{(N\log N)})$ falls into the above framework of zero-walk attacks. Akshima et al.\ showed that every such ``zero-walk'' attack could not be used to refute the STB conjecture. To this end, they formalized the zero-walk attacks and considered the best possible variant: an attack where the preprocessing phase examines the functional graph of $h(\cdot,0)$ and select roughly $S$ points $a_1,a_2,\ldots,a_S\in [S]$ such that the number points for which these $S$ points are reachable within $\approx B$ evaluations of $h(\cdot,0)$ is maximized. They showed that the advantage of the best possible zero-walk attack is upper bounded by $O({STB\ln(NB)/N})$.
+
+While this result provides some evidence for the veracity of the STB conjecture, the considered class of attacks ignores the adversary's ability to evaluate $h$ on second inputs other than $0$ which makes it rather limited. In this section, we consider a class of attacks that takes this ability of the adversary into account and consider the other extreme -- at every step $h$ is evaluated on a message that may be anything in $[N]$. Here the adversary tries to find a layered tree in the functional graph of $h$ where every layer of nodes is mapped by a some $h_i=h(\cdot,i)$ to the next layer. 
+We call these attacks the distinct-walk attack: here the preprocessing phase of the attack outputs $S$ salts $a_1,\ldots,a_S$ collisions for these salts \emph{and} $B-2$ \emph{distinct} indices $k_1,\ldots,k_{B-2}$ in $[N]$. The online phase on input $a$ first evaluates $h(a,\hat{\alpha_i})$ for some random $\hat{\alpha_i}$ different from $k_1,\ldots,k_{B-2}$ and then evaluates to get $c_1$. It computes $c_{j}$ by evaluating $h(c_{j-1},k_{j-1})$ for $j\in \{2,\ldots,B-1\}$ and checks if $c_{B-1}\in \{a_1,\ldots,a_S\}$ and returns the appropriate collision if the check succeeds. The reason one might think that this attack might be more effective is the freedom the adversary has in choosing the $B-2$ functions out of $N$. We will however show that this freedom still does not allow the adversary to refute the STB conjecture. This is more evidence in support of the conjecture being true.
+
+We formalize the distinct-walk attack below.
+\begin{definition}[$(S,T)$ distinct-walk AI adversary] For $B>2$, a $(S,T)$ distinct-walk AI adversary $\advA=(\advA_1,\advA_2)$ has the following form.
+\begin{enumerate}
+    \item The first stage adversary $\advA_1$ always produces a bit-encoded output of the form \[\sigma=\{(a_1,\alpha_1,\alpha_1')\ldots,(a_s,\alpha_1,\alpha_s')\},(k_1,k_2,\ldots,k_{B-2})\] where $s=(S-(B-1)\log N)/3\log N$, $a_i\in [N],\alpha_i\alpha_i'\in [N]$, $k_1,k_2,\ldots,k_{B-2}\in [N]$, and $|k_1,k_2,\ldots,k_{B-2}|=B-2$.
+    \item The second stage adversary $\advA_2$, on input $a,\sigma$ where $$\sigma= (a_1,\alpha_1,\alpha_1')\ldots,(a_s,\alpha_1,\alpha_s')\}, (k_1,k_2,\ldots,k_{B-2})\;,$$ and given oracle access to $h$ does the following.
+    If $\exists i\in [s]:a_i=a$, then output $(\alpha_i,\alpha_i')$. Otherwise for $i=1,\ldots,\lfloor T/B\rfloor$:
+    \begin{enumerate}
+        \item Choose $\hat{\alpha_i}\getsr [N]\setminus \{k_1,k_2,\ldots,k_{B-2}\}\}$
+        \item $c_1\gets h(a,\hat{\alpha_i})$
+        \item  $c_j\gets h(c_{j-1},k_{j-1})$ for $j\in 2,\ldots, B-1$:
+        \item If $\exists l\in [s]: c_{B-1}= a_l$, then output $$(\hat{\alpha_i}\concat k_{1}\concat \ldots\concat k_{B-2}\concat \alpha_{l},\hat{\alpha_i}\concat k_{1}\concat \ldots\concat k_{B-2}\concat \alpha_{l}').$$
+    \end{enumerate}
+\end{enumerate}
+\end{definition}
+
+In the following theorem we argue that distinct-walk AI adversaries have advantage bounded by $O({STB^{1.5} \ln(NB)}/{N})$. 
+\Anote{say something about meaningfulness}
+
+\begin{theorem}\label{thm:mfa}
+    Let $S,T,B\in \mathbb{N}_{>0}$ such that $SB\geq T$, $B\geq 3$. For any layered-walk $(S,T)$-AI adversary $\advA$,
+    \begin{align*}
+    \Adv_{\MD,N,N,B}^{\aicr}(S,T) \leq \frac{500STB^{1.5}\ln(NB)}{N}+\frac{S+1}{N}   
+    \end{align*}
+\end{theorem}
+\begin{proof}
+For $h\in \Func([N],[N])$ define $h_i(x):=h(x,i)$ for $i\in [N]$. We define the ancestors of a salt $a$ with respect to functions $(h_{i_1},\ldots,h_{i_j})$ as follows.
+\[
+\ancs(a,(h_{i_1},\ldots,h_{i_j})):=\{x: h_{i_j}(h_{i_{j-1}}(\ldots h_{i_1}(x)))=a \}\;,
+\] 
+and $\ancs(a,\phi)=\{a\}$.
+\begin{myclaim}
+Let $a\in [N],t\in \mathbb{N}_{>0}$. 
+\begin{align*}
+    \Pr[\exists (i_1,\ldots,i_t):\ancs(a,(h_{i_1},\ldots,h_{i_t}))\geq 1000t^2\ln (Nt)]\leq 1/N^2\;.
+\end{align*}
+\end{myclaim}
+\begin{proof}
+Define $\newadd(a,(h_{i_1},\ldots,h_{i_{j-1}}),h_{i_j})$ as follows.
+\[
+\newadd(a,(h_{i_1},\ldots,h_{i_{j-1}}),h_{i_j}):=\ancs(a,(h_{i_1},\ldots,h_{i_j}))\setminus \ancs(a,(h_{i_1},\ldots,h_{i_{j-1}}))
+\]
+\begin{myclaim}
+Let $a\in [N],t,j\in \mathbb{N}_{>0}$ and $j\leq t$. 
+\begin{align*}
+        \Pr[\exists (i_1,\ldots,i_j):\abs{\newadd(a,(h_{i_1},\ldots,h_{i_{j-2}}),h_{i_{j-1}}) }\leq 1000(j-1)t\ln (Nt)\wedge \abs{\newadd(a,(h_{i_1},\ldots,h_{i_{j-1}),h_{i_j})}> 1000jt\ln (Nt)]\leq 1/N^2\;.
+\end{align*}
+\end{myclaim}
+\begin{proof}
+    For any choice of $i_1,\ldots,i_{j-1}$
+\end{proof}
+
+
+\end{proof}
+
+\end{proof}
+
+
+
+% We next define for some $t$ the maximum number of $t$-level ancestors of a salt $a$ as follows.
+% \[
+% \maxancs(a,h,t):= \max_{{i_1},\ldots,{i_B}}\abs{ \bigcup_{j=1}^t \ancs(a,(h_{i_1},\ldots,h_{i_j}))}\;.
+% \]
+% The following lemma is the key lemma we use in the proof of this theorem.
+% \begin{lemma}\label{lem:keymfa}
+%     Let $t\in \mathbb{N}_{>0}$ and $h\in \Func([N],[N])$. Then
+%     \[
+%     \Prob{\exists a\in [N]:\maxancs(a,h,t)>500t^{2.5}\ln (Nt)}\leq 1/N\;.   
+%     \]
+% \end{lemma}
+% First we show how the theorem follows from this lemma.
+
+% We say $h$ is bad if $\exists a\in [N]$ such that $\maxancs(a,h,B-2)>500(B-2)^2\ln (N(B-2))$. Otherwise $h$ is good.
+% %
+% Observe that the online phase can only succeed if either $a\in \{a_1,\ldots,a_s\}$ which happens with probability at most $S/N$ or in any of the $T/B$ iterations $c_1$ is in $\ancs(a_i,(h_{k_1},\ldots,h_{k_{B-2}}))$ for some $i\in [s]$. Given that $h$ is good, we have that
+% \begin{align*}
+% |\bigcup_{i=1}^s \ancs(a_i,(h_{k_1},\ldots,h_{k_{B-2}}))| & \leq 500S(B-2)^2\ln (N(B-2)) \\ & \leq 500SB^2\ln (NB).
+% \end{align*}
+% Using total probability, we have 
+% \begin{align*}
+% \Adv_{\MD,N,N,B}^{\aicr}(S,T) &\leq \frac{S}{N}+\Pr[\advA \text{ wins}\mid h \text{ is good}]+\Pr[h\text{ is bad}]\\
+% &\leq \frac{500STB\ln(NB)}{N}+\frac{S+1}{N}\;.
+% \end{align*}
+% \end{proof}
+% We next prove the key Lemma~\Cref{lem:keymfa}.
+% \begin{proof}[\Cref{lem:keymfa}]
+% %  Fix $k_1,\ldots,k_t\in [N]$ such that $|\{k_1,\ldots,k_t\}|=t$. 
+%  Fix $a\in N$.
+%     Let $\Ne^{(0)}(a):=\{a\}$ and for $i=1,\ldots,t$
+%     \[
+%     \Ne^{(i)}(a):=\{x: h_{k_i}(y)=x\text{ for }y\in \Ne^{(i)}(a)  \}\;.    
+%     \]
+%     \begin{myclaim}\label{claim:mw}
+%     Let $t\in \mathbb{N}_{>0}$. For all $a\in [N]$ the following holds.
+%     \[
+%     \Pr\left[|\Ne^{(t)}(a)|> 500t^2 \ln(Nt)\right]\leq N^{-3t} \;.    
+%     \]
+%     \end{myclaim}
+
+
+%     First it is easy to see that if the claim is true, taking an union bound over all choices of $a$ and all choices of $k_1,\ldots,k_t\in [N]$ we have that
+%     \begin{align*}
+%         \Prob{\exists a\in [N]:\maxancs(a,h,t)>500t^2\ln (Nt)}&\leq  N\cdot \binom{N}{t}t!N^{-3t}\\
+%         &\leq  N\cdot N^t\cdot N^{-3t}\leq N^{-t}\leq 1/N\;.   
+%     \end{align*}
+% \end{proof}
+% Let $P_j:=$
+
+
+%     So we next prove Claim~\labelcref{claim:mw}.
+%     \begin{proof} [Claim~\labelcref{claim:mw}]
+%     Let $P_j:=|\Ne^{{j}}(a)|$. The following two claims together imply claim~\labelcref{claim:mw}.
+%     \begin{myclaim}\label{claim:one}
+%         The probability that there exists $j$ such that $P_{j}<50 t^2\ln (Nt)$ and $P_{j+1}>100 t^2\ln (Nt)$ is at most $(Nt)^{-16t^2}$.  
+%     \end{myclaim}
+%     \begin{myclaim}\label{claim:two}
+%         The probability that there exist $k,l$ ($k<l$) such that $50t^2\ln (Nt)<P_k<100 t^2\ln (Nt)$, for all $j\in \{k+1,\ldots,l-1\}$ $P_{j}>50t^2\ln (Nt)$  and $P_{l}>500 t^2\ln (Nt)$ is at most $N^{-4t}$.
+%     \end{myclaim}
+%     Combining Claims~\labelcref{claim:one,claim:two}, we have that
+%     \begin{align*}
+%     \Pr[\Ne^{(t)}(a)>500t^2 \ln (Nt)]& =    \Pr[P_t>500t^2 \ln (Nt)]\\& \leq N^{-4t}+(Nt)^{-16t^2}\leq N^{-3t}\;.
+%     \end{align*}
+%     This proves Claim~\labelcref{claim:mw}.
+% \end{proof}
+% We next prove the two claims~\labelcref{claim:one,claim:two}.
+% \begin{proof}[Claim~\labelcref{claim:one}]  Consider the indicator random variables $X_a$ defined as follows.
+%     \[
+%     X_a=\begin{cases}
+%         1 & \text{ if }a\in \Ne^{(j)}(a)\\
+%         0 &\text{ otherwise}
+%     \end{cases}    
+%     \]
+%     Let $X=\sum_{a\in [N]}X_a$. It is easy to see that all the $X_a$'s are independent, $X=P_j$ and $\Exp{X}=P_{j-1}$. Using the multiplicative Chernoff bound (Proposition~\labelcref{prop:chernmult}) we have
+%     \[
+%     \Pr[X>(1+\delta)\Exp{X}] \leq \exp\left(\frac{-\delta^2\Exp{X}}{2+\delta}\right)\;.
+%     \]
+%     Here $\delta\Exp{X}\geq 50t^2\ln(Nt)$. Also we have that
+%     $\delta\geq 1$.
+%     This means
+%     $\delta/(2+\delta)=1-2/(2+\delta)\geq 1/3$.
+%     Hence
+%     \[
+%         \Pr[X>(1+\delta)\Exp{X}] \leq \exp\left(\frac{-50t^2\ln(Nt)}{3}\right)\leq \frac{1}{(Nt)^{16t^2}}\;.
+%     \]
+% \end{proof}
+%     % If there does not exist $P_j$ $P_t>500t^2 \ln(Nt)$ with very high probability there must exist some $j,j'$ such that $50t^2\ln (Nt)<P_j<100 t^2\ln (Nt)$ 
+% \begin{proof}[Claim~\labelcref{claim:two}]
+%     Define random variables $\delta_j$ as such that 
+%     \[
+%     P_{j}=(1+\delta_j)P_{j-1}\;.    
+%     \]
+%     For $j\in \{l+1,\ldots,k\}$ using the multiplicative Chernoff bound (Proposition~\labelcref{prop:chernmult}) we get
+%     \begin{align}\label{eq:delta}
+%     \Pr[\delta_j\geq \delta]& =\Pr[P_{j}\geq (1+\delta)P_{j-1}]\nonumber\\&\leq \exp\left(\frac{-\delta^2P_{j-1}}{2+\delta}\right)\leq \exp\left(\frac{-\delta^250t^2\ln (Nt)}{2+\delta}\right)\;.
+%     \end{align}
+%     From the premise of the claim, it follows that $\prod_{j=l+1}^k(1+\delta_j)\geq 5$. Using $1+x\geq e^x$ we have that 
+%     \[
+%     e^{\sum_{j=l+1}^k\delta_j}\geq 5\;.
+%     \]
+%     It follows that 
+%     $\sum_{j=l+1}^k\delta_j\geq \ln 5$.
+%     We want to next compute $\Pr[\sum_{j=l+1}^k\delta_j\geq \ln 5]$. Observe that this is same as the following probability.
+%     \[
+%         \Pr[N^{3t\sum_{j=l+1}^k\delta_j}\geq N^{3t\ln 5}]\;.
+%     \]
+%     We will prove that for each $j\in \{l+1,\ldots,k\}$ 
+%     \begin{equation}\label{eq:ineq}
+%         \Pr[N^{3t\delta_j}\geq N^{3t\ln 5}]\leq N^{2-3t\ln 5}\;.
+%     \end{equation}
+%     Using the union bound and $t\leq N$, it follows that 
+%     \[
+%         \Pr[N^{3t\sum_{j=l+1}^k\delta_j}\geq N^{3t\ln 5}]\leq N^{3-3t\ln 5}\leq N^{-2t\ln 5}\leq N^{-4t}\;.
+%     \]
+%     So, we need to now show that the inequality in \Cref{eq:ineq} holds.
+%     Using Markov's inequality (Proposition ~\labelcref{prop:markov}), we have that 
+%     \begin{equation}\label{eq:second}
+%         \Pr[N^{3t\delta_j}\geq N^{3t\ln 5}]\leq \frac{\Exp{N^{3t\delta_j}}}{N^{3t\ln 5}}\;.
+%     \end{equation}
+%     From the definition of expectation we have
+%     \begin{align}
+%         \Exp{N^{3t\delta_j}}&\leq \int_0^\infty \Pr[N^{3t\delta_j}\geq x]~dx \nonumber\\
+%         &= \int_0^{N} \Pr[N^{3t\delta_j}\geq x]~dx+\int_N^{N^{3t}} \Pr[N^{3t\delta_j}\geq x]~dx +\int_{N^{3t}}^\infty \Pr[N^{3t\delta_j}\geq x]~dx \nonumber\\
+%         &\leq N+\int_N^{N^{3t}} \Pr[N^{3t\delta_j}\geq x]~dx +\int_{N^{3t}}^\infty \Pr[N^{3t\delta_j}\geq x]~dx\;.\label{eq:exp}
+%     \end{align}
+%     The second step follows from the splitting the sum and the third step follows since $\Pr[N^{3t\delta_j}\geq x]\leq 1$.
+%     Note that $\Pr[N^{3t\delta_j}\geq x$ is same as $\Pr[\delta_j\geq \ln x/(3t\ln N)]$. Let $\ln x/(3t\ln N)=\delta$.
+    
+%     We first upper bound $\int_N^{N^{3t}} \Pr[N^{3t\delta_j}\geq x]~dx$. In the range of $x$ for this integral, $\delta=\ln x/(3t\ln N) \leq 1$. Hence, using \Cref{eq:delta}
+%     \begin{align*}
+%         \Pr[\delta_j\geq \delta]\leq \exp\left(\frac{-\delta^2\cdot 50t^2\ln (Nt)}{2+\delta}\right)
+%         &\leq \exp\left(\frac{-(\ln x)^2\cdot 50t^2\ln (Nt)}{3\cdot 9t^2(\ln N)^2}\right)\\
+%         &\leq \exp(-\frac{50\ln x}{27})\leq x^{-50/27}\;.
+%     \end{align*}
+%     The third inequality follows since $\ln x\geq \ln N$ and $\ln (Nt)\geq \ln N$.
+% %
+% This implies that 
+%  \begin{equation}\label{eq:intf}
+%         \int_N^{N^{3t}} \Pr[N^{3t\delta_j}\geq x]~dx\leq  \int_N^{N^{3t}} x^{-50/27}~dx \leq \frac{27N^{-23/27}}{23}\;.
+%     \end{equation}
+%     We next upper bound $\int_{N^{3t}}^\infty \Pr[N^{3t\delta_j}\geq x]~dx$. In the range of $x$ for this integral, $\delta \geq 1$. Hence, using \Cref{eq:delta}
+%     \begin{align*}
+%         \Pr[\delta_j\geq \delta]\leq \exp\left(\frac{-\delta^2 \cdot 50t^2\ln (Nt)}{2+\delta}\right)&\leq \exp\left(\frac{-\delta \cdot 50t^2\ln (Nt)}{3}\right)\\ & =\exp\left(\frac{-\ln x \cdot 50t^2\ln (Nt)}{3t\ln N}\right)\leq x^{-16t}\;.
+%     \end{align*}
+%     The second inequality follows since $\delta\geq 1$ and the third inequality follows because $\ln (Nt)\geq \ln N$.
+
+%    This implies that
+%     \begin{equation}\label{eq:ints}
+%         \int_{N^{3t}}^\infty \Pr[N^{3t\delta_j}\geq x]~dx\leq  \int_{N^{3t}}^\infty x^{-16t}~dx \leq  N^{-t}\;.
+%     \end{equation}
+%     From~\Cref{eq:exp,eq:intf,eq:ints} it follows 
+%     \[\Exp{N^{3t\delta_j}}\leq N+\frac{27N^{-23/27}}{23}+N^{-t}\leq N^2\;.\]
+% Finally, from~\Cref{eq:second} we can conclude that
+% \[\Pr[N^{3t\delta_j}\geq N^{3t\ln 5}] \leq N^{2-3t\ln 5}\;.\]
+% \end{proof}
+
+
+Using Azuma's inequality we have that

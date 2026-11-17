@@ -1,0 +1,166 @@
+\section{Removing the Repetition Overhead in the Single-Server Scheme}
+
+\subsection{Definition: A Special Privately Programmable Set} 
+We will need a special privately programmable set construction henceforth
+denoted ${\sf PPPS}^*$.
+In ${\sf PPPS}^*$, the programming algorithm takes
+two sets of inputs:
+\begin{enumerate}[leftmargin=5mm]
+\item 
+First, as before, it takes in a chunk index 
+$\chunkid_{\rm prog} \in \{0, \ldots, \sqrt{n}-1\}$, 
+and a desired offset $\delta_\chunkid \in \{0, \ldots, \sqrt{n}-1\}$.
+This means that we want to program the offset within 
+the $\chunkid_{\rm prog}$-th chunk to $\delta_\chunkid$. 
+\item 
+Additionally, the programming algorithm may optionally take in 
+ a superblock identifier $i_{\rm resamp}$, 
+and a set of constraints denoted ${\sf constr}$.
+The goal during programming is to resample decisions pertaining
+to superblock $i_{\rm resamp}$ to be subject to these constraints.
+The constraint set is of the form 
+$${\sf constr} = (+y, -x_1, -x_2, \ldots, -x_m)$$
+Specifically, there is exactly one positive constraint
+of the form $+y$, where $y \in \{0, \ldots, n-1\}$, meaning 
+that if the index $y$ belongs to 
+the superblock $i_{\rm resamp}$, then we want to the superblock to contain $y$. 
+There can be at most $m$ negative constraints. 
+A negative constraint of the form $-x_j$ where  
+$x_j \in \{0, \ldots, n-1\}$
+says that if $x_j$ belongs to superblock $i_{\rm resamp}$, then we want
+this superblock to not contain $x_j$.
+\end{enumerate}
+Note that the chunk $\chunkid_{\rm prog}$
+can either be contained in the superblock $i_{\rm resamp}$
+or not.
+
+\paragraph{Syntax.}
+We now define the syntax of ${\sf PPPS}^*$.
+\begin{itemize}[leftmargin=5mm]
+\item 
+$\sk \leftarrow {\sf Gen}(1^\lambda, n)$:
+takes in the security parameter $1^\lambda$, the size of the universe $n$,
+and outputs a secret key $\sk$.
+\item  
+$S \leftarrow {\sf Set}(\sk)$:
+expands the secret key $\sk$ to a set of size $\sqrt{n}$. 
+\item 
+$\sk', i \leftarrow {\sf Program}(\sk, 
+(\chunkid_{\rm prog}, \delta_\chunkid), (i_{\rm resamp}, {\sf constr}))$: 
+takes in a secret key $\sk$,  
+a chunk $\chunkid_{\rm prog}$ to be programmed to the desired 
+offset $\delta_\chunkid$, 
+ a superblock $i_{\rm resamp}$ to be resampled
+according to the constraints ${\sf constr}$, and outputs
+a programmed key $\sk'$. 
+
+As a special case, we can support
+the old programming capability of our earlier \ppps scheme
+(\Cref{sec:ppps-defn}), by setting the $(i_{\rm resamp}, {\sf constr})$
+fields to $(\bot, \bot)$.
+
+\item 
+$S_0, \ldots, S_{L-1} \leftarrow {\sf ListDecode}(\sk')$:
+takes a programmed key $\sk'$ and outputs a list
+of candidate sets. 
+\end{itemize}
+
+We want our ${\sf PPPS}^*$ scheme 
+to satisfy the following properties.
+
+\paragraph{\bf Correctness.}
+Same as in \Cref{sec:ppps-defn} except
+that ${\sf Program}(\cdot, \cdot, \cdot)$
+is replaced with the new 
+${\sf Program}(\cdot, (\cdot, \cdot), (\bot, \bot))$.
+Specifically, 
+correctness requires that 
+for any $\lambda, n \in \mathbb{N}$, 
+for any $\chunkid, \delta_\chunkid \in \{0, 1, \ldots, \sqrt{n}-1\}$, 
+the following holds with probability 1:
+let 
+$\sk \leftarrow {\sf Gen}(1^\lambda, n)$, 
+$\sk', i \leftarrow {\sf Program}(\sk, (\chunkid, \delta_\chunkid), (\bot, \bot))$, 
+$S_0, \ldots, S_{L-1}
+\leftarrow {\sf ListDecode}(\sk')$, 
+it must be that 
+$S_i$ is equal to the ${\sf Set}(\sk)$ 
+but replacing 
+the $\chunkid$-th element with 
+$\delta_\chunkid$ instead.
+
+
+\paragraph{\bf Pseudorandomness.}
+Same as in \Cref{sec:ppps-defn}.
+
+\paragraph{\bf Resampling pseudorandomness.}
+Given any $n$, any $x \in \{0, \ldots, n-1\}$, 
+any $\delta_\ell \in \{0, \ldots, \sqrt{n}-1\}$,
+any $i_{\rm resamp} \in \{0, \ldots, n^{1/4}-1\}$, 
+any set of constraints ${\sf constr}$ in which each constraint
+pertains to the superblock $i_{\rm resamp}$ 
+and moreover does not conflict with the constraint $+x$,  
+the following two distributions are computationally indistinguishable:
+%\elaine{quantifier}
+\begin{itemize}[leftmargin=5mm]
+\item 
+Let $\sk \leftarrow {\sf Gen}(1^\lambda, n)$ 
+subject to containing $x \in \{0, \ldots, n-1\}$, 
+let $\sk', \_ \leftarrow {\sf Program}(\sk, (\chunk(x), \delta_\ell), 
+(i_{\rm resamp}, {\sf constr}))$, 
+output $\sk'$.
+\item 
+Let $\sk \leftarrow {\sf Gen}(1^\lambda, n)$ 
+subject to containing $x \in \{0, \ldots, n-1\}$, 
+and subject to the constraints ${\sf constr}$, 
+let $\sk', \_ \leftarrow {\sf Program}(\sk, (\chunk(x), \delta_\ell), 
+(\bot, \bot))$, 
+output $\sk'$.
+\end{itemize}
+
+\paragraph{\bf Private programmability.}
+Same as in \Cref{sec:ppps-defn} except
+that ${\sf Program}(\cdot, \cdot, \cdot)$
+is replaced with the new 
+${\sf Program}(\cdot, (\cdot, \cdot), (\bot, \bot))$.
+Specifically, there exists a probabilistic polynomial-time simulator ${\sf Sim}$
+such that
+for any $n$, any $x \in \{0, \ldots, n-1\}$, 
+the following two distributions are computationally indistinguishable:
+\begin{itemize}[leftmargin=5mm]
+\item 
+Let $\sk \leftarrow {\sf Gen}(1^\lambda, n)$ 
+subject to containing $x$, 
+pick $\delta_\ell$ at random from $\{0, \ldots, \sqrt{n}-1\}$, 
+let $\sk', \_ \leftarrow {\sf Program}(\sk, (\chunk(x), \delta_\ell), 
+(\bot, \bot))$, 
+output $\sk'$.
+\item  
+Let $\sk' \leftarrow \Sim(1^\lambda, n)$, output $\sk'$.
+\end{itemize}
+
+\subsection{Construction}
+The ${\sf Gen}(1^\lambda, n)$
+and the ${\sf Set}(\sk)$ algorithms are defined
+exactly the same as before (\Cref{sec:ppps-constr}).
+We now focus 
+on how to support the new programming algorithm, that is,  
+${\sf Program}(\sk, (\chunk(x), \delta_\ell), 
+(i_{\rm resamp}, {\sf constr}))$.
+
+
+\ignore{
+\begin{itemize}[leftmargin=5mm]
+\item 
+${\sf Gen}(1^\lambda, n)$: sample a $\PRF_1$ key $\sk$ and output $\sk$.
+\item  
+${\sf Set}(\sk)$: same as \Cref{sec:ppps-constr}.
+\item 
+${\sf Program}(\sk, (\chunk(x), \delta_\ell), 
+(i_{\rm resamp}, {\sf constr}))$:
+\end{itemize}
+}
+
+
+
+

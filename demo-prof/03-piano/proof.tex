@@ -1,0 +1,251 @@
+\section{Correctness and Privacy Proofs}
+
+We present the formal correctness and privacy proofs for the single-server scheme described in~\Cref{sec:main}.
+We omit the proofs for the two-server scheme, which will be nearly the same as the proofs presented in this section.
+
+\label{sec:proof}
+
+\begin{theorem}[Privacy]
+    The PIR scheme in \Cref{fig:single-server} is a secure single-server preprocessing PIR scheme assuming $\PRF$ is a secure pseudorandom function.
+    \label{thm:privacy}
+\end{theorem}
+
+\begin{proof}
+    We first need to prove the lemma that the \SingleQuery~algorithm is indeed private when the input $\sk$ is sampled according to the right distribution.
+    
+    \begin{lemma}
+        \label{lem:privacy-single}
+        Given any $x\in\{0,\dots,n-1\}$, let $b^*={\sf superblock}(x)=\lfloor x/n^{1/4} \rfloor, c^* = {\sf chunk}(x)=\lfloor x/n^{1/2} \rfloor$. Let $d^*=\left\lfloor\chunk(x)-\superblock(x)\cdot {n^{1/4}}\right\rfloor$ be the relative chunk location of $x$ in the superblock. 
+        The following two experiments are indistinguishable:
+        
+        \begin{itemize}
+            \item ${\sf RealSingleQuery:}$ 
+            \begin{itemize}
+                \item Sample a PRF key $\sk\getr\{0,1\}^\lambda$ conditioned on $x\in\Set(\sk)$;
+                \item Let $k_{b^*}=\PRF_1(\sk, b^*)$.
+                \item Sample a random PRF sub-key $k'\getr\{0,1\}^\lambda$;
+                \item Sample a random offset $r'\getr\{0,\dots,\sqrt{n}-1\}$;
+                \item The adversary receives
+                \begin{align*}
+                    (\PRF_1(\sk, 0),\dots,\PRF_1(\sk, b^*-1),k', \PRF_1(\sk, b^*+1),\dots,\PRF_1(\sk, n^{1/4}-1)),\\
+                    (\PRF_2(k, 0),\dots,\PRF_1(k, d^*-1),r', \PRF_2(k, d^*+1),\dots,\PRF_2(k, n^{1/4}-1)).
+                \end{align*}
+            \end{itemize}
+            
+            \item ${\sf IdealSingleQuery:}$
+            \begin{itemize}
+                \item Independently sample $k_0,\dots,k_{n^{1/4}-1}\getr\{0,1\}^\lambda$;
+                \item Independently sample $r_0,\dots,r_{n^{1/4}-1}\getr\{0,\dots,\sqrt{n}-1\}$.
+                \item The adversary receives $(k_0,\dots,k_{n^{1/4}-1}),
+                (r_0,\dots,r_{n^{1/4}-1})$.
+            \end{itemize}
+            
+        \end{itemize}
+        
+        
+    \end{lemma}
+    
+    \begin{proof}
+        Observe that ${\sf RealSingleQuery}$ is just a re-write of the real experiment of $\SingleQuery$ that gets rid of the irrelevant parts.
+        
+        We can build a hybrid as the following ways: in this hybrid, instead of sampling a master key $\sk$, the experiment sample $n^{1/4}$ PRF sub-keys randomly $k_0,\dots,k_{n^{1/4}-1}$, conditioned on $\PRF_2(k_{b^*}, d^*)=\offset(x)$, i.e., it will correctly expand to the offsets containing $x$. It sends $(k_0,\dots,k_{b^*}-1,k',k_{b^*}+1,\dots,k_{n^{1/4}-1})$ as the first tuple to the adversary. Everything else is the same as ${\sf RealSingleQuery}$. Since the rejection-sampling condition is the same, due to the pseudorandomness of $\PRF_1$, this hybrid is computationally indistinguishable from ${\sf RealSingleQuery}$. 
+        
+        We build another hybrid such that it is the same as the first hybrid, except that it samples $r_0,\dots,r_{n^{1/4}-1}$ uniformly random conditioned on $r_{d^*}=\offset(x)$ and sends $(r_0,\dots,r_{d^*}-1,r',r_{d^*}+1,\dots,r_{n^{1/4}-1})$ to the adversary.
+        Due to the pseudorandomness of  $\PRF_2$, this hybrid is computationally indistinguishable from the previous one.
+        
+        Now we see that the second hybrid has the same distribution as ${\sf IdealSingleQuery}$ due to the independence during the sampling procedure.
+        So we prove the statement.
+    \end{proof}
+    
+    \begin{remark}
+        \label{lem:privacy-random}
+        The previous lemma still holds if one just samples a uniform random PRF key $\sk$ (instead of conditioning on $x\in\Set(\sk)$).
+    \end{remark}
+    
+    Now we are ready to prove the multi-query PIR scheme is private. We first define a hybrid ${\sf Real^*}$:
+    
+    
+    \begin{itemize}
+        \item \textit{Offline.} $\adv$ receives the streaming signal. The client samples $\sk_1,\dots,\sk_{M_1}\getr\{0,1\}^\lambda$.  
+        \item \textit{Online.} For each round $t$, $\adv$ chooses a query $x_t$:
+        \begin{itemize}
+            \item The client finds all the matched keys $\sk_j$ in the hint table, that is, $x\in\Set(\sk_j)$. If there are less than $M_3$ of them, pad them with random keys. If there are more than $M_3$, down-sample to $M_3$ keys.
+
+            \item For all those $M_3$ keys, first sample $r$ as a random index from $x$'s chunk. Then, the client and the server executes $\SingleQuery(x, \sk_j, 0, r, 0)$.
+            
+            \item For all matched keys in the hint table, replace them with a rejection-sampled random key $sk'_j$ conditioned on $x\in\Set(\sk'_j)$.
+        \end{itemize}
+        
+    \end{itemize}
+    
+    Notice that this hybrid is identically distributed as the actual experiment -- we don't care about good or broken hints because we don't care about correctness here. All events related to good or broken hints is not observable by the server. We now define the ideal experiment  ${\sf Ideal}$:
+    
+    
+    \begin{itemize}
+    \item \textit{Offline.} $\adv$ receives the streaming signal. 
+    \item \textit{Online.} For each round $t$, $\adv$ chooses a query $x_t$:
+    \begin{itemize}
+        \item The client repeats the following procedure for $M_3$ times with independent randomness:
+        \begin{itemize}
+                \item Independently sample $k_0,\dots,k_{n^{1/4}-1}\getr\{0,1\}^\lambda$;
+                \item Independently sample $r_0,\dots,r_{n^{1/4}-1}\getr\{0,\dots,\sqrt{n}-1\}$.
+                \item Send $(k_0,\dots,k_{n^{1/4}-1}),
+                (r_0,\dots,r_{n^{1/4}-1})$ to the server.
+        \end{itemize}
+     \end{itemize}
+    
+    \end{itemize}    
+   
+    The following lemma shows that ${\sf Ideal}$ and ${\sf Real^*}$ are computationally indistinguishable.
+    
+    \begin{lemma}
+        \label{lem:inductive-proof}
+        In ${\sf Real^*}$, for each query $x_t$, even conditioned on $\adv$'s view over the first $t-1$ queries, 
+        
+        \begin{itemize}
+            \item The messages $\adv$ receives are identically distributed to those in $\Ideal$ in this round;
+            \item At the end of the $t$-th query, the client's local hint table  is identically distributed as sampling $M_1$ random PRF keys.
+        \end{itemize}
+    \end{lemma}
+    
+    \begin{proof}
+        \textbf{Base Case}. At the end of the offline phase, the local hint table is indeed identically distributed as sampling $M_1$ random PRF keys.
+        
+        \textbf{Inductive Case}. Suppose at the end of $t-1$ round, the client's local hint table is identically distributed as sampling $M_1$ random PRF keys even conditioned on $\adv$'s view in the first $t-1$ steps.
+        
+        Consider the following experiment $\Expt$:
+        \begin{itemize}
+            \item The client first samples $m$ according to the distribution of the number of matched hints if the hint table is indeed freshly-random;
+            \item The client sample $m$ PRF keys $\sk_1,\dots,\sk_m$ conditioned on $x\in \Set(\sk_j)$;
+            \item If there are less than $M_3$ keys, the client pads with random keys. If there are more than $M_3$ keys, the client just down-samples to $M_3$ keys.
+            \item Execute $\SingleQuery(\sk_j, 0, r, 0)$ for all $j\in[M_3]$ and independently random $r$ within $x$'s chunk;
+            
+            \item At the end, sample the remaining hint table as:
+            \begin{itemize}
+                \item sample $m$ locations $i_1,\dots,i_m$ from $[M_1]$ without replacement as the locations for the matched hints. Then sample $m$ random PRF keys $\sk_{i_1},\dots,\sk_{i_m}$ conditioned on $x\in \Set(\sk_{i_j})$ for all $j\in[m]$.
+                \item For all $j\in[M_1]/\{i_1,\dots,i_m\}$, sample random PRF keys conditioned on $x\notin \Set(\sk_j)$.
+            \end{itemize}
+        \end{itemize}
+        
+        We first argue that the view of the adversary in this experiment is identically distributed to $\Real^*$ in round $t$ conditioned on the $\adv$'s view over the first $t-1$ rounds. 
+        Due to the inductive hypothesis, the table at the end of $(t-1)$-st round are freshly-random conditioned on the $\adv$'s view. 
+        In $\Real^*$, we can think about sampling the hint table first, and  deriving the matched number and matched locations from the table. 
+        Then we replace all the matched keys with new keys subject to containing $x$.
+        In $\Expt$, we just sample the matched number and the matched locations first, and then sample the matched hints and also the remaining table.
+        These two processes are identically distributed.
+        
+         
+        We then argue that $\Expt$ and $\Ideal$ are computationally indistinguishable after $t$-th round.
+        Notice that all $\sk_{1},\dots,\sk_{m}$ are sampled conditioned on the correct condition $x\in\Set(\sk_j)$ for all $j$. 
+        If we do padding, the padded keys are sampled freshly. If we do down-sampling, the remaining $M_3$ keys still have the same sampling condition.
+        Thus, due to Lemma~\ref{lem:privacy-random} and Remark~\ref{lem:privacy-single}, all $M_3$ executions of $\SingleQuery$ are computationally indistinguishable from the messages in $\Ideal$.
+        On the other hand, the remaining table are indeed identically freshly-random, because the order of sampling does not change the distribution and the messages received by the adversary are independent from the remaining table. 
+        
+        Therefore, we proved the lemma.
+    \end{proof}
+    
+    Now, we see that the view of the adversary can be simulated without knowing the queries in $\Ideal$. 
+    Therefore, we finish the privacy proof.
+    
+\end{proof}
+
+
+\begin{theorem}[Correctness]
+    Assume $n$ is bounded by $\poly(\lambda)$ and $\poly(\kappa)$. 
+    Let $\alpha(\kappa)$ be any super-constant function, i.e., $\alpha(\kappa)=\omega(1)$. Setting $M_1 = 2\sqrt{n}\ln \kappa\alpha(\kappa)$, $M_2 = 3\ln \kappa\alpha(\kappa)$, $M_3=(M_1/\sqrt{n})\ln \kappa\alpha(\kappa)$, all the $Q= \sqrt{n}/2$ queries will be answered correctly with probability at least $1-\negl(\lambda)-\negl(\kappa)$ for some negligible function $\negl(\cdot)$.
+    %With $c=\frac{\ln(\delta/2)}{\ln n}$, the correct probability will be at least $1-\delta$.
+\end{theorem}
+\ignore{
+\begin{proof}
+    The full proof is deferred to~\Cref{proof:correctness}. We provide some high-level ideas here.    
+    
+    There are only two types of events that causes failures: 1) the client cannot find a good hint that contains the online query index; 2) the client runs out of replacements in a chunk.
+    
+    The first type failure will come from two type of events: 1) there are no good hint in the hint table; 2) there are more than $M_3$ matched hints and unfortunately the client does not pick the good hint during down-sampling.
+    
+    Since each hint contains the querying index with probability exactly $1/\sqrt{n}$, and in addition we can argue that a matched hint is broken with probability at most $1/2$. 
+    Applying union bound, we can directly bound the first type of error by $Q(1-1/2\sqrt{n})^{M_1}$. Plugging in the numbers and the probability is negligible in $\kappa$.
+    
+    Moreover, it is a straightforward Chernoff-bound type of argument to argue that there are no more than $M_3$ matched hints for all queries if we set $M_3=3(M_1/\sqrt{n})\ln \kappa \alpha(\kappa)$.
+    
+    The probability of the second type of failure can be bounded by a simple ``$Q$ balls into $\sqrt{n}$ bins'' argument with the Chernoff bound.
+    
+\end{proof}
+}
+
+\begin{proof}
+    %(full proof)
+    
+    \label{proof:correctness}
+    Recall that in our full scheme, the server will first sample a pseudorandom permutation~(PRP) to permute the database upfront and the client will download the key from the server. 
+    Replacing the PRP with a true random permutation only affects the failure probability by a negligible amount, $\negl(\lambda)$.
+    We also assume that the client does not make any duplicative queries for those $Q$ queries.
+    Therefore, taking the randomness of the permutation, we can view all $Q$ queries are randomly sampled from $\{0,1,\dots,n-1\}$ without replacement.
+    
+    We assume the client uses a true random oracle to sample the sets, instead of a PRF. 
+    Due to the pseudorandomness of the PRF, this assumption will not affect the failure probability by a negligible amount, $\negl(\lambda)$. 
+    
+    There are only two types of events that causes failures: 1) the client cannot find a good hint that contains the online query index; 2) the client runs out of replacements in a chunk.
+
+    
+    We analyze the second type of failure events -- it only happens when the client makes more than $M_2$ queries in one chunk. Since the client is making $\sqrt{n}\ln \kappa \alpha(\kappa)$ queries and there are $\sqrt{n}$ groups, we can use a standard balls-into-bins argument.  
+    For $t\in [Q], i\in \{0,1,\dots,\sqrt{n}-1\}$, define the random variables $Y_{t,i}\in \{0,1\}$ such that $Y_{t,i}=1$ if and only if the $t$-th query locates in the $i$-th chunk.
+    Denote $X_i=Y_{1,i}+\dots+Y_{t,i}$ be the number of queries located in the $i$-th chunk. 
+    We know $\E[Y_{t,i}]=1/\sqrt{n}$ and $\E[X_i]=\ln \kappa \alpha(\kappa)$.
+    Notice that we are taking the randomness of the permutation and the queries do not have duplication, so $Y_{1,1},\dots,Y_{Q,1}$ are negatively correlated.     
+    With the Chernoff bound for negatively correlated variables, we know that 
+    \begin{align*}
+        & \Pr[X_1 \ge (1+2)\ln \kappa \alpha(\kappa) ] \\ 
+        \le & \exp \left(\frac{-2^2}{2+2}\ln
+        \kappa\alpha(\kappa)\right) = \kappa^{-\Theta(\alpha(\kappa))}.
+    \end{align*}
+    
+    Taking the union bound over all $\sqrt{n}$ chunks, the failure probability is bounded by $\sqrt{n}\cdot \kappa^{-\Theta(\alpha(\kappa))}$, which is a negligible function of $\kappa$.% since $n=\poly(\kappa)$.
+    
+    The first type failure will come from two type of events: 1) there are no good hint in the hint table; 2) there are more than $M_3$ matched hints and unfortunately the client does not pick the good hint during down-sampling.
+    
+    We can consider we fix a sequence of query $x_1,\dots,x_m$ and consider the case for $x_m$. 
+    Let's consider the initial hint table, whose generation process is independent of $x_1,\dots,x_m$ due to the assumption of random queries.
+    Notice that if a hint in the initial hint table that contains $x_m$ and does not contain $x_1,\dots,x_{m-1}$, this hint will remain good until the query for $x_m$. We have that, for any hint
+    \begin{displaymath}
+        \Prob{\text{ the hint contains }x_m}=1/\sqrt{n}\;.
+    \end{displaymath}
+    % We know that each independent hint contains $x$ with probability $1/\sqrt{n}$. 
+    Further, conditioned on a hint containing $x$, if $x_i$ and $x_m$ are not in the same chunk, then the hint contains $x_i$ with probability $1/\sqrt{n}$ because each chunk has its own randomness.
+    Moreover, if $x_i$ and $x_m$ are in the same chunk, this hint definitely will not contain $x_i$.
+    Hence, we have that 
+    \begin{align*}
+        &\CondProb{\text{ hint is broken}}{\text{ the hint contains }x_m}\\
+        \leq& \CondProb{\exists i\in \{1,\ldots,m-1\}\text{ hint contains }x_i}{\text{ the hint contains }x_m}\\
+        \leq &\Prob{\exists i\in \{1,\ldots,m-1\}\text{ hint contains }x_i }\leq (m-1)/\sqrt{n}\leq Q/\sqrt{n}\leq 1/2\;.
+    \end{align*}
+    The second inequality above follows because a hint cannot be broken if it did not contain any earlier $x_i$. The third inequality above follows because the events that $x_i$'s are contained in a hint are independent. 
+    The last inequality follows because $Q\le \sqrt{n}/2$.
+    Therefore, 
+    \begin{align*}
+        &\Prob{\text{ hint is good and contains }x_m}\\
+        \geq &\CondProb{\text{ hint is good}}{\text{ the hint contains }x_m}\cdot \Prob{\text{ the hint contains }x_m} \geq 1/2\sqrt{n}\;.
+    \end{align*}
+    Then, the probability that there is no good hint for $x_m$ in the table will be
+    \begin{align*}
+        & \left(1-1/2\sqrt{n}\right)^{M_1}  = \left(1-1/2\sqrt{n}\right)^{2\sqrt{n}\ln \kappa\cdot \alpha(\kappa)}  \\
+        \le & \left(1/e\right)^{\ln \kappa \alpha(\kappa)}  = \kappa^{-\alpha(\kappa)}.
+    \end{align*}
+    
+    Now let us argue that for query $x_m$, the probability of more than $M_3$ hints being matched is small. 
+    Due to the Lemma~\ref{lem:inductive-proof}, the local hints will be identically distributed as freshly-random and each hint will contain the query with probability $1/\sqrt{n}$. 
+    Using the Chernoff bound, we have that the probability of more than more than $M_3$ hints being matched is bounded by
+    \begin{align*}
+     & \Pr[\#\textsf{matched hints} \ge (1+2) (M_1/\sqrt{n})\ln \kappa \alpha(\kappa) ] \\ 
+     \le & \exp \left(\frac{-2^2}{2+2}\ln
+     \kappa\alpha(\kappa)\right) = \kappa^{-\Theta(\alpha(\kappa))}.
+    \end{align*}   
+    
+     With the union bound, for all $\sqrt{n}/2$ queries, the probability of any query cannot find a set is bounded by $\frac{1}{2}\sqrt{n}\cdot 
+    (\kappa^{-\alpha(\kappa)} + \kappa^{-\Theta(\alpha(\kappa))})$, which is negligible in $\kappa$ since $n$ is bounded by $\poly(\kappa)$.
+    
+    
+    Then, there is some negligible function $\negl(\cdot)$ that all the queries are answered correctly with probability at least $1-\negl(\lambda)-\negl(\kappa)$.
+    %This proves the statement.
+    
+\end{proof}

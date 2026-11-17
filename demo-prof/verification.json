@@ -1,0 +1,193 @@
+{
+  "method": "Fresh disposable copies: pdflatex, bibtex, pdflatex twice; SHA-256 of every copied file compared with provenance and Downloads original. No interactive TexSuite or remote AI run.",
+  "projects": {
+    "01-current": {
+      "commands": [
+        {
+          "command": [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "main.tex"
+          ],
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "bibtex",
+            "main"
+          ],
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "main.tex"
+          ],
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "main.tex"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "compiled": true,
+      "pages": 45,
+      "source_hash_mismatches": [],
+      "warning_lines": [
+        "LaTeX Warning: Label `case:norep' multiply defined.",
+        "LaTeX Warning: Label `case:norep@cref' multiply defined.",
+        "LaTeX Warning: Label `case:norepa' multiply defined.",
+        "LaTeX Warning: Label `case:norepa@cref' multiply defined.",
+        "LaTeX Warning: Label `case:norepb' multiply defined.",
+        "LaTeX Warning: Label `case:norepb@cref' multiply defined.",
+        "LaTeX Warning: Label `case:norepc' multiply defined.",
+        "LaTeX Warning: Label `case:norepc@cref' multiply defined.",
+        "LaTeX Warning: Label `case:norepd' multiply defined.",
+        "LaTeX Warning: Label `case:norepd@cref' multiply defined.",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "LaTeX Font Warning: Font shape `OT1/cmr/m/scit' undefined",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "LaTeX Font Warning: Font shape `OT1/cmr/m/scit' undefined",
+        "LaTeX Font Warning: Font shape `OT1/cmr/m/scit' undefined",
+        "LaTeX Font Warning: Font shape `OT1/cmr/m/scit' undefined",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "LaTeX Warning: There were multiply-defined labels.",
+        "Package rerunfilecheck Warning: File `main.brf' has changed."
+      ]
+    },
+    "02-current-variant": {
+      "commands": [
+        {
+          "command": [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "main.tex"
+          ],
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "bibtex",
+            "main"
+          ],
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "main.tex"
+          ],
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "main.tex"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "compiled": true,
+      "pages": 45,
+      "source_hash_mismatches": [],
+      "warning_lines": [
+        "LaTeX Warning: Label `case:norep' multiply defined.",
+        "LaTeX Warning: Label `case:norep@cref' multiply defined.",
+        "LaTeX Warning: Label `case:norepa' multiply defined.",
+        "LaTeX Warning: Label `case:norepa@cref' multiply defined.",
+        "LaTeX Warning: Label `case:norepb' multiply defined.",
+        "LaTeX Warning: Label `case:norepb@cref' multiply defined.",
+        "LaTeX Warning: Label `case:norepc' multiply defined.",
+        "LaTeX Warning: Label `case:norepc@cref' multiply defined.",
+        "LaTeX Warning: Label `case:norepd' multiply defined.",
+        "LaTeX Warning: Label `case:norepd@cref' multiply defined.",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "LaTeX Font Warning: Font shape `OT1/cmr/m/scit' undefined",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "LaTeX Font Warning: Font shape `OT1/cmr/m/scit' undefined",
+        "LaTeX Font Warning: Font shape `OT1/cmr/m/scit' undefined",
+        "LaTeX Font Warning: Font shape `OT1/cmr/m/scit' undefined",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+        "LaTeX Warning: There were multiply-defined labels.",
+        "Package rerunfilecheck Warning: File `main.brf' has changed."
+      ]
+    },
+    "03-piano": {
+      "commands": [
+        {
+          "command": [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "pir-main-new.tex"
+          ],
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "bibtex",
+            "pir-main-new"
+          ],
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "pir-main-new.tex"
+          ],
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "pir-main-new.tex"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "compiled": true,
+      "pages": 46,
+      "source_hash_mismatches": [],
+      "warning_lines": [
+        "Package caption Warning: Unknown document class (or package),",
+        "Package thmtools Warning: LLNCS support disables automatic casing of theorem na",
+        "LaTeX Font Warning: Font shape `OMS/cmtt/m/n' undefined",
+        "LaTeX Warning: Float too large for page by 15.08784pt on input line 292.",
+        "LaTeX Font Warning: Some font shapes were not available, defaults substituted."
+      ]
+    }
+  }
+}

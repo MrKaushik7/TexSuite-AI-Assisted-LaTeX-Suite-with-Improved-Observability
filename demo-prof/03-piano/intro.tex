@@ -1,0 +1,694 @@
+\section{Introduction}
+% \elaine{todo: add cites}
+\mingxun{todo: add lower bounds}
+
+Private Information Retrieval (PIR),  
+originally formulated by Chor, 
+Goldreich, Kushilevitz, and Sudan~\cite{pir00}, studies the following important problem.
+Imagine that a server holds a public database denoted
+${\DB}\in \{0, 1\}^n$.
+A client with small local storage  
+wants to query the database, while hiding 
+its queries from the server. 
+PIR has wide applications in practice. For example, 
+it enables private contact discovery~\cite{pirpsi,Signalblog},
+privacy-preserving light-weight clients for cryptocurrencies, 
+private DNS queries~\cite{shi-pir,piano,obliviousdns}, 
+private web search~\cite{tiptoe}, and so on. 
+
+\paragraph{Classical PIR without pre-processing.}
+A na\"ive solution for PIR is to have the client linearly 
+scan through the entire database for each query.
+Unfortunately, this would incur linear bandwidth. 
+A series of works spanning over two decades~\cite{pir00,pir02,pir06,pir05,pir01,pir07,pir08,pir09,pir10,pir11,pir12,pir13,pir14,pir15} 
+starting with Chor et al.~\cite{pir00} showed
+%non-trivial constructions of PIR that avoids the linear bandwidth.
+how to construct PIR with non-trivial bandwidth. 
+Specifically, in the single-server setting, it is well-known that 
+with various cryptographic
+assumptions (e.g., $\Phi$-hiding, LWE, Damg\r{a}rd-Jurik, DDH, QR), 
+we can achieve $\widetilde{O}_\lambda(1)$ bandwidth 
+per query~\cite{pir05,simplepir,spiral,tdh}
+where $\widetilde{O}_\lambda(\cdot)$ hides  
+polylogarithmic factors and the 
+dependence on the security parameter $\lambda$.
+% \elaine{is it tilde O}
+In the two-server setting, 
+Dvir and Gopi~\cite{dg16-pir} 
+showed that information-theoretic PIR is possible with 
+$n^{O(\sqrt{\log \log n /\log n})}$
+bandwidth per query.
+All the aforementioned 
+works studied PIR in the {\it classical setting without preprocessing}. 
+More specifically, the classical setting assumes that the server
+stores only the original database, and need  
+not store per-client state.
+Unfortunately, the classical setting 
+suffers from the following inherent limitations. 
+\begin{enumerate}[leftmargin=5mm]
+\item 
+First, Beimel, Ishai, and Malkin~\cite{bim-pir}
+proved that any classical PIR scheme without preprocessing 
+must suffer from 
+linear (in $n$) server computation per query. 
+Intuitively, if there is any location that the server does not look
+at during a query, then the client cannot be asking for that location.
+\item 
+Second, in a single-server setting, it is known
+that any PIR scheme with non-trivial (i.e., sublinear) bandwidth would imply
+oblivious transfer~\cite{pirot}, 
+i.e., some form of public-key cryptography is needed. 
+\end{enumerate}
+
+\ignore{
+\paragraph{Pre-processing PIR.}
+Both of the above barriers can be overcome 
+under a {\it client-specific} preprocessing model, which was first introduced
+by Corrigan-Gibbs and Kogan~\cite{sublinearpir}.
+The client-specific pre-processing 
+model can be thought of as a subscription model. 
+During a one-time subscription phase, the client downloads
+a hint from the server that is sublinear in $n$, which will
+facilitate the client's PIR queries in the future. 
+}
+
+\paragraph{Pre-processing sublinear PIR without public-key cryptography.}
+To get around the aforementioned barriers,
+earlier works have suggested a pre-processing model.
+Specifically, we consider a model with a 
+one-time pre-processing phase  
+upfront, followed by an {\it unbounded} number of queries. 
+The pre-processing model was first
+proposed by Beimel, Ishai, and Malkin~\cite{bim-pir} and 
+Corrigan-Gibbs and Kogan~\cite{sublinearpir}.
+
+In a pre-processing model, 
+we focus on exploring the efficiency
+of PIR with {\it sublinear computation}, 
+and {\it without the use of public-key cryptography} --- 
+to get around the aforementioned
+barriers,
+In particular, the requirement of sublinear computation is especially important
+in practical scenarios where the database is large --- for example, in a private
+DNS application, the database can be several hundred Gigabytes. 
+Further, %understanding how to construct 
+we restrict ourselves to Minicrypt (i.e., allowing PRFs but not using any public-key
+cryptography) --- this is not only motivated by theoretical interest,  
+%such pre-processing PIR schemes without the use of public-key operations is not
+%just out of theoretical interest, but also 
+but also the promise of concretely faster  constructions since modern processors
+have hardware acceleration for AES operations.
+
+
+%To avoid the linear computation barrier, 
+\ignore{
+Beimel, Ishai, and Malkin~\cite{bim-pir}
+were the first to consider a pre-processing model.
+Since then, two types of preprocessing 
+have been considered, {\it global server-side} preprocessing~\cite{}, 
+and {\it client-specific}
+pre-processing~\cite{}. 
+In the former (i.e., global server-side preprocessing), 
+the server computes some encoding of the database upfront for all clients,
+often expanding its storage size to $n^{1+\epsilon}$ or $\poly(n)$.
+The latter (i.e., client-specific pre-processing) can be thought of as a subscription model.
+Each client subscribes with the server 
+often by downloading a hint whose size
+is sublinear in $n$. This hint will facilitate the client's PIR queries 
+in the future. 
+}
+
+Earlier works showed 
+that under a global, server-side preprocessing, one can overcome
+the linear computation barrier~\cite{bim-pir,sublinearpir,pir-ec22,pir-ec23,treepir,lazza-pir,shi-pir,weikai-depir,piano}; 
+and further,
+assuming a client-specific preprocessing, we can overcome 
+both of the aforementioned barriers~\cite{piano,lingrenpir}. 
+So far, we know the following pre-processing PIR schemes
+which enjoy  
+sublinear pre-processing  
+without the use of public-key cryptography.  
+Beimel et al.~\cite{bim-pir} showed 
+by leveraging a global server-side pre-processing, 
+it is possible to construct an 
+information theoretic
+2-server PIR with $O(n^{1/3})$ bandwidth, $O(n/\log^2 n)$
+computation, while consuming $O(n^2)$ 
+server storage. The same work also showed
+an incomparable information-theoretic 
+scheme with $O(n^{1/2 + \epsilon})$
+cost in both computation and bandwidth, while incurring
+$n^{1+\epsilon'}$
+server storage where $\epsilon'$ is a constant dependent on $\epsilon$.
+%The recent ground-breaking work of Lin, Mook, and Wich showed how to  
+%achieve 
+%polylogarithmic bandwidth and computation per query, while consuming  
+%$n^{1+\epsilon}$ server storage, assuming the Ring-LWE assumption. 
+
+Under a client-specific pre-processing
+model, the recent work \textsc{Piano}~\cite{piano} and the subsequent work of 
+Mughees et al.~\cite{lingrenpir} constructed  
+single-server PIR schemes with $\widetilde{O}(\sqrt{n})$
+bandwidth and server computation, 
+$\widetilde{O}_\lambda(\sqrt{n})$
+client computation per query, 
+while consuming $\widetilde{O}_\lambda(\sqrt{n})$ 
+client storage.
+Their one-time preprocessing is done by letting the client streamingly download the whole database and dynamically update the client's local state.
+Interestingly, their schemes relied
+only on one-way functions (OWFs)  
+and do not make use of public-key cryptography.
+By contrast, classical (single-server) PIR with non-trivial bandwidth implies
+oblivious transfer~\cite{pirot}, 
+i.e., we cannot get classical single-server PIR in a blackbox
+way from OWF~\cite{IR89}.
+The reason why Piano~\cite{piano}
+ and Mughees et al.~\cite{lingrenpir}
+got away using only OWF 
+is because their schemes require that the client make a streaming pass  
+over
+the entire database during preprocessing;  however,
+the cost of this preprocessing
+can be amortized over an unbounded number of subsequent queries.
+
+\ignore{
+Piano~\cite{piano}
+ and Mughees et al.~\cite{lingrenpir}'s results
+also separate pre-processing PIR
+from classical PIR 
+(in the single-server setting) 
+from a theoretical perspective.
+}
+
+\elaine{TODO: for 1server scheme, 
+change the asymptotics to the optimized
+version}
+
+\begin{table}[t]
+\centering
+\caption{{\bf Comparison of single-server and two-server pre-processing PIR schemes (for unbounded queries)}.
+Any single-server scheme immediately implies a two-server result with the  
+same performance bounds. $n$ is the size of the database and $m$ is the number of clients.
+The computation overhead counts
+both the client and the server's computation, and here we report the expected computation.
+The server space counts only the extra storage needed
+on top of storing the original database.}
+{\scriptsize
+\begin{tabular}{cccccccccc}
+\toprule
+{\bf Scheme} & {\bf Assumpt.} & {\bf Compute} & {\bf Comm.} & \multicolumn{2}{c}{\bf Space} & 
+{\bf \#}
+& {\bf Concrete}\\
+& & & & client & server & {\bf servers} & {\bf eff}.\\
+%\cite{lazza-pir} \\
+\midrule
+\multicolumn{7}{c}{\bf With public-key cryptography}\\[2pt]
+\cite{pir-ec22} & LWE & $\widetilde{O}_\lambda(\sqrt{n})$ & 
+$\widetilde{O}_\lambda(\sqrt{n})$ & %$\widetilde{O}_\lambda(\sqrt{n})$ &  
+$\widetilde{O}_\lambda(\sqrt{n})$ &  
+$\widetilde{O}_\lambda(m \cdot n)^*$ & 1 & \xmark \\
+%\midrule
+\cite{pir-ec23,lazza-pir} & LWE & $\widetilde{O}_\lambda(\sqrt{n})$ & 
+$\widetilde{O}_\lambda(1)$ & %$\widetilde{O}_\lambda(1)$ &  
+$\widetilde{O}_\lambda(\sqrt{n})$ &  
+$\widetilde{O}_\lambda(m \cdot n)^*$ & 1 & \xmark\\
+%\midrule
+\cite{weikai-depir} & Ring-LWE & $\poly((\log n)^{1/\epsilon})$  & $\poly((\log n)^{1/\epsilon})$ & 
+$0$ & $n^{1+\epsilon}$ & 1 & \xmark\\
+\cite{shi-pir} & LWE & $\widetilde{O}_\lambda(\sqrt{n})$ &  $\widetilde{O}_\lambda(1)$ &
+$\widetilde{O}_\lambda(\sqrt{n})$ & 
+0 & 
+2 & \xmark \\
+\cite{treepir} & Various & $\widetilde{O}_\lambda(\sqrt{n})$ &  $\widetilde{O}_\lambda(1)$ &
+$\widetilde{O}_\lambda(\sqrt{n})$ & 
+0 & 
+2 & \cmark \\[3pt]
+\multirow{2}{*}
+{\bf Our work}  
+& \multirow{2}{*}{Various} & 
+\multirow{2}{*}{$\widetilde{O}_\lambda(\sqrt{n})$} & 
+{$\widetilde{O}(\sqrt{n})$ offline}
+& 
+\multirow{2}{*}{$\widetilde{O}_\lambda(\sqrt{n})$} & 
+\multirow{2}{*}{$0$} & \multirow{2}{*}{$1$}
+%\multirow{2}{*}{$0$} 
+& \multirow{2}{*}{\cmark}
+\\[-1.5pt]
+& & & 
+{$\widetilde{O}_\lambda(1)$ online}
+& & & \\
+\midrule
+\multicolumn{7}{c}{\bf Without public-key cryptography}\\[2pt]
+\cite{bim-pir} & None & $O(n/\log^2 n)$ & $O(n^{1/3})$ &  $0$ & $O(n^2)$&  2 & \xmark\\
+\cite{bim-pir} 
+& None & $O(n^{1/2 + \epsilon})$ & $O(n^{1/2 + \epsilon})$ &  $0$ & $O(n^{1+{\epsilon'}})^{**}$ & 2 & \xmark\\[5pt]
+%\midrule 
+\cite{sublinearpir} & OWF & 
+$\widetilde{O}_\lambda(\sqrt{n})$  & 
+$\widetilde{O}(\sqrt{n})$  & 
+$\widetilde{O}_\lambda(\sqrt{n})$  & 
+$0$  & 2 & \cmark \\[5pt]
+\cite{checklist} & OWF & 
+$O(n)$  & 
+$\widetilde{O}_\lambda(1)$  & 
+$\widetilde{O}_\lambda(\sqrt{n})$  & 
+$0$  & 2 & \cmark \\[5pt]
+\cite{piano,lingrenpir} & OWF & 
+%& None &  
+$\widetilde{O}_\lambda(\sqrt{n})$  & 
+${O}(\sqrt{n})$  & 
+$\widetilde{O}_\lambda(\sqrt{n})$  & 
+$0$  & 1 & \cmark \\[5pt]
+%\midrule
+%\multirow{2}{*}
+{\bf Our work}  
+& OWF & 
+${O}_\lambda(\sqrt{n})$  & 
+${O}_\lambda(n^{1/4})$  & 
+$\widetilde{O}_\lambda(\sqrt{n})$  & 
+$0$ & $2$
+& \cmark
+\\[3pt]
+%\midrule
+\multirow{2}{*}
+{\bf Our work}  
+& \multirow{2}{*}{OWF} & 
+\multirow{2}{*}{${O}_\lambda(\sqrt{n})$} & 
+{${O}(\sqrt{n})$ offline}
+& 
+\multirow{2}{*}{$\widetilde{O}_\lambda(\sqrt{n})$} & 
+\multirow{2}{*}{$0$} & \multirow{2}{*}{$1$}
+%\multirow{2}{*}{$0$} 
+& \multirow{2}{*}{\cmark}
+\\[-1.5pt]
+& & & 
+{${O}_\lambda(n^{1/4})$ online}
+& & & \\
+\ignore{
+    %%%%%%%%%%%%55
+[3pt]
+\multirow{2}{*}
+{\bf Our work}  
+& \multirow{2}{*}{LWE or DDH} & 
+\multirow{2}{*}{$\widetilde{O}(\sqrt{n})$} & 
+{$\widetilde{O}(\sqrt{n})$ offline}
+& 
+\multirow{2}{*}{$\widetilde{O}(\sqrt{n})$} & 
+\multirow{2}{*}{$0$} & \multirow{2}{*}{$1$}
+\\[-1.5pt]
+& & & 
+{$\widetilde{O}_\lambda(1)$ online}
+& & & \\
+%%%%%%%%%%%%%%%%%%
+}
+\bottomrule
+\end{tabular}
+}
+{\small $*:$ 
+In the unbounded query setting, 
+some earlier works~\cite{pir-ec23,lazza-pir,pir-ec22} 
+require that the next pre-processing is persistently piggybacked on 
+the current window of $O(\sqrt{n})$ operations, and the pre-processing
+consumes 
+$O_\lambda(n)$ server space
+per client to evaluate under FHE an $\widetilde{O}(n)$-sized 
+circuit containing a sorting network.
+
+\noindent\small $**:$ 
+$\epsilon'>0$ depends on $\epsilon$. 
+}
+\end{table}
+
+% \elaine{why is treepir LWE or DDH but not various assumptions?}
+% \ashrujit{non-preprocessing PIR with linear computation polylog communication are known from only LWE (Spiral) or DDH(Dottling et al Crypto 2019). TreePIR and our new scheme needs to use non-preprocessing PIR as a subroutine}
+
+% \elaine{TODO:change bim desc in abstract}
+
+%\paragraph{Our results.}
+\subsection{Our Results}
+
+We show new results that improve the %state-of-the-art 
+state of our understanding regarding pre-processing PIR. 
+In all of our constructions, the server only needs to store
+the original database and need not store any per-client state. 
+
+
+% \elaine{TODO: fix O lambda issue}
+
+\paragraph{Main result 1.}
+First, we construct a two-server pre-processing  
+PIR scheme with asymptotically better bandwidth than prior work, relying only on the  
+existence of PRFs (which is equivalent to the existence of one-way functions). 
+Our result is stated in the following theorem. 
+
+\begin{theorem}[Two-server pre-processing PIR with improved bandwidth]
+Assume the existence of one-way functions. 
+There exists a two-server pre-processing PIR scheme 
+with ${O}_\lambda(n^{1/4})$
+bandwidth and ${O}_\lambda(n^{1/2})$
+computation per query, while incurring
+$\widetilde{O}_\lambda(n^{1/2})$ 
+client storage. 
+\label{thm:intro-2server}
+\end{theorem}
+In comparison with the prior work of Beimel et al.~\cite{bim-pir}, 
+our \Cref{thm:intro-2server}
+achieves significant asymptotic improvements 
+in both bandwidth, computation, and server-side storage.
+On the other hand, we need to assume one-way functions
+whereas Beimel et al.~\cite{bim-pir}'s schemes are information theoretic; further,
+we additionally require $\widetilde{O}(\sqrt{n})$ 
+space on each client.
+However, our construction that gives \Cref{thm:intro-2server} 
+is simple and concretely efficient, which is another advantage 
+over Beimel et al. %~\cite{}.
+
+\ignore{
+If we allow public-key cryptography, 
+the TreePIR scheme by Lazzaretti
+and Papamanthou achieves 
+can further improve the 
+bandwidth to $\widetilde{O}_\lambda(1)$ where 
+we use $\widetilde{O}_\lambda$ to hide polylogarithmic terms
+and dependence on the security parameter $\lambda$.
+% \elaine{TODO: finish here.}
+}
+%However, their computation and client storage costs
+%are higher than our scheme because of the dependence 
+
+
+\paragraph{Main result 2.}
+Second, we construct a new pre-processing PIR scheme in the single-server
+setting that improves the {\it online} bandwidth in comparison with the
+state-of-the-art.  
+In this theorem, we differentiate between online bandwidth and offline bandwidth.
+The online bandwidth is the bandwidth necessary for the client
+to obtain an answer to its query, so it matters to the response time of the client. 
+The offline bandwidth is the cost of background maintenance work
+amortized to each query, and is not on the critical path of the client's response time. 
+
+\begin{theorem}[Single-server preprocessing PIR with improved online bandwidth]
+Assume the existence of one-way functions. 
+There exists a single-server pre-processing PIR scheme 
+with ${O}_\lambda(n^{1/4})$
+{\it online} bandwidth, 
+${O}(n^{1/2})$
+{\it offline} bandwidth, 
+${O}_\lambda(n^{1/2})$ server computation and  
+$\widetilde{O}_\lambda(n^{1/2})$ client computation per query, 
+while incurring
+$\widetilde{O}(n^{1/2})$ 
+client storage. 
+\label{thm:intro-1server}
+\end{theorem}
+
+In comparison with the state-of-the-art scheme \textsc{Piano},
+\Cref{thm:intro-1server}
+improves the online bandwidth cost
+from $\widetilde{O}(\sqrt{n})$ to 
+$\widetilde{O}_\lambda(n^{1/4})$, while keeping all other costs
+the same. 
+Moreover, recall that 
+%proven in 
+earlier works~\cite{sublinearpir,pir-ec22}, 
+proved 
+the time-space product lower bound, showing
+that the product of the  
+client space and the online server time
+has to be at least linear in $n$. 
+In this sense, 
+\Cref{thm:intro-1server}
+is tight 
+(upto polylogarithmic factors) in terms of this time-space product.
+
+Similar to Piano~\cite{piano} and   
+Mughees et al.~\cite{lingrenpir}, 
+our 1-server result 
+adopts the same model where the client is allowed
+to make a streaming pass over 
+the database during preprocessing (while consuming
+small client space). Otherwise, we would encounter the well-known OT barrier~\cite{pirot}.
+
+We evaluate the concrete performance 
+of our 1-server scheme in \Cref{sec:evaluation}.
+
+
+
+%\paragraph{Comparison with schemes using public-key cryptography.}
+
+
+
+\paragraph{Additional results.}
+While our main results focus on constructions in Minicrypt, 
+if we are willing to assume classical PIR with $\widetilde{O}_\lambda(1)$ 
+bandwidth
+(which is known from various assumptions such as 
+LWE, $\Phi$-hiding, Damg\r{a}rd-Jurik, DDH, QR)~\cite{pir05,simplepir,spiral,tdh}, 
+our techniques would 
+then give rise to a concretely efficient
+single-server PIR scheme %assuming LWE, 
+with 
+$\widetilde{O}_\lambda(1)$
+{\it online} bandwidth, 
+$\widetilde{O}(\sqrt{n})$
+offline bandwidth and computation per query, 
+consuming $\widetilde{O}_\lambda(\sqrt{n})$
+client storage. 
+In comparison, although the earlier works
+by Zhou et al.~\cite{pir-ec23} and  
+ Lazzaretti and Papamanthou~\cite{lazza-pir}
+claim to achieve polylogarithmic (online and offline) bandwidth, 
+their schemes suffer from a significant drawback, that is, 
+the server would have to persistently
+store at least $n$ amount of state per client! 
+Specifically, Zhou et al.~\cite{pir-ec23} and
+ Lazzaretti and Papamanthou~\cite{lazza-pir}
+require the pre-processing
+phase of the next epoch be piggybacked on 
+the queries of the current epoch; however, 
+their pre-processing phase requires 
+that the server allocate at least $n$ amount of space  
+per client, to perform homomorphic evaluation 
+of a circuit which is super-linear in size. 
+So far, in the unbounded query setting, 
+it is not known how to get polylogarithmic overall bandwidth 
+(including offline and online)
+per query 
+{\it under any assumption}, 
+assuming that the server stores only the original database.
+We state this additional result in the following theorem. 
+
+\begin{theorem}
+%[Single-server pre-processing PIR with 
+%$\widetilde{O}_\lambda(1)$ 
+%online communication]
+Assume %\elaine{FILL in various assumptions}.
+the existence of a 
+classical single-server PIR scheme (i.e., without pre-processing) 
+that enjoys $\widetilde{O}_\lambda(1)$ bandwidth per query.
+% \elaine{todo: double check}
+Then, there exists a single-server pre-processing PIR
+scheme with 
+$\widetilde{O}_\lambda(1)$ online bandwidth, 
+$\widetilde{O}_\lambda(\sqrt{n})$ 
+computation, 
+$\widetilde{O}(\sqrt{n})$ 
+offline bandwidth, 
+and requiring 
+$\widetilde{O}_\lambda(\sqrt{n})$ 
+client storage. 
+\label{thm:intro-pkc}
+\end{theorem}
+
+% \elaine{TODO: double check the tildes}
+
+ 
+\subsection{Technical Highlights}
+The earlier work of Shi et al.~\cite{shi-pir}
+showed that assuming the existence of 
+a privately puncturable 
+PRF~\cite{privpuncprf00,privpuncprf01,privpuncprf02,privpuncprf03}, 
+one can 
+construct an efficient 2-server pre-processing PIR scheme
+with 
+$\widetilde{O}_\lambda(\sqrt{n})$
+computation per query and  
+requiring 
+$\widetilde{O}_\lambda(\sqrt{n})$
+client storage. 
+Further, the communication per query
+is only polylogarithmically larger than
+ the size of a punctured key, which can be as small as
+$\widetilde{O}_\lambda(1)$ using 
+known constructions~\cite{privpuncprf00,privpuncprf01,privpuncprf02,privpuncprf03}. 
+Unfortunately, the only known 
+techniques 
+for constructing a privately puncturable 
+PRF~\cite{privpuncprf00,privpuncprf01,privpuncprf02,privpuncprf03}
+requires two 
+layers of fully homomorphic encryption, and it is not known
+whether privately puncturable
+PRFs can be built from only one-way functions.  
+The elegant TreePIR work of 
+Lazzaretti
+and Papamanthou~\cite{treepir}
+showed how to replace the privately puncturable
+PRF with a weaker primitive called a ``weak 
+privately puncturable PRF''.
+Unfortunately, their approach relies on recursing
+on a classical PIR scheme for a $\sqrt{n}$-sized
+database, and because this database is {\it dynamically constructed} 
+during the scheme, it is not possible 
+to pre-process it.
+Therefore, Lazzaretti
+and Papamanthou~\cite{treepir}'s techniques
+fundamentally also require 
+public-key cryptography.
+
+\paragraph{Privately programmable pseudorandom set with list decoding.}
+Our main contribution is to come up with a new abstraction
+called a {\it Privately Programmable 
+Pseudorandom Set with List Decoding} (\ppps). 
+Given a \ppps key $\sk$, we can 
+expand the key $\sk$ to a pseudorandom set 
+denoted ${\sf Set}(\sk)$ of size $\sqrt{n}$.
+Further, deciding whether any element in $\{0, 1, \ldots, n-1\}$ is in the 
+set takes only constant time. 
+Importantly, we can call a ${\sf Program}$ 
+algorithm to program $\sk$ such that the new  
+set  is almost the same as the original ${\sf Set}(\sk)$, except
+that the   
+one element in the set 
+is now changed to another specified element.
+%element of choice  
+%input into the ${\sf Program}$ algorithm. 
+The programmed key 
+does not leak information about 
+which element is programmed.
+
+Our notion of \ppps is otherwise very similar
+to the earlier work of Zhou et al.~\cite{pir-ec23}, except
+that we make a relaxation on the correctness when  
+decoding a 
+programmed key --- this relaxation 
+is the crucial
+reason why we can construct it from only one-way functions,
+whereas Zhou et al.~\cite{pir-ec23}'s construction relies
+on LWE.
+More specifically,  
+we do not require that one can correctly recover
+the programmed set given a programmed key $\sk'$.
+Instead, we allow {\it list-decoding}, that is, given
+a programmed key $\sk'$, decoding outputs a list of candidate
+sets, among which one must be the true programmed set.
+Moreover, the list-decoding of our PPPS construction is structured, allowing succinct representation and efficient computation.
+
+Using only one-way functions, we construct 
+a \ppps scheme with list decoding 
+for a pseudorandom set of size $\sqrt{n}$, where
+the programmed key 
+has size $O_\lambda(n^{1/4})$.
+
+
+Using such a \ppps scheme, 
+we show how to get a two-server
+scheme 
+with 
+${O}_\lambda(n^{1/4})$ communication and  
+$\widetilde{O}_\lambda(n^{1/2})$ computation  
+per query, using only $\widetilde{O}_\lambda(n^{1/2})$ client space (\Cref{thm:intro-2server}).
+Unlike TreePIR~\cite{treepir}, our scheme need not recurse
+on a classical PIR scheme, and thus we do not need public-key operations. 
+
+% \elaine{no tilde in table for 2-server, and maybe 1-server too?}
+
+
+\paragraph{A new broken hint technique.}
+\mingxun{transition more smoothly?}
+To get our single-server scheme (\Cref{thm:intro-1server}), we encounter
+some further challenges. 
+In particular, 
+it would have been easy to make the scheme work
+if our \ppps scheme supported programming a key twice
+at two points.
+Specifically, in our construction, when the client
+consumes a pseudorandom set (represented by $\sk$)
+in the hint table
+containing the current query $x$, 
+it needs to replace the replaced entry with another
+randomly sampled \ppps key $\sk$ 
+subject to containing the query $x$.
+One way to achieve this is to fetch an unconsumed key  
+from a backup table, and program the key 
+to contain $x$.
+However, later, when the client consumes this already-programmed
+key in another query $y$, it needs to program  
+the point $y$ to 
+ some other random point in order not to leak the query $y$.
+
+Unfortunately, our \ppps construction does not support programming twice.
+Interestingly, 
+earlier works~\cite{pir-ec23,lazza-pir}
+also encountered a similar challenge of needing
+to program a key twice, but there it was resolved
+using different techniques that relied on the LWE 
+assumption, which would not work in our setting.
+
+The way we resolve the problem is to introduce
+a new technique of allowing {\it broken} entries
+in the hint table.
+Basically, if the client consumes some \ppps key $\sk$ in the hint table,
+it simply replaces the consumed $\sk$ with  
+a new entry sampled according to the desired 
+distribution (required for privacy). 
+However, %since this entry was not prepared in the 
+since the client did not perform any preparation work
+during the pre-processing phase
+for this new entry, 
+consuming this entry 
+later in a new query 
+would result in an incorrect answer, i.e., the replaced entry is {\it broken}.
+Fortunately, we can amplify correctness 
+through repetition. We defer the details to the subsequent 
+technical sections.
+
+
+\paragraph{Other applications of the broken hint technique.}
+The broken hint technique can also lead to other interesting applications.
+For example, recall that TreePIR is a 
+2-server pre-processing scheme~\cite{treepir}.
+With our new broken hint technique, we can convert
+TreePIR to a single-server scheme which enjoys the efficiency stated
+in \Cref{thm:intro-pkc}.
+
+
+
+\paragraph{Further improvements.}
+The approach of using broken entries 
+introduces a super-logarithmic blowup in the 
+bandwidth and computation costs, due the repetition needed
+for correctness amplification.
+\ifnum\eprintversion=0
+In~\Cref{sec:optimized} of the online full version,
+\else
+In~\Cref{sec:optimized},
+\fi
+we suggest an improved scheme
+that avoids this 
+super-logarithmic blowup and gets us the tighter
+bounds stated in \Cref{thm:intro-1server}, but 
+the resulting scheme is somewhat more complex to describe.
+
+% \elaine{TODO: continue}
+
+%\elaine{TODO: comment on optimality after thm}
+
+
+
+
+\ignore{
+\paragraph{Paper Organization.} This paper is organized as follows: in Section~\labelcref{sec:defs} we review formal definitions of single and two-server PIR schemes. In Section~\labelcref{sec:ppps}, we introduce our new abstraction of private programmable pseudorandom sets with list decoding. In Section~\labelcref{sec:two-server}, we give our new two-server preprocessing PIR construction using the aforementioned abstraction that has $O_\lambda(n^{1/4})$ online communication and $O_\lambda(n^{1/2})$ online computation. In Section~\labelcref{sec:one-server} we give our new single-server preprocessing PIR scheme with $\widetilde{O}_\lambda(n^{1/4})$ online communication and $\widetilde{O}_\lambda(n^{1/2})$ online computation. In Section~\labelcref{sec:polylog}, we give a single-server PIR scheme that uses public key cryptography and has polylogarithmic online communication. In Appendix~\labelcref{sec:optimized}, we give an optimized version of the scheme in Section~\labelcref{sec:one-server}, where we open up the black-box of our abstraction to achieve the optimizations.
+}
+
+% \subsection{Additional Related Work}
+

@@ -1,0 +1,423 @@
+\section{Description of our Encoding and Decoding Procedures of \Cref{thm:MDST}}
+\label{sec:formal:MDST1}
+This section describes the encoding and decoding procedure used in the proof of \Cref{thm:MDST}. The encoding and decoding procedures for \Cref{thm:MDST2} require very small changes, and so the modifications are given in \Cref{sec:formal:MDST2}. 
+
+\subsection{The Encoding Procedure} 
+This section gives the decoding procedure.  Recall that the sets $\qf,\Salts,\allowbreak\Queries,\allowbreak\q_j,\allowbreak\us_j$ are defined as mentioned in the setup in \Cref{sec:comparg}. We do not explicitly repeat these definitions to avoid cluttering.  
+
+\medskip \noindent {\underline {The encoding algorithm $\Encode(\sigma,U,h)$}}:
+
+\begin{enumerate}
+  \item Parse $U$ as $\{a_1,\ldots,a_u\}$ where $a_1,\ldots,a_u$ are in lexicographical order.
+  \item Set $j\gets 0$.
+  \item Initialize the set $\Pred$ to be empty, the lists $\cs$ and $\hrest$ to be empty, and the set of nodes in the query graph to $[N]$ and the set of edges to be empty. 
+  \item For $i=1,\ldots,u$, do:
+  \begin{enumerate}
+  \item If $a_i\in \Salts(a)$ for some $a\in \uf$, let $r\in [jT]$ be the smallest index such that $\qf[r]=(a_j,\ast)$. Add $r$ to $\Pred$, and continue to next iteration.
+  \item Otherwise, increment $j$, set $a_j'\gets a_i$. Run $\advA_2$ on $(\sigma,a_j')$, answering its queries to $h$. For every query made by $\advA_2$ to $h$ on $(a,\alpha)$ with answer $a'$, add an edge $(a,a')$ with label $\alpha$ to the query graph. Add $h(a,\alpha)$ to the list $\hrest$ if it was not already added earlier. Classify the query as $\new,\frep,\sfrep,\urep$ as defined in Section~\labelcref{sec:comparg}.
+  \item Determine the category of the mouse structure using the classification in Section~\labelcref{sec:compression}. According to the categorization do the following.
+  \begin{itemize}
+  \item If the mouse structure gets categorized in case~\labelcref{case:newsl}, then the mouse structure contains a \new\ query $(a,\alpha)$ such that $h(a,\alpha)=a$. Let the index of the query in $\q_j$ be $n$. Add $n$ to the list $L_1$, set $\cs[j]\gets 1$ and remove the entry $h(a,\alpha)$ from $\hrest$.  
+  \item Else, if the mouse structure gets categorized  in case~\labelcref{case:newcol}, the mouse structure contains two distinct \new\ queries $(a_1,\alpha_1)$, $(a_2,\alpha_2)$ such that $h(a_1,\alpha_1)=h(a_2,\alpha_2)$, and $(a_1,\alpha_1)$ is queried before $(a_2,\alpha_2)$. Let the indices of the two queries be $n_1,n_2$, respectively, in $\q_j$. Add $(n_1,n_2)$ to the list $L_2$, set $\cs[j]\gets 2$ and remove the entry $h(a_2,\alpha_2)$ from $\hrest$. Continue to next iteration.
+  \item Else, if the mouse structure gets categorized  in case~\labelcref{case:repnew}, then it contains a \new\ query $(a,\alpha)$ such that $h(a,\alpha)=a'$ and $a'\in \us_k$ for some $k<j$. Let the index of the \new\ query in $\q_j$ be $n$ and the lexicographic order of the salt $a'$ in $\us_k$ be $o$. Add $(k,o,n)$ to a list $L_3$, set $\cs[j]\gets 3$  and remove the entry $h(a,\alpha)$ from $\hrest$. Continue to next iteration.
+  \item Else, if the mouse structure gets categorized  in case~\labelcref{case:oldsl}, then it contains a \urep\ query $(a,\alpha)$ such that $h(a,\alpha)=a$. Let $n$ the smallest index of the query $(a,\alpha)$ in $\qf$. Add $n$ to the set $S_4$, set $\cs[j]\gets 3$ and remove the entry $h(a,\alpha)$ from~$\hrest$. Continue to next iteration.
+  \item Else, if the mouse structure is categorized in case~\labelcref{case:somerep}, there is at least one salt $d$ such that $d\in \us_i$ for some $i<j$ and there are at most $B-2$ edges in the mouse structure between $d$ and $s$ where $s$ is an answer to a \new\ query. If there are several possible candidate pairs, choose one where the number of edges is the smallest between the source and the destination salt. Let the path back from $d$ to $s$ in the query graph when $(a,\alpha)$ is queried be $\pth$.
+  If we have ``encountered a large multi-collision'' (as defined in Section~\labelcref{sec:somerep}) in $\pth$, then set $\cs[j]\gets 5m$ and goto \textsc{MulCol} below. Else, suppose that the \new\ query that results with the source salt $s$ is $(a,\alpha)$, the destination salt is $d$ and  $d\in \us_i$ for some $i<j$.   
+  Construct the tuple consisting of the following.\footnote{We list the elements of the tuple in a table along with the sizes of each element to enable a reader cross check the size calculations we did in section~\labelcref{sec:comparg}.}
+  % \begin{enumerate}
+  %   \item the index $i$,
+  %   \item the index of query $(a,\alpha)$ in $\q_j$,
+  %   \item the lexicographical index of $d$ in $\us_i$, and 
+  %   \item the path back from $d$ to $s$ in the query graph when $(a,\alpha)$ is queried.
+  % \end{enumerate}
+
+        \begin{center}
+        \begin{tabular}{|c|c|}\hline
+
+        Element & Size in bits \\ \hline\hline
+
+		    $i$ & $\log u$\\ \hline
+		
+		    index of query $(a,\alpha)$ in $\q_j$ & $\log T$   \\\hline
+		    
+		    lexicographical index of $d$ in $\us_i$ & $\log B$ \\ \hline
+		    
+		    path $\pth$ & $\log Bm_0^{(B-2)}$\\\hline
+		    
+        \end{tabular}
+        \end{center}
+   Store the tuple in a list $L_5$, set $\cs[j]\gets 5a$ it removes the entry $h(a,\alpha)$ from $\hrest$. Continue to next iteration.
+   
+  \item Else, if the mouse structure gets categorized  in case~\labelcref{case:norep}, sub-categorize into sub-cases~\labelcref{case:norepa,case:norepb,case:norepc,case:norepd} as specified in Section~\labelcref{sec:norep}.
+  \begin{itemize}
+      \item If the mouse structure is categorized in~\labelcref{case:norepa}, define queries $q_1,q_2,q_3$ as defined under the heading ``Handling sub-case~\labelcref{case:norepa}" in Section~\labelcref{case:norep}. Let the path back from input salt of $q_3$ to the answer of $q_1$ in the query graph when $q_1$ was queried be path $\pth$. 
+      If there was a large multi-collision encountered on path $\pth$, set $\cs[j]=6m$ and goto line \textsc{MulCol}.
+
+      Otherwise define a tuple consisting of the following.
+      % \begin{enumerate}
+      % \item the index of $q_1$ in $\q_j$ 
+      % \item the index of $q_2$ in $\q_j$ 
+      % \item the smallest index of $q_3$ in $\qf$, and
+      % \item the path $\pth$
+      % \end{enumerate}
+      \begin{center}
+        \begin{tabular}{|c|c|}\hline
+
+        Element & Size in bits \\ \hline\hline
+
+		    the indices of $q_1,q_2$ in $\q_j$ & $2\log T$\\ \hline
+		
+		    the smallest index of $q_3$ in $\qf$ & $\log FT$   \\\hline
+		    		    
+		    path $\pth$ & $\log Bm_0^{(B-2)}$\\\hline
+		    
+        \end{tabular}
+        \end{center}
+      Add the tuple to the list $L_{6a}$. Remove the answers corresponding to queries $q_1,q_2$ from $\hrest$ and set $\cs[j]=6a$.
+
+      \item If the mouse structure is categorized in~\labelcref{case:norepb}, define queries $q_1,q_2,q_3,q_4$ as defined under the heading ``Handling sub-case~\labelcref{case:norepb}" in Section~\labelcref{case:norep}. Let the path back from the input salt of $q_3$ to the answer of $q_1$ in the query graph when $q_1$ was queried be $\pth_1$. Let the path back from the input salt of $q_4$ to the answer of $q_2$ in the query graph when $q_2$ was queried be $\pth_2$.
+      If there was a large multi-collision encountered on either $\pth_1$ or $\pth_2$, set $\cs[j]=6m$ and goto \textsc{MulCol}.
+      Otherwise define the following tuple.
+    %   \begin{enumerate}
+    %     \item the index of $q_1$ in $\q_j$ 
+    %     \item the index of $q_2$ in $\q_j$ 
+    %     \item the smallest index of $q_3$ in $\qf$
+    %     \item the smallest index of $q_4$ in $\qf$
+    %     \item the path $\pth_1$
+    %     \item the path $\pth_2$
+    % \end{enumerate}
+    \begin{center}
+      \begin{tabular}{|c|c|}\hline
+
+      Element & Size in bits \\ \hline\hline
+
+      the indices of $q_1,q_2$ in $\q_j$ & $2\log T$\\ \hline
+  
+      the smallest indices  of $q_3,q_4$ in $\qf$ & $2\log FT$   \\\hline
+              
+      paths $\pth_1,\pth_2$ & $ \log B^2m_0^{2(B-2)}$\\\hline
+      
+      \end{tabular}
+      \end{center}
+    Add this tuple to the list $L_{6b}$. Remove the answers corresponding to queries $q_1,q_2,q_4$ from $\hrest$ and set $\cs[j]=6b$.
+
+    \item If the mouse structure is categorized in~\labelcref{case:norepc}, define queries $q_1,q_2,q_3$ as defined under the heading ``Handling sub-case~\labelcref{case:norepc}" in Section~\labelcref{case:norep}. Further, we categorize to scenarios 1 or 2, as defined there. 
+    \begin{enumerate}
+    \item If it is in scenario 1 let the path back to the answer salt of $q_1$ from answer salt of $q_3$ in the query graph when $q_1$ was queried be $\pth_1$ and let the path back from the input salt of $q_3$ to the input salt of $q_2$ in the query graph when $q_3$ was queried be $\pth_2$.
+     If there is a large multi-collision encountered either $\pth_1$ or $\pth_2$, set $\cs[j]=6m$ and goto \textsc{MulCol}.
+    Otherwise define the following tuple.
+    % \begin{enumerate}
+    % \item the minimum index of the query $q_2$ in $\qf$
+    % \item the index of query $q_1$ in $\q_j$ 
+    % \item the path $\pth_1$
+    % \end{enumerate}
+  % \end{enumerate}
+  \begin{center}
+    \begin{tabular}{|c|c|}\hline
+
+    Element & Size in bits \\ \hline\hline
+
+    the index of $q_1$ in $\q_j$ & $\log T$\\ \hline
+
+    the smallest index  of $q_2$ in $\qf$ & $\log FT$   \\\hline
+            
+    path $\pth_1$ & $ \log Bm_0^{(B-2)}$\\\hline
+    
+    \end{tabular}
+    \end{center}
+    Add the tuple to the list $L_{6c1}$. Define the following tuple.
+  %   \begin{enumerate}
+  % \item the minimum index of the query $q_3$ in $\qf$ 
+  % \item the path $\pth_2$ 
+  %   \end{enumerate}
+    \begin{center}
+      \begin{tabular}{|c|c|}\hline
+  
+      Element & Size in bits \\ \hline\hline
+  
+  
+      the smallest index  of $q_3$ in $\qf$ & $\log FT$   \\\hline
+              
+      path $\pth_2$ & $ \log Bm_0^{(B-2)}$\\\hline
+      
+      \end{tabular}
+      \end{center}
+    Add the tuple to the set $S_{6c1}$.
+    
+    Remove the answers corresponding to queries $q_1,q_3$ from $\hrest$ and set $\cs[j]=6c1$.
+    \item Otherwise if it is in scenario 2, define $q_4$ as mentioned in scenario 2 under heading ``Handling sub-case~\labelcref{case:norepc}'' in Section~\labelcref{case:norep}. Let the path back to the answer salt of $q_1$ from the answer salt of $q_3$ in the query graph when $q_1$ was queried be $\pth_1$. Let the path back to the answer salt of $q_4$ from the input salt of $q_4$ in the query graph when $q_4$ was queried be $\pth_2$.
+    If there is a large multi-collision encountered on either $\pth_1$ or $\pth_2$, set $\cs[j]=6m$ and goto \textsc{MulCol}. Otherwise, define the following tuple.
+        % \begin{enumerate}
+        %   \item the minimum index of the query $q_3$ in $\qf$
+        %   \item index of query $q_1$ in $\q_j$
+        %   \item the path $\pth_1$
+        % \end{enumerate}
+        \begin{center}
+          \begin{tabular}{|c|c|}\hline
+      
+          Element & Size in bits \\ \hline\hline
+      
+          the index of $q_1$ in $\q_j$ & $\log T$\\ \hline
+      
+          the smallest index  of $q_3$ in $\qf$ & $\log FT$   \\\hline
+                  
+          paths $\pth_1$ & $ \log Bm_0^{(B-2)}$\\\hline
+          
+          \end{tabular}
+          \end{center}
+        Add the tuple to the list $L_{6c2}$. Define the following tuple.
+        % \begin{enumerate}
+        %   \item the minimum index of the query $q_4$ in $\qf$ 
+        %   \item the path $\pth_2$
+        %   \end{enumerate}
+          \begin{center}
+            \begin{tabular}{|c|c|}\hline
+        
+            Element & Size in bits \\ \hline\hline
+                
+            the smallest index  of $q_4$ in $\qf$ & $\log FT$   \\\hline
+                    
+            path $\pth_2$ & $ \log Bm_0^{(B-2)}$\\\hline
+            
+            \end{tabular}
+            \end{center}
+    Add this tuple to the list $L_{6c2}$. Remove the answers corresponding to queries $q_1,q_4$ from $\hrest$ and set $\cs[j]=6c2$.
+    \end{enumerate}
+    \item If the mouse structure is categorized in~\labelcref{case:norepd}, define queries $q_1,q_2,q_3$ as defined under the heading ``Handling sub-case~\labelcref{case:norepd}" in Section~\labelcref{case:norep}. Further, categorize into scenarios 1, 2, 3 or 4, as defined there. 
+    \begin{enumerate}
+    \item If it is in scenario 1 let the path back from the input salt of $q_2$ to the salt that is the answer of $q_1$ when in the query graph when $q_3$ is queried be $\pth_1$ and let the path back from the input salt of $q_3$ to the salt that is the answer of $q_1$ when in the query graph when $q_3$ is queried be $\pth_2$
+     If there is a large multi-collision encountered either $\pth_1$ or $\pth_2$, set $\cs[j]=6m$ and goto \textsc{MulCol}.
+    Otherwise define the following tuple.
+    % \begin{enumerate}
+    %   \item the minimum index of the query $q_2$ in $\qf$
+    %   \item index of query $q_1$ in $\q_j$ 
+    %   \item the path $\pth_1$ 
+    % \end{enumerate}
+    \begin{center}
+      \begin{tabular}{|c|c|}\hline
+  
+      Element & Size in bits \\ \hline\hline
+  
+      the index of $q_1$ in $\q_j$ & $\log T$\\ \hline
+  
+      the smallest index  of $q_2$ in $\qf$ & $\log FT$   \\\hline
+              
+      path $\pth_1$ & $ \log Bm_0^{(B-2)}$\\\hline
+      
+      \end{tabular}
+      \end{center}
+    Add the tuple to the list $L_{6d1}$. Define the following tuple.
+    % \begin{enumerate}
+    %   \item the minimum index of the query $q_3$ in $\qf$ 
+    %   \item the path $\pth_2$
+    % \end{enumerate}
+    \begin{center}
+      \begin{tabular}{|c|c|}\hline
+  
+      Element & Size in bits \\ \hline\hline
+    
+      the smallest index  of $q_3$ in $\qf$ & $\log FT$   \\\hline
+              
+      path $\pth_2$ & $ \log Bm_0^{(B-2)}$\\\hline
+      
+      \end{tabular}
+      \end{center}
+    Add the tuple to the set $S_{6d1}$.
+    
+    Remove the answers corresponding to queries $q_1,q_3$ from $\hrest$ and set $\cs[j]=6d1$.
+    \item If it is in scenario 2, define $q_4$ as mentioned in scenario 2 under heading ``Handling sub-case~\labelcref{case:norepd}'' in Section~\labelcref{case:norep}. Let the path back to the answer salt of $q_4$ from the input salt of query $q_2$ in the query graph when $q_4$ is queried
+   be $\pth_1$. Let the path back from the input salt of $q_3$ to the answer salt of query $q_1$ in the query graph when $q_4$ is queried be $\pth_2$. Let the path back from the input salt of $q_4$ to the answer salt of query $q_1$ in the query graph when $q_4$ is queried be $\pth_3$.
+    If there is a large multi-collision encountered either $\pth_1,\pth_2$ or $\pth_3$, set $\cs[j]=6m$ and goto \textsc{MulCol}.
+   Otherwise define the following tuple.
+  %  \begin{enumerate}
+  %    \item the minimum index of the query $q_2$ in $\qf$
+  %    \item the minimum index of the query $q_3$ in $\qf$
+  %    \item index of query $q_1$ in $\q_j$ 
+  %    \item the path $\pth_1$ 
+  %    \item the path $\pth_2$ 
+  %  \end{enumerate}
+   \begin{center}
+    \begin{tabular}{|c|c|}\hline
+
+    Element & Size in bits \\ \hline\hline
+
+    the index of $q_1$ in $\q_j$ & $\log T$\\ \hline
+
+    the smallest indices  of $q_2,q_3$ in $\qf$ & $2\log FT$   \\\hline
+            
+    paths $\pth_1,\pth_2$ & $ \log B^2m_0^{2(B-2)}$\\\hline
+    
+    \end{tabular}
+    \end{center}
+   Add the tuple to the list $L_{6d2}$. Define the following tuple.
+  %  \begin{enumerate}
+  %    \item the minimum index of the query $q_4$ in $\qf$ 
+  %    \item the path $\pth_3$
+  %  \end{enumerate}
+   \begin{center}
+    \begin{tabular}{|c|c|}\hline
+
+    Element & Size in bits \\ \hline\hline
+
+    the smallest index  of $q_4$ in $\qf$ & $\log FT$   \\\hline
+            
+    path $\pth_3$ & $ \log Bm_0^{(B-2)}$\\\hline
+    
+    \end{tabular}
+    \end{center}
+   Add the tuple to the set $S_{6d2}$.
+   
+   Remove the answers corresponding to queries $q_1,q_3,q_4$ from $\hrest$ and set $\cs[j]=6d2$.
+   \item If it is in scenario 3, let the path back to the answer salt of $q_4$ from the first body node of the mouse structure in the query graph when $q_4$ is queried be $\pth_1$. Let the path back from the input salt of $q_2$ to the first body node in the query graph when  $q_3$ was queried for the first time be $\pth_2$. Let the path back from the input salt of $q_4$ to the answer salt of query $q_1$ in the query graph when $q_1$ is queried be $\pth_3$. Let the path back from the input salt of $q_3$ to the first body node of the mouse structure in the query graph when $q_3$ is queried for the first time be $\pth_4$.
+    If there is a large multi-collision encountered either $\pth_1,\pth_2,\pth_3$ or $\pth_4$, set $\cs[j]=6m$ and goto \textsc{MulCol}.
+   Otherwise define the following tuple.
+  %  \begin{enumerate}
+  %    \item the minimum index of the query $q_2$ in $\qf$
+  %    \item the minimum index of the query $q_4$ in $\qf$
+  %    \item index of query $q_1$ in $\q_j$ 
+  %    \item the path $\pth_1$ 
+  %    \item the path $\pth_2$ 
+  %    \item the path $\pth_3$ 
+  %  \end{enumerate}
+   \begin{center}
+    \begin{tabular}{|c|c|}\hline
+
+    Element & Size in bits \\ \hline\hline
+
+    the index of $q_1$ in $\q_j$ & $\log T$\\ \hline
+
+    the smallest indices of $q_2,q_4$ in $\qf$ & $2\log FT$   \\\hline
+            
+    paths $\pth_1,\pth_2,\pth_3$ & $ 3\log Bm_0^{(B-2)}$\\\hline
+    
+    \end{tabular}
+    \end{center}
+   Add the tuple to the list $L_{6d3}$. Define the following tuple.
+  %  \begin{enumerate}
+  %    \item the minimum index of the query $q_3$ in $\qf$ 
+  %    \item the path $\pth_4$
+  %  \end{enumerate}
+   \begin{center}
+    \begin{tabular}{|c|c|}\hline
+
+    Element & Size in bits \\ \hline\hline
+
+    the smallest index  of $q_3$ in $\qf$ & $\log FT$   \\\hline
+            
+    path $\pth_4$ & $ \log Bm_0^{(B-2)}$\\\hline
+    
+    \end{tabular}
+    \end{center}
+   Add the tuple to the set $S_{6d3}$.
+   Remove the answers corresponding to queries $q_1,q_3,q_4$ from $\hrest$ and set $\cs[j]=6d3$.
+
+   \item If it is in scenario 4, define $q_5$ as mentioned in scenario 4 under heading ``Handling sub-case~\labelcref{case:norepd}'' in Section~\labelcref{case:norep}. Let the path back to the answer salt of $q_5$ from the input salt of $q_2$ in the query graph when $q_5$ was queried for the first time be $\pth_1$. 
+   Let the path back from the input salt of $q_3$ to the first body node in the query graph when $q_5$ was queried for the first time be $\pth_2$.
+  Let the path back to the answer salt of $q_4$ from the first body node of the mouse structure in the query graph when $q_5$ was queried for the first time be $\pth_3$. 
+  % Let the path back from the input salt of $q_2$ to the first body node of the mouse structure in the query graph at the time $q_3$ was queried for the first time be $\pth_4$.
+  Let the path back from the input salt of $q_4$ to the answer salt of query $q_1$ in the query graph when $q_4$ is queried for the first time be $\pth_4$.
+   Let the path back to the input salt of $q_5$ to the first body node in the query graph when $q_5$ was queried for the first time be $\pth_5$.
+   If there is a large multi-collision encountered either $\pth_1,\pth_2,\pth_3,\pth_4,$ or $\pth_5$, set $\cs[j]=6m$ and goto \textsc{MulCol}.
+  Otherwise define the following tuple.
+  % \begin{enumerate}
+  %   \item the minimum index of the query $q_2$ in $\qf$
+  %   \item the minimum index of the query $q_3$ in $\qf$
+  %   \item the minimum index of the query $q_4$ in $\qf$
+  %   \item index of query $q_1$ in $\q_j$ 
+  %   \item the path $\pth_1$ 
+  %   \item the path $\pth_2$ 
+  %   \item the path $\pth_3$ 
+  %   \item the path $\pth_4$ 
+  % \end{enumerate}
+  \begin{center}
+    \begin{tabular}{|c|c|}\hline
+
+    Element & Size in bits \\ \hline\hline
+
+    the index of $q_1$ in $\q_j$ & $\log T$\\ \hline
+
+    the smallest indices  of $q_2,q_3,q_4$ in $\qf$ & $3\log FT$   \\\hline
+            
+    paths $\pth_1,\pth_2,\pth_3,\pth_4$ & $ 2\log B^2m_0^{2(B-2)}$\\\hline
+    
+    \end{tabular}
+    \end{center}
+  Add the tuple to the list $L_{6d4}$. Define the following tuple.
+  % \begin{enumerate}
+  %   \item the minimum index of the query $q_5$ in $\qf$ 
+  %   \item the path $\pth_5$
+  % \end{enumerate}
+  \begin{center}
+    \begin{tabular}{|c|c|}\hline
+
+    Element & Size in bits \\ \hline\hline
+
+    the smallest index  of $q_5$ in $\qf$ & $\log FT$   \\\hline
+            
+    paths $\pth_5$ & $ \log Bm_0^{(B-2)}$\\\hline
+    
+    \end{tabular}
+    \end{center}
+  Add the tuple to the set $S_{6d4}$.
+  Remove the answers corresponding to queries $q_1,q_3,q_4,q_5$ from $\hrest$ and set $\cs[j]=6d4$.
+  \end{enumerate}
+  \item Continue to next iteration.
+  \end{itemize}
+  \item {\textsc{MulCol}}: If there is a query in this mouse structure whose answer is the center of the multi-collision, and this query was in an earlier mouse structure, do nothing. Else if there is a query in this mouse structure whose answer is the center of the multi-collision, and this query was not in any earlier mouse structure. If the center multi-collision of the multi-collision is $s$ and $(s,\mathsf{Q}_s)\in \mcset$, add the first index in $\qf$ of all the queries in the large multi-collision into the set that were not already in $\mathsf{Q}_s$ to it. Otherwise, set $s$ to be the center of the multi-collisions and $\mathsf{Q}_s$ to be the set of the first index in $\qf$ of the queries involved in the large multi-collision., and remove the answer of all these queries from $\hrest$. Add $(s,\mathsf{Q}_s)$ to $\mcset$, set $\cs[j]\gets m$.
+  \end{itemize}
+\end{enumerate}
+\item Add all the evaluations of $h(a,\alpha)$ to $\hrest$ in lexicographical order for all $(a,\alpha)$ that were never queried.
+\item Output $F$, $U'$, $\Pred$, $L_{1}$, $L_2$, $L_3$, $L_4$, $L_5$, $\mcset$, $L_{6a}$, $L_{6b}$, $L_{6c1}$, $L_{6c2}$, $L_{6d1}$, $L_{6d2}$, $L_{6d3}$, $L_{6d4}$, $S_{6c1}$, $S_{6c2}$, $S_{6d1}$, $S_{6d2}$, $S_{6d3}$, $S_{6d4}$, $\hrest$.
+\end{enumerate}
+
+\subsection{The Decoding Procedure}
+This section gives the decoding procedure. 
+
+\medskip \noindent {\underline {The decoding algorithm $\Decode$}}:
+\begin{enumerate}
+  \item Parse $U'$ as $\{a_1',\ldots,a_F'\}$ where $a_1',\ldots,a_F'$ are in lexicographical order.
+  \item Set $j\gets 0$.
+  \item Initialize the set of nodes in the query graph to $[N]$ and the set of edges to empty. 
+  \item For $j=1,\ldots,F$ do:
+  \begin{enumerate}[label=(\roman*)]
+  \item Run $\advA_2$ on $(\sigma,a_j')$, answering its queries to $h$. 
+  \item Answer the $i$-th query made by $\advA_2$ to $h$ on $(a,\alpha)$ as follows.
+  \item If for some $(a',\mathsf{Q}_{a'})\in \mcset$, $((j-1)\cdot T+i)\in \mathsf{Q}_a$, then set $h(a,\alpha)\gets a'$. Return $a'$.
+  \item If $((j-1)\cdot T+i)\in \Pred$ then add $a$ to $U$. 
+  \item If $((j-1)\cdot T+i)\in S_4$ then set $h(a,\alpha)=a$ and return $a$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_4$ in any tuple of $L_{6b}$, then let $a'$ be the answer of the query $q_3$ listed in the tuple. Set $h(a,\alpha)\gets a'$ and return $a'$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_3$ in any tuple of $S_{6c1}$, then let the path $\pth_2$ in the tuple starting from $a$ end in $a'$. Set $h(a,\alpha)\gets a'$ and return $a'$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_4$ in any tuple of $S_{6c2}$, then let the path $\pth_2$ in the tuple starting from $a$ end in $a'$. Set $h(a,\alpha)\gets a'$ and return $a'$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_3$ in any tuple of $S_{6d1}$, then let the path $\pth_2$ in the tuple starting from $a$ end in $a'$. Check for which tuple in the list $L_{6d1}$ the path $\pth_1$ from the answer of the query $q_2$ of the tuple ends in $a'$. Let $a''$ be the answer of the query $q_2$ of that tuple. Set $h(a,\alpha)\gets a''$ and return $a''$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_3$ in any tuple of $S_{6d2}$, then let $a'$ be the answer of the query $q_2$ of that tuple. Set $h(a,\alpha)\gets a'$ and return $a'$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_4$ in any tuple of $S_{6d2}$, then let the path $\pth_3$ in the tuple starting from $a$ end in $a'$. Check for which tuple in the list $L_{6d2}$ the path $\pth_2$ from the answer of the query $q_2$ of the tuple ends in $a'$. Let $a''$ be the answer of the query $q_2$ of that tuple. Let the path $\pth_1$ in the tuple starting from $a''$ end in $a'''$. Set $h(a,\alpha)\gets a'''$ and return $a'''$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_3$ in any tuple of $S_{6d3}$, then let the path $\pth_4$ in the tuple starting from $a$ end in $a'$. Check for which tuple in the list $L_{6d2}$ the path $\pth_2$ from the answer of the query $q_2$ of the tuple ends in $a'$. Let $a''$ be the answer of the query $q_2$ of that tuple.  Set $h(a,\alpha)\gets a''$ and return $a''$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_4$ in any tuple of $L_{6d3}$, then let $a'$ be the first body node of the mouse structure located when answering the query $q_3$ corresponding to the tuple. Let the path $\pth_1$ in the tuple starting from $a'$ end in $a''$. Set $h(a,\alpha)\gets a''$ and return $a''$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_3$ in any tuple of $L_{6d4}$, then let $a'$ be the answer of the query $q_2$ of the tuple. Set $h(a,\alpha)\gets a'$ and return $a'$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_5$ in any tuple of $S_{6d4}$, then let the path $\pth_5$ in the tuple starting from $a$ end in $a'$. Check for which tuple in the list $L_{6d2}$ the path $\pth_2$ from the answer of the query $q_3$ of the tuple ends in $a'$. Let $a''$ be the input of the query $q_2$ of that tuple. Let the path $\pth_1$ in the tuple starting from $a''$ end in $a'''$. Set $h(a,\alpha)\gets a'''$ and return $a'''$.
+  \item If $((j-1)\cdot T+i)$ appears as $q_4$ in any tuple of $L_{6d4}$, then let $a'$ be the first body node of the mouse structure located when answering the query $q_5$ corresponding to the tuple. Let the path $\pth_3$ in the tuple starting from $a'$ end in $a''$. Set $h(a,\alpha)\gets a''$ and return $a''$.
+  \item If $\cs[j]=1$ and $i$ is the front element of the list $L_1$, then remove $i$ from $L_1$, set $h(a,\alpha)\gets a$ and return $a$.
+  \item If $\cs[j]=2$ and $(k,i)$ is the front element of the list $L_2$ for some $k<i$, let $a'$ be the answer of the $k$-th query. Remove $(k,i)$ from $L_2$, set $h(a,\alpha)\gets a'$ and return $a'$.
+  \item If $\cs[j]=3$ and $(k,o,i)$ is the front element of the list $L_3$ for some $k<j$, let $a'$ be the salt that has lexicographic order $o$ in $\us_k$-th query. Remove $(k,o,i)$ from $L_3$, set $h(a,\alpha)\gets a'$ and return $a'$.
+  \item If $\cs[j]=5a$ and $(k,o,i)$ is the front element of the list $L_3$ for some $k<j$, let $a'$ be the salt that has lexicographic order $o$ in $\us_k$-th query. Remove $(k,o,i)$ from $L_5$, set $h(a,\alpha)\gets a'$ and return $a'$.
+  \item If $\cs[j]=6a$ and if the tuple which is at the front of list $L_{6a}$ has $i$ as the index of $q_2$, then suppose the query listed as $q_3$ had answer $a'$, set $h(a,\alpha)\gets a'$ and return $a'$. Remove the tuple  from the list $L_{6a}$ if both the queries $q_1,q_2$ in the tuple have been answered.
+  \item If $\cs[j]=6a$ and the tuple which is at the front of list $L_{6a}$ has $i$ as the index of $q_1$, then suppose the query listed as $q_3$ had answer $a'$. Let the path $\pth$ in the tuple from $a'$ in the query graph end in salt $a''$. Set $h(a,\alpha)\gets a''$ and return $a''$. Remove the tuple from the list $L_{6a}$ if both the queries $q_1,q_2$ in the tuple have been answered.
+  \item If $\cs[j]=6b$ and if the tuple which is at the front of list $L_{6b}$ has $i$ as the index of $q_1$, then suppose the query listed as $q_3$ had answer $a'$. Let the path $\pth_1$ in the tuple from $a'$ in the query graph end in salt $a''$. Set $h(a,\alpha)\gets a''$ and return $a''$. Remove the tuple from the list $L_{6b}$ if both the queries $q_1,q_2$ in the tuple have been answered.
+  \item If $\cs[j]=6b$ and if the tuple which is at the front of list $L_{6b}$ has $i$ as the index of $q_2$, then suppose the query listed as $q_4$ had answer $a'$. Let the path $\pth_2$ in the tuple from $a'$ in the query graph end in salt $a''$. Set $h(a,\alpha)\gets a''$ and return $a''$. Remove the tuple from the list $L_{6b}$ if both the queries $q_1,q_2$ in the tuple have been answered.
+  \item If $\cs[j]=6c1$ and if the tuple which is at the front of list $L_{6c1}$ has $i$ as the index of $q_1$, then suppose the query listed as $q_3$ had answer $a'$. Let the path $\pth_1$ in the tuple from $a'$ in the query graph end in salt $a''$. Set $h(a,\alpha)\gets a''$ and return $a''$. Remove the tuple from the list $L_{6c1}$.
+  \item If $\cs[j]=6c2$ and if the tuple which is at the front of list $L_{6c2}$ has $i$ as the index of $q_1$, then suppose the query listed as $q_3$ had answer $a'$. Let the path $\pth_1$ in the tuple from $a'$ in the query graph end in salt $a''$. Set $h(a,\alpha)\gets a''$ and return $a''$. Remove the tuple from the list $L_{6c2}$.
+  \item If $\cs[j]=6d1$ and if the tuple which is at the front of list $L_{6d1}$ has $i$ as the index of $q_1$, then let $a'$ be the salt $a'$ computed when answering the query $q_3$ that corresponded to this tuple. Set $h(a,\alpha)\gets a'$ and return $a'$. Remove the tuple from the list $L_{6d1}$.
+  \item If $\cs[j]=6d2$ and if the tuple which is at the front of list $L_{6d2}$ has $i$ as the index of $q_1$, then then let $a'$ be the salt $a'$ computed when answering the query $q_3$ that corresponded to this tuple. Set $h(a,\alpha)\gets a'$ and return $a'$. Remove the tuple from the list $L_{6d3}$.
+  \item If $\cs[j]=6d3$ and if the tuple which is at the front of list $L_{6d3}$ has $i$ as the index of $q_1$, then suppose the path $\pth_2$ from the input salt of the query listed as $q_3$ ended in salt $a'$. Set $h(a,\alpha)\gets a'$ and return $a'$. Remove the tuple from the list $L_{6d3}$.
+  \item If $\cs[j]=6d3$ and if the tuple which is at the front of list $L_{6d3}$ has $i$ as the index of $q_1$, then suppose the query listed as $q_4$ had answer $a'$. Let the path $\pth_3$ in the tuple from $a'$ in the query graph end in salt $a''$. Set $h(a,\alpha)\gets a''$ and return $a''$. Remove the tuple from the list $L_{6d3}$.
+  \item If $\cs[j]=6d4$ and if the tuple which is at the front of list $L_{6d3}$ has $i$ as the index of $q_1$, then suppose the query listed as $q_4$ had answer $a'$. Let the path $\pth_4$ in the tuple from $a'$ in the query graph end in salt $a''$. Set $h(a,\alpha)\gets a''$ and return $a''$. Remove the tuple from the list $L_{6d4}$.
+\end{enumerate}
+\item Populate the rest of $h$ by remaining elements in $\hrest$ in lexicographical order.
+\item Output $(U,h)$.
+\end{enumerate}
+
+
+\section{Changes for Theorem~\labelcref{thm:MDST2}} 
+\label{sec:formal:MDST2}
+In the encoding procedure, all the checks for multi-collisions are replaced by the check for the number of possible destination salts at the specified distance $d$ from the source salt: if there are more than $e^3u^2/2$ possible salts such that their shortest path to the destination salt in the query graph so far has $d$ edges, we encode the set of multi-collisions. For cases $6c$ and $6d$, the indices of queries $q_1,q_2,q_3$ are all stored in lists (i.e. we do not need the sets which thereby reduces the number of paths).
+The code for the decoding procedure is modified accordingly.

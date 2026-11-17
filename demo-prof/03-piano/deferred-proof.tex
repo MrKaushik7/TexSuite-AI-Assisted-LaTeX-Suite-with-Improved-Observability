@@ -1,0 +1,227 @@
+\section{Deferred Proofs}
+
+
+\label{sec:deferred}
+
+
+
+\begin{theorem}[Privacy]
+    The PIR scheme in~\Cref{fig:optimized:single-server} statisfies privacy assuming $\PRF$ is a secure pseudorandom function.
+\end{theorem}
+
+\begin{proof}
+    \mingxun{TODO: going over}
+
+    \ashrujit{some notes about this proof:
+    \begin{itemize}
+        \item the paragraph beginning ``In $\Hyb_1$, we can equivalently ...'' is unclear -- specifically what the $Q$ hints are (are they among the $M_1$ primary ones)?
+        \item The following paragraph: if the primary hints are defined and $x_1,\ldots,x_Q$ are defined how can $I$ be sapled again, is it not fixed? This needs rephrasing
+        \item Definition of $\Hyb_4$- specify what ``processing steps'' are
+        \item Are hints/entries used interchangably? Better to stick to one
+        \item round has not been defined -- better to specify it means on a particular query
+    \end{itemize}
+    }
+    We will prove this theorem via a sequence of hybrids. The first hybrid in the sequence will capture the real experiment in the privacy definition of single server PIR, and the last hybrid will capture the ideal experiment.
+    We first define the hybrid ${\sf Real^*}$:
+
+    \begin{itemize}
+        \item \textit{Pre-processing phase.} $\adv$ receives the streaming signal. The client samples $\sk_1,\dots,\sk_{M_1}\getr\{0,1\}^\lambda$. % and backups $\sk_{}$
+        \item \textit{Query phase.} For each round $t$, $\adv$ chooses a query $x_t$:
+        \begin{itemize}
+            \item The client finds the first matched key $\sk_i$ in the hint table, that is, $x\in\Set(\sk_i)$ and if there's a positive constraint $+y$ on this entry, $x$ is not in the same chunk as $y$ . 
+            
+            \item If the entry $i$ has no positive constraint: execute $\SingleQuery$.
+            
+            \item If the entry $i$ has a positive constraint $+y$:
+            \begin{itemize}
+                \item If $y$ and $x$ are in the same superblock: execute $\SingleQuery$, with the difference that when expanding the sub-key corresponding to the superblock of $x$ to $n^{1/4}$ offsets, replace the offset of $y$'s location to $y$'s offset.
+                
+                \item If $y$ and $x$ are not in the same superblock: execute $\SingleQuery$, with the difference that when expanding the master key to $n^{1/4}$ sub-keys, replace the sub-key corresponding to $y$'s superblock to a rejection sampled key $k'$, such that when $k'$ is considered as the key for that superblock, the expanded set should satisfy all constraints related to entry $i$;
+            \end{itemize}
+            
+            \item Then, the client replaces the entry $\sk_i$ with a freshly-sampled key $\sk'$, but deletes other constraints and marks constraint $+x$ for entry $i$;
+            
+            \item The client also marks constraints $-x$ for entry $1$ to entry $i-1$.
+            
+        \end{itemize}
+        
+    \end{itemize}
+    
+    This hybrid is identically distributed as the actual experiment that we just remove all parts unrelated to the privacy proof.
+    
+    
+    We define $\Hyb_1$ by removing $\PRF_1$ from $\Real^*$: for each sampled master key $\sk$, the client will directly sample $n^{1/4}$ random sub-keys and store them in the local storage. 
+    When the client executes $\SingleQuery$, it no longer has to expand the master key to $n^{1/4}$ sub-keys. 
+    
+    $\Hyb_1$ is computationally indistinguishable from $\Real^*$ due to a straightforward reduction to the pseudorandomness of $\PRF_1$.
+    
+    Since we already replaces all master keys with $n^{1/4}$ sub-keys, the later hybrids no longer need to expand a master key to $n^{1/4}$ sub-keys in $\SingleQuery$. We abuse the notation of $\SingleQuery$ such that the client just ignores the original expansion step in $\SingleQuery$ in the following hybrids. %such that in the following hybrids, the $\SingleQuery$  
+    
+    We define $\Hyb_2$ as following: $\Hyb_2$ is the same as $\Hyb_1$, except that whenever the client finds the matched hint for query $x$, it will resample all those $n^{1/4}$ sub-keys \textbf{according to all the marked negative constraints and also the new constraint $+x$.} Notice that the history-dependent positive constriaint (usually written as $+y$) is not considered in this new resample step and only enforced just before the client sending messages to the server. 
+    
+    Now we argue that $\Hyb_2$ is identically distributed as $\Hyb_1$. 
+    
+    \begin{myclaim}
+        The view of the adversary in $\Hyb_2$ is identically distributed as in $\Hyb_1$. 
+        \label{clm:resamp-const}
+    \end{myclaim}
+    
+    \begin{proof}
+        For all $Q$ queries, lets consider the matched hint index vector ${\bf I}=(i_1,\dots,
+        i_Q)$ where $i_t$ denotes the client finds $i_t$ as the matched hint in the $t$-th round. Notice that the recorded constraints at $t$-th round are completely determined by $i_1,\dots,i_{t-1}$.
+        
+        Now we add the matched index vector to the view of the adversarys, and we will argue that even with the augmented view, the view of the adversary are still identically distributed in the two experiments.
+        
+        First, observe that the two experiments have exactly the same way to generate the matched index vector.
+        We only need to argue that, the selected entry in each round has the same distribution in both experiments, and then the messages observed by the adversary should have the same distribution.
+        
+        We claim that conditioned on the same $i_1,\dots,i_{t-1}$, the selected entry in round $t$ have the same distributions in the two experiments.
+        
+        In $\Hyb_1$, we can equivalently consider the client first uniformly sample the $M_1$ primary hints and extra $t-1$ replaced hints.
+        Then, given the queries $x_1,\dots,x_{t-1}$, the client finds the matched hint and hence derives $i_1,\dots,i_{t-1}$ and those selected entry.
+        
+        In $\Hyb_2$, we can equivalently consider the client first observes the queries $x_1,\dots,x_{t-1}$ and samples $i_1,\dots,i_{t-1}$ from the marginal distribution (conditioned on $x_1,\dots,x_{t-1}$ and all the initial $M_1$ hints and the $t-1$ replacement hints are random).
+        Then, the client samples the selected entry for each round by deriving the constraints from $i_1,\dots,i_{t-1}$ and does rejection sampling.
+        
+        A key observation is that in $\Hyb_1$, the adversary cannot observe what the  hint table is before round $t$. 
+        Then, from the adversary's perspective, the selected entry's distribution is the \textit{posterior} distribution of them after observing $i_1,\dots,i_{t-1}$. 
+        Moreover, that \textit{posterior} distribution is exactly the same as the distribution the client uses to generate the selected entry (and even the whole table) in round $t$ (i.e., containing the query $x_t$ and some negative constraints $-z_1,-z_2,\dots$) in $\Hyb_2$.
+        Therefore, from the adversary's perspective, the selected hints in the two experiment share the same distribution, and thus the views are identically distributed.
+        
+       
+    \end{proof}
+    
+    
+    We define $\Hyb_3$ as following: $\Hyb_3$ is the same as $\Hyb_2$, except that whenever the client finds the matched hint for query $x$, it will resample that entry also considering the history-dependent positive constraint. $\Hyb_2$ does not consider the history-dependent positive constraint because the history-dependent constraint is only marked locally and is only enforced before sending the message. That is, it will include the positive constraints of including the current query $x$ and a history query $y$ (if necessary) and all other negative constraints.
+    We will prove that $\Hyb_3$ is computationally indistinguishable from $\Hyb_2$. 
+    
+    \begin{myclaim}
+        $\Hyb_3$ is computationally indistinguishable from $\Hyb_2$.
+    \end{myclaim}
+    
+    \begin{proof}
+    
+    For each query $x_t$, there are three cases for the selected hint entry: 1) it does not have a history-dependent positive constraint; 2) it has a history-dependent positive constraint $+y$, but $y$ and $x$ are not in the same superblock; 
+    3) it has a history-dependent positive constraint $+y$ such that $y$ and $x$ are in the same superblock.
+    
+    The first case is trivially identical in the two experiments. 
+    For the second case, since the client will always resample the sub-key for $y$'s superblock before sending messages to the server, it does not matter whether the original hint contains $y$ or not (which only affect the sub-key for $y$'s superblock).
+    The final case is that the current query $x$ and the positive constraint $y$ are in the same superblock.
+    We can view $\Hyb_2$ and $\Hyb_3$ be the case where we sample the sub-key in that particular superblock according to the same constraints, except that $\Hyb_3$ will have one additional constraint that the offset in $y$'s chunk should be $y$'s offset.
+    Then the client will expand the sampled sub-key to $n^{1/4}$ offsets and change the offset in $y$'s chunk to $y$'s offset.
+    Due to the pseudorandomness of $\PRF_2$, the two distributions are computationally indistinguishable.
+    
+    \end{proof}
+    
+    Now, define $\Hyb_4$ the same as $\Hyb_3$, except that in the query phase, after the client resample the selected hint entry, the client will not do the processing steps related to the history-dependent positive constraint.
+    
+    For clarity, we write the full definition of $\Hyb_4$:
+    
+    \begin{itemize}
+        \item \textit{Pre-processing phase.} $\adv$ receives the streaming signal. The client samples $\sk_1,\dots,\sk_{M_1}\getr\{0,1\}^\lambda$. % and backups $\sk_{}$
+        \item \textit{Query phase.} For each round $t$, $\adv$ chooses a query $x_t$:
+        \begin{itemize}
+            \item The client finds the first matched keys $\sk_i$ in the hint table, that is, $x\in\Set(\sk_i)$ and if there's a positive constraint $+y$ on this entry, $x$ are not in the same chunk as $y$.
+            
+            \item Resample a key $\sk$ subject to all the constraints recorded for this entry (e.g. including the current query $x$ and the history query $y$, while satisfying some negative constraints $-z_1,\dots$). 
+            
+            \item Execute $\SingleQuery$ based on this resampled key. 
+            
+            \item Then, the client replaces the entry $\sk_i$ with a freshly-sampled key $\sk'$, but deletes other constraints and marks constraint $+x$ for entry $i$;
+            
+            \item The client also marks constraints $-x$ for entry $1$ to entry $i-1$.
+            
+        \end{itemize}
+        
+    \end{itemize}
+    
+    
+    $\Hyb_4$ is identically distributed as $\Hyb_3$. There are only two different cases in $\Hyb_4$ and $\Hyb_3$:
+    
+    \begin{itemize}
+        
+        \item The history-dependent positive constraint $y$ is in the same superblock as the current query $x$. 
+        Notice that the client already resamples the sub-key subject to $y$ is included, so the offset in $\chunk(y)$ is already $y$'s offset;
+        
+        \item The history-dependent positive constraint $y$ are not in the same superblock as the current query $x$. In $\Hyb_3$, we already have another step to resample the sub-key correponding to $y$'s superblock. However, notice that the two resampling steps are independent and subject to exactly the same constraints, so removing the latter one preserves the distribution.
+        
+    \end{itemize}
+    
+    
+    Now we define $\Hyb_5$ as following:
+    
+    \begin{itemize}
+        \item \textit{Pre-processing phase.} $\adv$ receives the streaming signal. The client samples $\sk_1,\dots,\sk_{M_1}\getr\{0,1\}^\lambda$. % and backups $\sk_{}$
+        \item \textit{Query phase.} For each round $t$, $\adv$ chooses a query $x_t$:
+        \begin{itemize}
+            \item The client finds the first matched keys $\sk_i$ in the hint table, that is, $x\in\Set(\sk_i)$.
+            
+            \item Execute $\SingleQuery$ with this matched key.
+            
+            \item Then, the client replaces the entry $\sk_i$ with a freshly-sampled key $\sk'$ subject to $x\in\Set(\sk')$.
+            
+        \end{itemize}
+        
+    \end{itemize}
+    
+    Notice that in $\Hyb_5$, the client does not record any constraint and does not resample the matched hint.
+    
+    \begin{myclaim}
+        The adversary's views in $\Hyb_4$ and $\Hyb_5$ is computatonally indistinguishable.
+    \end{myclaim}
+    
+    \begin{proof}
+        This argument is similar to the argument for Claim~\ref{clm:resamp-const}. 
+        We can still consider adding the matched index vector ${\bf I}$ to the adversary's views and prove the augmented views are indistinguishable.
+        
+        We first argue that the distributions of ${\bf I}$ are computationally indistinguishable in the two experiments.
+        Observe that given any time, if we expand all the local hints to sets, the distributions of those sets are computationally indistinguishable. 
+        The only difference between the two experiments is that in $\Hyb_4$, the client replaces the matched hint with a uniformly random new hint and lazily marks the current query $x$ to the entry in $\Hyb_4$, while in $\Hyb_5$, the client directly does rejection-sampling to sample a new hint containing $x$. 
+        These two sets are computationally indistinguishable due to the pseudorandomness of the $\PRF_2$.
+        
+        Conditioned on the same matched indices $i_1,\dots,i_t$, we only need to argue the selected entry in round $t$ has the same distribution in both experiments, and then the messages observed by the adversary should have the same distribution.
+        
+        In $\Hyb_4$, we can equivalently consider the client first observes the queries $x_1,\dots,x_{t-1}$ and sample $i_1,\dots,i_t$ from the marginal distribution (conditioned on $x_1,\dots,x_t$, those initial $M_1$ hints are uniformly random, and the extra $t-1$ replacement hints are sampled conditioned on containing the corresponding queries).
+        Then, the client samples the selected entry for this round by deriving the constraints from $i_1,\dots,i_t$ and does rejection sampling.
+        
+        In $\Hyb_5$, we can equivalently consider the client first generates $M_1$ primary hints and also the $t-1$ replacement hints given the queries $x_1,\dots,x_{t-1}$. 
+        Then, the client finds the matched hint in each round and hence derives $i_1,\dots,i_t$ and chooses those selected entries.
+        
+        Again, the key observation is that in $\Hyb_5$, the adversary cannot observe what the hint table is before round $t$. 
+        Then, from the adversary's perspective, the whole table's distribution is the \textit{posterior} distribution after observing $i_1,\dots,i_{t}$. 
+        Moreover, that \textit{posterior} distribution is exactly the same as the distribution the client recorded as the form of constraints.
+        
+        Therefore, from the adversary's perspective, the selected entries in the two experiment share the same distribution conditioned on the same matched indice $i_1,\dots,i_t$.
+        So we can conclude that the adversary's view in the two experiments are computationally indistinguishable. 
+    \end{proof}
+    
+    
+    Finally, we define the hybrid $\Ideal$:
+    
+        \begin{itemize}
+        \item \textit{Pre-processing phase.} $\adv$ receives the streaming signal. 
+        \item \textit{Query phase.} For each round $t$, $\adv$ chooses a query $x_t$:
+        \begin{itemize}
+            \item The client will
+            \begin{itemize}
+                \item Independently sample $k_0,\dots,k_{n^{1/4}-1}\getr\{0,1\}^\lambda$;
+                \item Independently sample $r_0,\dots,r_{n^{1/4}-1}\getr\{0,\dots,\sqrt{n}-1\}$.
+                \item Send $(k_0,\dots,k_{n^{1/4}-1}),
+                (r_0,\dots,r_{n^{1/4}-1})$ to the server.
+            \end{itemize}
+        \end{itemize}
+    \end{itemize}
+        
+    The argument that $\Ideal$ and $\Hyb_5$ are computationally indistinguishable is nearly the same as the proof for~\Cref{thm:privacy}.
+\end{proof}
+
+
+\begin{theorem}[Correctness]
+    Assume $n$ is bounded by $\poly(\lambda)$ and $\poly(\kappa)$. 
+    Let $\alpha(\kappa)$ be any super-constant function, i.e., $\alpha(\kappa)=\omega(1)$. Setting $M_1 = 2\sqrt{n}\ln \kappa\alpha(\kappa)$, $M_2 = 3\ln \kappa\alpha(\kappa)$, $M_3=(M_1/\sqrt{n})\ln \kappa\alpha(\kappa)$, all the $Q= \sqrt{n}/2$ queries will be answered correctly with probability at least $1-\negl(\lambda)-\negl(\kappa)$ for some negligible function $\negl(\cdot)$.
+    %With $c=\frac{\ln(\delta/2)}{\ln n}$, the correct probability will be at least $1-\delta$.
+\end{theorem}
+
+\begin{proof}
+    The proof is nearly the same as the proof in~\Cref{proof:correctness}.
+\end{proof}

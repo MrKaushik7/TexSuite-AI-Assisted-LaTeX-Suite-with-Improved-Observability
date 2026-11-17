@@ -1,0 +1,21 @@
+% !TEX root = main.tex
+
+\begin{abstract}
+  We study the power of preprocessing adversaries in finding bounded-length collisions in the widely used Merkle-Damg{\aa}rd (MD) hashing in the random oracle model. Specifically, we consider adversaries with arbitrary $S$-bit advice about the random oracle and can make at most $T$ queries to it. Our goal is to characterize the advantage of such adversaries in finding a $B$-block collision in an MD hash function constructed using the random oracle with range size $N$ as the compression function (given a random salt).
+  
+  The answer to this problem is completely understood for very large values of $B$ (essentially $\Omega(T)$) as well as for $B=1,2$. For $B\approx T$, Coretti et al.~(EUROCRYPT '18) gave matching upper and lower bounds of $\tilde\Theta(ST^2/N)$. Akshima et al.~(CRYPTO '20) observed that the attack of Coretti et al.\ could be adapted to work for any value of $B>1$, giving an attack with advantage $\tilde\Omega(STB/N + T^2/N)$. Unfortunately, they could only prove that this attack is optimal for $B=2$. Their proof involves a compression argument with exhaustive case analysis and, as they claim, a naive attempt to generalize their bound to larger values of B (even for $B=3$) would lead to an explosion in the number of cases needed to be analyzed, making it unmanageable.  With the lack of a more general upper bound, they formulated the \emph{STB conjecture}, stating that the best-possible advantage is $\tilde O(STB/N + T^2/N)$ for any $B>1$. 
+
+  \ifnum\eprintversion=1
+  In this work, we confirm the STB conjecture in many new parameter settings. For instance, in one result, we show that the conjecture holds for all constant values of $B$, significantly extending the result of Akshima et al. Further, using combinatorial properties of graphs, we are able to confirm the conjecture even for super constant values of $B$, as long as some restriction is made on $S$. For instance, we confirm the conjecture for all $B \le T^{1/4}$ as long as $S \le T^{1/8}$. Technically,  
+  we develop structural characterizations for bounded-length collisions in MD hashing that allow us to give a compression argument in which the number of cases needed to be handled does not explode. 
+  \else
+  In this work, we confirm the STB conjecture in many new parameter settings. For instance, in one result, we show that the conjecture holds for all constant values of $B$. Further, using combinatorial properties of graphs, we are able to confirm the conjecture even for super constant values of $B$, as long as some restriction is made on $S$. For instance, we confirm the conjecture for all $B \le T^{1/4}$ as long as $S \le T^{1/8}$. Technically,  
+  we develop structural characterizations for bounded-length collisions in MD hashing that allow us to give a compression argument in which the number of cases needed to be handled does not explode. 
+  \fi
+  
+ 
+% \ifnum\eprintversion=0
+  % \/keywords{Compression arguments}
+% \fi
+
+\end{abstract}

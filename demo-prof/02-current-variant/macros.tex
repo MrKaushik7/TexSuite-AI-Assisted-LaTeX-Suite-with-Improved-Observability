@@ -1,0 +1,346 @@
+% !TEX root = main.tex
+%Section: Macros
+\newcommand{\MyAtop}[2]{\genfrac{}{}{0pt}{}{#1}{#2}}
+\newcommand{\qedsymb}{\hfill{\rule{2mm}{2mm}}}
+\renewenvironment{proof}{\begin{trivlist} \item[\hspace{\labelsep}{\bf
+\noindent Proof.\/}] }{\qedsymb\end{trivlist}}
+
+
+%%%%%%%%%%%%%%%%%%%
+% Generic Macros
+%%%%%%%%%%%%%%%%%%%
+\newcommand{\bA}{\mathbf{A}}
+\newcommand{\bB}{\mathbf{B}}
+\newcommand{\bC}{\mathbf{C}}
+\newcommand{\bD}{\mathbf{D}}
+\newcommand{\bE}{\mathbf{E}}
+\newcommand{\bF}{\mathbf{F}}
+\newcommand{\bG}{\mathbf{G}}
+\newcommand{\bH}{\mathbf{H}}
+\newcommand{\bI}{\mathbf{I}}
+\newcommand{\bJ}{\mathbf{J}}
+\newcommand{\bK}{\mathbf{K}}
+\newcommand{\bL}{\mathbf{L}}
+\newcommand{\bM}{\mathbf{M}}
+\newcommand{\bN}{\mathbf{N}}
+\newcommand{\bO}{\mathbf{O}}
+\newcommand{\bP}{\mathbf{P}}
+\newcommand{\bQ}{\mathbf{Q}} 
+\newcommand{\bR}{\mathbf{R}}
+\newcommand{\bS}{\mathbf{S}}
+\newcommand{\bT}{\mathbf{T}}
+\newcommand{\bU}{\mathbf{U}}
+\newcommand{\bV}{\mathbf{V}}
+\newcommand{\bW}{\mathbf{W}}
+\newcommand{\bX}{\mathbf{X}}
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bZ}{\mathbf{Z}}
+\newcommand{\by}{\mathbf{y}}
+\newcommand{\bc}{\mathbf{c}}
+\newcommand{\bz}{\mathbf{z}}
+\newcommand{\br}{\mathbf{r}}
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bv}{\mathbf{v}}
+
+\newcommand{\thatis}{\emph{i.e.}}
+
+	\makeatletter
+	\newcommand\parag{%
+   \@startsection{paragraph}{4}{\z@}%
+       {-3\p@ \@plus -1\p@ \@minus -1\p@}%
+       {-0.2em \@plus -0.12em \@minus -0.05em}%
+       {\normalfont\normalsize\scshape}}
+\newcommand{\heading}[1]{\parag{#1}}
+	\makeatother
+
+\newcommand{\MyParagraph}[1]{\medskip \noindent {\bf #1}}
+\renewcommand{\paragraph}{\MyParagraph}
+\renewcommand{\heading}{\paragraph}
+%%%%%%%%%%%%%%%%%%%
+% Boxes
+%%%%%%%%%%%%%%%%%%%
+\newcommand{\gamesfontsize}{\small}
+\newcommand{\len}{0.33}
+\newcommand{\lenn}{0.33}
+\newcommand{\lennn}{0.33}
+
+\newcommand{\oneCol}[2]{
+\begin{center}
+        \framebox{
+        \begin{tabular}{c@{\hspace*{.4em}}}
+        \begin{minipage}[t]{#1\textwidth}
+        	\gamesfontsize #2 \end{minipage}
+        \end{tabular}
+        }
+\end{center}
+}
+
+\newcommand{\twoCols}[4]{
+\begin{center}
+        \framebox{
+        \begin{tabular}{c@{\hspace*{.4em}}|c@{\hspace*{.4em}}c}
+        \begin{minipage}[t]{#1\textwidth}
+        	\gamesfontsize #3 \end{minipage}
+        &
+        \begin{minipage}[t]{#2\textwidth}
+        	\gamesfontsize #4 \end{minipage}
+        \end{tabular}
+        }
+\end{center}
+}
+
+\newcommand{\threeCols}[6]{
+\begin{center}
+        \framebox{
+        \begin{tabular}{@{\hspace{-0.2em}}c@{\hspace{0.2em}}|@{\hspace{0.2em}}c@{\hspace{0.2em}}|@{\hspace{0.2em}}c@{\hspace{0.2em}}}
+        \begin{minipage}[t]{#1\textwidth}
+        	\gamesfontsize #4
+        \end{minipage} &
+        \begin{minipage}[t]{#2\textwidth}
+        	\gamesfontsize #5
+        \end{minipage} &
+        \begin{minipage}[t]{#3\textwidth}
+        	\gamesfontsize #6
+        \end{minipage}
+        \end{tabular}
+        }
+\end{center}
+}
+
+\newcommand{\oneColNoBox}[1]{
+\begin{center}\begin{tabular}{c}
+\begin{minipage}[t]{1in}\begin{tabbing}
+123\=123\=123\=\kill
+#1
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+\newcommand{\twoColsNoBox}[2]{
+\begin{center}\begin{tabular}{c|c}
+\begin{minipage}[t]{1in}\begin{tabbing}
+123\=123\=123\=\kill
+#1
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#2
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+
+\newcommand{\twoColsNoBoxNoDivide}[2]{
+\begin{center}\begin{tabular}{ccc}
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#1
+\end{tabbing}\end{minipage} & \hspace{10pt} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#2
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+\newcommand{\threeColsNoBox}[3]{
+\begin{center}\begin{tabular}{c|c|c}
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#1
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#2
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#3
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+\newcommand{\fourColsNoBox}[4]{
+\begin{center}\begin{tabular}{c|c|c|c}
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#1
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#2
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#3
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#4
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+
+
+%%%%%%%%%%%%%%%%%%%
+% Author Comments
+%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\Inote}[1]{
+ \begin{flushleft}
+    \color{blue} \framebox{
+      \begin{minipage}[t]{0.8\textwidth}
+    {\bf Ilan:} #1 
+    \end{minipage}}
+\end{flushleft}}
+
+\newcommand{\Anote}[1]{
+ \begin{flushleft}
+    \color{blue} \framebox{
+      \begin{minipage}[t]{0.8\textwidth}
+    {\bf Ashrujit:} #1 
+    \end{minipage}}
+\end{flushleft}}
+
+
+%%%%%%%%%%%%%%%%%%%
+% Colors
+%%%%%%%%%%%%%%%%%%%
+\newcommand{\blah}{{\color{red}\text{blah}}}
+\newcommand{\red}[1]{{\color{red}#1}}
+\newcommand{\blue}[1]{{\color{blue}#1}}
+\definecolor{yellow}{rgb}{0.8, 0.7, 0.0}
+\definecolor{brown}{rgb}{0.59, 0.29, 0.0}
+\definecolor{green}{rgb}{0.0, 0.5, 0.0}
+\definecolor{orange}{rgb}{1.0, 0.55, 0.0}
+
+\definecolor{highlight-gray}{gray}{0.90}
+\newcommand{\gamechange}[2][highlight-gray]{{\setlength{\fboxsep}{0pt}\colorbox{#1}{\ifmmode$\displaystyle#2$\else#2\fi}}}
+\newcommand{\hlg}[1]{\gamechange{#1}}
+
+
+%%%%%%%%%%%%%%%%%%%
+% Game code Macros
+%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\glab}[1]{{\color{magenta}//#1}}
+
+\newcommand{\true}{\mathsf{true}}
+\newcommand{\false}{\mathsf{false}}
+\newcommand{\win}{\mathsf{win}}
+\newcommand{\bad}{\mathsf{bad}}
+
+\newcommand{\ind}{\hspace*{10pt}}
+\newcommand{\blip}{\\[0.2ex]}
+\newcommand{\concat}{\,\|\,}
+\newcommand{\bits}{\{0,1\}}
+\newcommand{\bin}[1]{\ensuremath{\{0,1\}^{#1}}}
+%\newcommand{\getsr}{\xleftarrow{_\$}}
+\newcommand{\getsr}{{\:{\leftarrow{\hspace*{-3pt}\raisebox{.75pt}{$\scriptscriptstyle\$$}}}\:}}
+%{\stackrel{\mbox{\tiny $\$$}}{\leftarrow}}
+
+
+%%%%%%%%%%%%%%%%%%%
+% Games, Advantages, Oracles, Adversaries etc
+%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\Adv}{\mathsf{Adv}}
+\newcommand{\gameG}{\mathsf{G}}
+\newcommand{\gameH}{\mathsf{H}}
+\newcommand{\gameL}{\mathsf{L}}
+
+\newcommand{\advA}{\mathcal{A}}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%
+% Schemes, Algorithms, Functions, etc.
+%%%%%%%%%%%%%%%%%%%
+\newcommand{\MD}{\mathsf{MD}}
+\newcommand{\AICR}{{\mathsf{AI}\mbox{-}\mathsf{CR}}}
+\newcommand{\aicr}{{\mathsf{ai}\mbox{-}\mathsf{cr}}}
+\newcommand{\Encode}{\mathsf{Encode}}
+\newcommand{\Decode}{\mathsf{Decode}}
+
+
+%%%%%%%%%%%%%%%%%%%
+% Misc 
+%%%%%%%%%%%%%%%%%%%
+
+% Notation
+\newcommand{\mal}{m\mbox{-}\alpha}
+\newcommand{\mtal}{t\mbox{-}m\mbox{-}\alpha}
+\newcommand{\tbet}{{t\mbox{-}\beta}}
+
+%Complexity measures
+\newcommand{\LocalTime}{\mathbf{Time}}
+\newcommand{\LocalMem}{\mathbf{Mem}}
+\newcommand{\QueryComp}{\mathbf{Query}}
+
+%Functions sets
+\newcommand{\Func}{\mathsf{Fcs}}
+\newcommand{\Perm}{\mathsf{Perm}}
+\newcommand{\Inj}{\mathsf{Inj}}
+
+\newcommand{\ber}{\mathsf{Ber}}
+
+%Fancy Probabilities, absolute value
+\newcommand{\Prob}[1]{\Pr\left[#1 \right]}
+\newcommand{\CondProb}[2]{ \Prob{#1 \,\big|\, #2}}
+\newcommand{\abs}[1]{\left| #1 \right|}
+\newcommand{\Exp}[1]{\mathsf{E}\left[#1 \right]}
+\newcommand{\Var}[1]{\mathsf{Var}\left[#1 \right]}
+\newcommand{\Covar}[1]{\mathsf{Cov}\left[#1 \right]}
+
+
+
+%Aesthetics related
+\newcommand{\shline}{\vspace{-0.5em}\hrulefill}
+
+
+%%%%%%%%%%%%%%%%%%%
+
+
+%to-sort
+
+\newcommand{\threshval}{C\cdot\max{\left\{\left(\frac{\hat STB^2\left(\frac{3e\log \hat S}{\log \log \hat S}\right)^{2(B-2)}}{N}\right),\left(\frac{T^2}{N}\right)\right\}}}
+\newcommand{\reqconst}{{2^{16}}}
+\newcommand{\uthreshval}{\reqconst e^2\cdot \max\left\{\left(\frac{uTB^2(3e\log u/\log \log u)^{2({B-2})}}{N}\right),\left(\frac{T^2}{N}\right)\right\}}
+\newcommand{\uaicr}{{\mathsf{mi}\mbox{-}\mathsf{cr}}}
+\newcommand{\FuncNM}{\Func([N]\times [M],[N])}
+\newcommand{\Queries}{\mathsf{Qrs}}
+\newcommand{\Salts}{\mathsf{Slts}}
+%\newcommand{\uq}{\mathsf{UQ}}
+\newcommand{\uq}{\mathsf{MouseQrs}}
+%\newcommand{\us}{\mathsf{US}}
+\newcommand{\us}{\mathsf{MouseSlts}}
+\newcommand{\uf}{U_\textsf{fresh}}
+\newcommand{\Pred}{\mathsf{P}}
+\newcommand{\q}{\mathsf{Q}}
+\newcommand{\qf}{\mathsf{Q}_\textsf{fresh}}
+\newcommand{\cs}{\mathsf{Cases}}
+\newcommand{\esl}{\mathsf{NSL}}
+\newcommand{\encol}{\mathsf{NC}}
+\newcommand{\efc}{\mathsf{FC}}
+\newcommand{\eul}{\mathsf{USL}}
+\newcommand{\guosn}{\mathsf{GUN1S}}
+\newcommand{\gutsn}{\mathsf{GUN2S}}
+\newcommand{\guoso}{\mathsf{GUO1S}}
+\newcommand{\gutso}{\mathsf{GUO2S}}
+\newcommand{\gf}{\mathsf{GF}}
+\newcommand{\mc}{\mathsf{MC}}
+\newcommand{\smc}{\mathsf{SMC}}
+\newcommand{\mcset}{S_\mathsf{{MC}}}
+\newcommand{\new}{{\color{red} \textsc{new}}}
+\newcommand{\repmcolor}{blue}
+\newcommand{\frep}{{\color{\repmcolor} \textsc{repeatedMouse}}}
+\newcommand{\repnmcolor}{green}
+\newcommand{\urep}{{\color{\repnmcolor} \textsc{repeatedNonMouse}}}
+\newcommand{\sfrep}{{\color{purple} \textsc{semifamiliarRepeated}}}
+\newcommand{\hrest}{\tilde{h}}
+\newcommand{\sfL}{\mathsf{L}}
+\newcommand{\sfP}{\mathsf{P}}
+\newcommand{\fin}{\mathsf{Fin}}
+\newcommand{\budget}{\log\left(\min\left\{N/4T^2,N/4uTB^2m_0^{2(B-2)}\right\}\right)}
+\newcommand{\ancs}{\mathsf{A}}
+\newcommand{\pth}{\mathsf{P}}
+\newcommand{\maxancs}{\mathsf{MA}}
+\newcommand{\Ne}{\mathsf{N}}
+\newcommand{\newadd}{\mathsf{N}}

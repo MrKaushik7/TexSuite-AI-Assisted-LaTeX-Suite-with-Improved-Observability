@@ -1,0 +1,195 @@
+\section{Attack for $S=O(log N),B=O(\log N/\log \log N)$}
+Let $f:[N]\to [N]$ be a function. We define $G_f=([N],E)$ to be the functional graph of $f$ where 
+\[E=\{(u,v)|u\in [N],v=f(u)\}\;.\] 
+First off, we note that every node in a functional graph has out-degree one. We say that a node $u$ is a parent of a node $v$ and $v$ is a child of $u$ iff $(u,v)\in E$. Note that a node might have zero or more parents but has exactly one child in a functional graph.
+We define some special structures in the functional graph $G_f$ and show that with constant probability these exist if $f$ is a random function. Looking ahead, we shall leverage these structures to give our attack.
+
+\heading{$\mal$ special tree and $\mtal$ special forests.}We define a $\mal$ special tree to be a rooted $\alpha$-ary directed tree of depth $m$. In an $\alpha$-ary tree, each internal node has exactly $\alpha$ parents.
+We define a $\mtal$ special forest to be a collection of $t$ $\mal$ special trees that are pairwise disjoint, i.e., no two trees in this collection share any nodes.
+
+
+
+\begin{theorem}\label{thm:atk}
+    Let $N\geq 2^{60}$. Let $S=O(\log N)$ and let $B=O(\log \log N/\log \log \log N)$ such that $B>1$. Let $0<\epsilon<1$ be such that $\epsilon B$ is an integer. Let $T\in \mathbb{N}_{>0}$ be such that $B$ divides $T$. There exists an $(S,T,B)$ adversary $\advA=(\advA_1,\advA_2)$ such that 
+    \[\Adv^{\aicr}_{\MD,N,N}(\advA)\geq O\left(\frac{\epsilon ST(\log S/\log \log S)^{(1-\epsilon)B-1}}{N\log N}\right)\;.\] 
+\end{theorem}
+\begin{proof}(Sketch)
+Let $h:[N]$
+Define $f(x)=h(x,0)$ for this proof.
+The preprocessing phase $\advA_1$ finds a $\mtal$ special forest for $m=(1-\epsilon)B-1$ in the functional graph of $f$. For every root $a_i$ for $i=1,\ldots,t$ in the $\mtal$ special forest, it finds $b_i,c_i\in [N]$ such that $b\neq c$ and $f(a_i,b_i)=f(a_i,c_i)$. If the algorithm either does not find the $\mtal$ special forest or does not find such $b_i,c_i$ for some $a_i$ in the forest, it outputs $\bot$, otherwise outputs the $t$ triplets $(a_i,b_i,c_i)$.
+
+
+The online phase $\advA_2$ on input $a$ and the output of $\advA_1$ does the following:
+\ifnum\eprintversion=0
+	\renewcommand{\len}{0.35}
+	\renewcommand{\lenn}{0.55}
+	\renewcommand{\lennn}{}
+\else
+	\renewcommand{\len}{0.35}
+	\renewcommand{\lenn}{0.55}
+	\renewcommand{\lennn}{}
+\fi
+    \oneCol{\len}
+    {
+    \underline{Algorithm $\advA_2(a,\sigma)$}\\[0.2ex]
+    Parse $\sigma$ as $(a_i,b_i,c_i)_{i=1}^t$\\
+    If $\exists i\in [t]: a_i=a$: return $(b_i,c_i)$\\
+    For $i=1,\ldots,T/B$:\\
+    \ind $x_{i,0}\gets h(a,i)$\\
+    \ind For $j=1,\ldots,B-1$:\\
+    \ind \ind If $ x_{i',j'}=x_{i,j-1}$ for some $i'<i$ and $j\leq B-1$:\\
+    \ind \ind Return $(i'\concat 0^{j'},i \concat 0^{j-1})$\\
+    \ind \ind If $ x_{i,j'}=x_{i,j-1}$ for some $j'<j-1$:\\
+    \ind \ind Return $(i\concat 0^{k},i \concat 0^{j-1})$\\
+    \ind \ind If $ x_{i,j-1}=a_{k}$ for some $k\in [t]$:\\
+    \ind \ind Return $(i\concat 0^{k-1}\concat b_k,i\concat 0^{k-1}\concat c_k)$\\
+    \ind $x_{i,j}\gets f(x_{i,j-1})$  
+	}
+	% \vspace{-2ex}
+	% \caption{The adversary $\advA_2$ in the proof of Theorem~\labelcref{thm:atk}}
+    % \shline
+
+    First we use the following lemma to argue that the preprocessing phase finds a $\mtal$ special forest with probability at least $1/2$. 
+
+    \begin{lemma}\label{lem:comb}
+        Let $f:[N]\to [N]$ be a random function. Let $G_f$ be the functional graph of $g$. With probability at least $1/2$, there exists a $\mtal$ forest in $G_f$ if $N>2^{60}$ and $t(\alpha^{m+1}-1)/(\alpha-1)\leq \log N/\log \log N$.
+        \end{lemma}
+
+        We observe that for $S=t\log N$, $t=O(1)$, $\alpha=\log S/\log \log S$ and $m=O(\log \log N/\log \log \log N)$, the inequality $t(\alpha^{m+1}-1)/(\alpha-1)\leq \log N/\log \log N$ holds.
+
+
+    Given that it finds a $\mtal$ special tree, the probability that it returns $\bot$ is at most $tN!/N^N$. Using $N!\leq eN(N/e)^N$, we have that this probability is at most $teN/e^N$. 
+
+Now we compute the probability that $\advA_2$ succeeds in finding a collision. Let $R$ be the event that the adversary $\advA_2$ returns due to the first two if statements and let $Q$ be the event that it returns due to the third if statement. Clearly, adversary $\advA_2$ succeeds with probability $\Pr[R]+\Pr[Q]$.
+We have that 
+\[
+\Pr[Q]+\Pr[R]\geq \Pr[Q|\neg R](1-\Pr[R])+\Pr[R]\geq \Pr[Q|\neg R]+\Pr[R](1-\Pr[Q|\neg R])\geq \Pr[Q|\neg R]\;.
+\]
+Now we shall show a lower bound on $\Pr[Q|\neg R]$. The event $\neg R$ implies that all the $x_{i,j}$'s are distinct. 
+
+Define $A$ to be the set of all nodes in the $\mtal$ special forest found in the preprocessing. Clearly $|A|=t(\alpha^{m-1}-1)/(\alpha-1)$ where $m=(1-\epsilon)B$. Let $F_{i,j}$ be the event that $x_{i,j}\in A$ and for all $i'<i,j'<B-1$, $x_{i',j'}\not\in A$ and for all $j'<j$, $x_{i,j'}\not\in A$. 
+We have that 
+\[
+\Pr[F_{i,j}|\neg R]=\frac{|A|}{N-((i-1)B+j)}\prod_{k=1}^{(i-1)B+j}\left(1-\frac{|A|}{N-k+1}\right)\;.
+\]
+Using $T<N/2$ we have that $N-k+1\geq N/2$. Therefore
+\[
+\Pr[F_{i,j}|\neg R]\geq \frac{|A|}{N}\left(1-\frac{2|A|}{N}\right)^{(i-1)B+j}\geq \frac{|A|}{N}\left(1-\frac{2|A|((i-1)B+j)}{N}\right)\geq |A|/2N\;.
+\]
+It is clear that $F_{i,j}$ are disjoint, and given that $R$ happens $Q$ happens if for any $i\in [T/B]$, in the first $(1-\epsilon)B$ iterations of the loop in $j$, $x_{i,j}\in A$. Therefore
+\[
+    \Pr[Q|\neg R] \geq \sum_{i=1,\ldots, T/B; j=0,\ldots, (1-\epsilon)B}\Pr[F_{i,j}|\neg R]\geq  \epsilon B (T/B)(|A|/2N)=\epsilon T|A|/2N\;.
+\]
+Therefore, using $S=t\log N$ we have that 
+\[
+    \Pr[Q|\neg R]\geq Tt(\alpha^{m+1}-1)/(\alpha-1)/2N \geq  \epsilon ST{\left(\log S/\log \log S\right)}^{(1-\epsilon)B-1}/2N\log N\;.
+\]
+Hence advantage of $\advA$ is at least
+\[
+    1/2(1-teN/e^N)(\epsilon ST{\left(\log S/\log \log S\right)}^{(1-\epsilon)B-1}/2N\log N)\geq \epsilon ST{\left(\log S/\log \log S\right)}^{(1-\epsilon)B-1}/4N\log N -SeN/\log N e^N\;.
+\]
+For $S=\O(\log N)$, $B=\log \log N/\log \log N$, this advantage is $O(ST{\left(\log S/\log \log S\right)}^{(1-\epsilon)B-1}/4N\log N)$
+\end{proof}
+We conclude by proving Lemma~\labelcref{lem:comb}.
+\begin{proof}(Lemma~\labelcref{lem:comb})
+
+First, let the total number of nodes the in a $\mal$ tree be $\beta$, it follows that
+$\beta=(\alpha^{m+1}-1)/(\alpha-1)$.
+
+
+We denote by random variable $X$ the number of $\mtal$ special forests in the functional graph of $f$. 
+We want to show that lower bound on $\Pr[X>0]\geq 1/2$. We shall do this by using establishing a lower bound on $\Exp{X}$ and an upper bound on $\Var{X}$ and use Proposition~\labelcref{prop:cheby}.
+
+
+
+
+
+
+
+
+% Let $f:[N]\times [N]\to [N]$ be a random function.
+
+% Let $g(x)=f(x,0)$. Consider the function graph of $g$.
+
+% We define a $\mal$ special tree to be a rooted tree of depth $m$ such that all the nodes have $\alpha$ parents.
+% We let the total number of  that the to
+% $\beta=(\alpha^{k+1}-1)/(\alpha-1)$
+
+
+% We define a $\mtal$ special forest to be a collection of $t$ disjoint $\mal$ special trees.
+
+
+% We denote by random variable $X$ the number of $\mtal$ special forests in the function graph of $g$.
+
+% We want to compute a lower bound on $\Pr[X>0]$.
+
+
+We define a $\tbet$ set to be a set of $t$ disjoint subsets of $[N]$ where each of the subsets are of size $\beta$. The total number of $\tbet$ sets are $\binom{N}{t\beta}\prod_{i=0}^{t-1}\binom{(t-i)\beta}{\beta}$. We denote by $S_\tbet$ the set of all $\tbet$ sets. For each of these $D\in S_\tbet$, we define an indicator random variable $X_D$ as follows.
+\[
+X_D=\begin{cases}
+    1, & \text{if the elements of $D$ form a $\mtal$ special forest in }G_f\\
+    0, & \text{otherwise}
+\end{cases}\;.   
+\]
+The probability that the nodes in a subset of $[N]$ of size $\beta$ form a $\mal$ tree is at most $\beta!/N^{\beta-1}$ because if we fix an ordering of the $\beta$ nodes, the probability that each of the required $\beta-1$ edges are present is $1/N^{\beta-1}$ and there are $\beta!$ ordering of the nodes.
+Since all the $t$ subsets in a set $D\in S_\tbet$ are disjoint, it follows that
+We have that $\Pr[X_D=1]=(\beta!/N^{\beta-1})^t$.
+Since $X_D$'s are all indicator r.v's, $\Exp{X_D}=\Pr[X_D=1]$. Hence
+\[\Exp{X_D}=(\beta!/N^{\beta-1})^t\;.\]
+Note that $X=\sum_{D \in S_\tbet}X_D$. Using linearity of expectation it follows that 
+\begin{align*}
+\Exp{X}&=\sum_{D\in S_\tbet}\Exp{X_D}= \sum_{D \in S_\tbet}\Pr[X_D=1]= \binom{N}{t\beta}\prod_{i=0}^{t-1}\binom{(t-i)\beta}{\beta}(\beta!/N^{\beta-1})^t\\
+&=\binom{N}{t\beta}(\beta!)^t(t\beta)!/(\beta!)^t(N^{\beta-1})^t=\binom{N}{t\beta}(t\beta)!/(N^{\beta-1})^t
+\end{align*}
+Using $\binom{n}{k}\geq (n/k)^k$ and $n!\geq e(n/e)^n$ we have
+\begin{align*}
+    \Exp{X}& \geq \left(\frac{N}{t\beta}\right)^{t\beta}(t\beta)!/(N^{\beta-1})^t
+        \geq N^t e(t\beta/e)^{t\beta}/(t\beta)^{t\beta}\geq (N/e^{\beta})^t\;.
+\end{align*}
+Next we want an upper bound on $\Var{X}$. 
+For $D,D'\in S_\tbet$, we write $D\sim D'$ if there exist sets $d\in D$ and $d'\in D$ such that $d\cap d'\neq \emptyset$. We first observe that if $D\sim D'$ is not true then they are independent and therefore $\Covar{X_D,X_{D'}}=0$. Moreover, since $\Covar{X_D,X_{D'}}=\Exp{X_DX_{D'}}-\Exp{X_D}\Exp{X_{D'}}$, we have that $\Covar{X_D,X_{D'}}\leq \Exp{X_D,X_{D'}}$. Also since $X_D,X_{D'}$ are 0-1 random variables, $\Exp{X_D\cdot X_{D'}}=\Pr[X_D=X_{D'}=1]$.
+Using these three observations below, we get
+\begin{align*}
+    \Var{X}&=\Var{\sum_{D\in S_\tbet}X_D}=\sum_{D\in S_\tbet}\sum_{D'\sim D} \Covar{X_D,X_{D'}}\\ &\leq \sum_{D\in S_\tbet}\sum_{D'\sim D} \Exp{X_D\cdot X_{D'}}= \sum_{D\in S_\tbet}\sum_{D'\sim D} \Pr[X_D=X_{D'}=1]
+\end{align*}
+First, we upper bound $\Pr[X_D=X_{D'}=1]$ for $D\sim D', D\neq D'$ if $|D\cup D'|=\gamma$.
+We will later sum over all possible $D\cup D'$ to upper bound $\Var{X}$ using the above expression.
+
+If $|D\cup D'|=\gamma$ then $|D\cap D'|=2t\beta-\gamma$. Therefore if we fix $D\cup D'$, there are $\binom{\gamma}{2t\beta-\gamma}\binom{2\gamma-2t\beta}{\gamma-t\beta}(t\beta)!(t\beta)!$ possible ordered sets $D,D'\in S_\tbet$. Now for $D\sim D'$ and $X_D=X_D'=1$ we shall argue that the nodes in the subgraph of $G_f$ with vertices in $D\cup D'$ have at least $\gamma-2t+1$ edges among them. Suppose they do not -- in that case there are at least $2t$ different components in the subgraph. This is a contradiction to $D\sim D'$ because since here exist sets $d\in D$ and $d'\in D$ such that $d\cap d'\neq \emptyset$, the subgraph has at most $2t-1$ different connected components. Therefore, the probability that for ordered sets $D,D'$, $X_D=X_D'=1$ and $D\sim D'$ is at most $1/N^{\gamma-2t+1}$. So if we fix $D\cup D'$ the probability that $D\sim D'$ and $X_D=X_{D'}=1$ is at most $\binom{\gamma}{2t\beta-\gamma}\binom{2\gamma-2t\beta}{\gamma-t\beta}(t\beta)!(t\beta)!1/N^{\gamma-2t+1}$.
+
+Now, we sum over all possible $D\cup D'$. We multiply by a factor of $2$ because the previous summation counted every pair of $(D,D')$ such that $D\sim D'$ twice. Using $\binom{n}{k}\leq (n/k)^k,n!\leq en(n/e)^n$, $t\beta\leq \gamma\leq 2t\beta-1$ below we get
+\begin{align*}
+\sum_{D\in S_\tbet}\sum_{D'\sim D} \Pr[X_D=X_{D'}=1]&\leq 2\sum_{\gamma=t\beta}^{2t\beta-1}\binom{N}{\gamma}\binom{\gamma}{2t\beta-\gamma}\binom{2\gamma-2t\beta}{\gamma-t\beta}(t\beta!)^2 1/N^{\gamma-2t+1} \\
+&\leq \sum_{\gamma=t\beta}^{2t\beta-1} \left(\frac{eN}{\gamma}\right)^\gamma \left(\frac{e\gamma}{2t\beta-\gamma}\right)^{2t\beta-\gamma}\left(\frac{e(2\gamma-2t\beta)}{\gamma-t\beta}\right)^{\gamma-t\beta}(t\beta)^2\left(\frac{t\beta}{e}\right)^{2t\beta}\frac{1}{N^{\gamma-2t+1}} \\
+&\leq N^{2t-1}\sum_{\gamma=t\beta}^{2t\beta-1}e^{t\beta+\gamma}\frac{1}{\gamma^\gamma}(2t\beta)^{t\beta}2^{\gamma-t\beta}(t\beta)^2\left(\frac{t\beta}{e}\right)^{2t\beta}\\
+&\leq N^{2t-1}\sum_{\gamma=t\beta}^{2t\beta-1}e^{t\beta+\gamma}\frac{1}{(t\beta)^{t\beta}}(2t\beta)^{t\beta}2^{\gamma-t\beta}(t\beta)^2\left(\frac{t\beta}{e}\right)^{2t\beta}\\
+&\leq N^{2t-1}e^{3t\beta}2^{t\beta}2^{t\beta} (t\beta)^2\left(\frac{t\beta}{e}\right)^{2t\beta}\sum_{\gamma=t\beta}^{2t\beta-1} 1\\
+& \leq N^{2t-1}2^{2t\beta}e^{t\beta}(t\beta)^{2t\beta+3}
+\end{align*}
+So, $\Var[X]\leq N^{2t-1}2^{2t\beta}e^{t\beta}(t\beta)^{2t\beta+3}$ and 
+ \[\Var{X}/(\Exp{X})^2=\frac{N^{2t-1}2^{2t\beta}e^{t\beta}(t\beta)^{2t\beta+3}}{(N/e^\beta)^{2t}}\leq \frac{2^{t\beta}(t\beta)^{t\beta+3}}{N}\;.\]
+ Since $\alpha t\leq $
+For $N\geq 2^{60}$ and $t\beta<\log N/3\log \log N$, $\Var{X}/(\Exp{X})^2 \leq 1/2$.
+So, $\Pr[X>0]\geq 1/2$.
+
+% For $t\beta<\log N/\log\log N$, we have $\Pr[X>0]\geq 1/2$ for large enough $N$.
+ 
+
+% Now $t=S/3\log N$ and $\beta<\alpha^{k+1}$, this means $S\alpha^{k+1}\leq (\log N)^2/\log log N$. If $\alpha=(\log S)^2$, we need $S<\log N$ and $k<\log \log N/4\log \log \log S$ for $\Pr[X>0]\geq 1/2$.
+
+
+% Advantage of the attack for $S,T,B$ is $O\left(\frac{S\cdot (\log S)^{B-2} \cdot T}{N\log N}\right)$.
+
+% Our upper bound on the advantage was $\Omega\left(\frac{(S+\log N)\cdot(\log (2e(S+\log N)))^{B-2}\cdot B^2\cdot T}{N}\right)$
+\end{proof}
+\iffalse
+\newpage
+In section 8 their key claim is that in the function graph of a random function, with high probability a directed tree with depth $k$ will have at most \[1000k^2\cdot \ln(Nk)+1=\tilde{O}(k^2)\] nodes. 
+
+On the other hand I proved that in the function graph of a random function, with high probability there is a directed tree with depth $k$ which has $O((\log S)^k)$ nodes when $S=O(\log N)$ and $k=O(\log \log N/\log \log \log N)$.
+
+Note that when $S=O(\log N)$ and $k=O(\log \log N/\log \log \log N)$, \[(\log S)^k= (\log \log N)^{\log \log N/\log \log \log N}= \log N\;,\] which is much less than $1000k^2\cdot \ln(Nk)+1$. 
+
+So, both the statements are true--their point is that we cannot have these attacks for large $k$, while our attack is only for small values of $k$ (which rules out a better upper bound on advantage for general $k$). We can explain this in the intro of our paper.
+
+\fi

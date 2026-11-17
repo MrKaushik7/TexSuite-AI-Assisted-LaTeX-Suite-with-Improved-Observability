@@ -1,0 +1,122 @@
+%!TEX root = pir-main-new.tex
+
+
+\section{Evaluation} 
+\label{sec:evaluation}
+%We implemented a slightly different variant of the scheme 
+%which we describe fully in \Cref{sec:variantscheme}.  \elaine{FILL ref}
+%In comparison with 
+%the version in our main body, the variant 
+%in \Cref{sec:variantscheme} has slightly 
+%less client storage, but slightly more communication overhead. 
+
+We implement our optimized single-server PIR scheme 
+\ifnum\eprintversion=0
+(\Cref{sec:optimized} of the online full version)
+\else
+(\Cref{sec:optimized})
+\fi
+and compare it against a state-of-the-art preprocessing single server PIR scheme (Piano~\cite{piano}). 
+We show that the performance of our scheme is reasonably efficient and practical, %even compared to the fastest scheme before, 
+while having a huge advantage in the online communication. %, and the online comunication is much better than Piano.
+
+\parhead{Implementation and Parameters.} 
+We implement our scheme with Go, based on the open-sourced code base of Piano~\cite{piano}.
+Our code base is open-sourced\footnote{\url{https://github.com/wuwuz/QuarterPIR}}.
+%It does not affect the theoretical asymptotics of our protocol. 
+We set $Q=\sqrt{n}\ln n$, set the correctness failure parameter $\kappa$ to 40 and set the computational security parameter $\lambda$ to 128.
+We adjust the chunk size and also superblock size by constant factors to optimize the overall performance.
+The parameter combination ensures the failure probability is bounded by $2^{-\kappa}=2^{-40}$ for all queries.
+We use 128-bit keys and use AES to instantiate the PRF.
+
+\parhead{Evaluation Setup.}
+\label{sec:setup}
+We evaluate our scheme and the baseline scheme on a single AWS m5.8xlarge instance with 128GB of RAM
+and run the experiment on local network.
+In this case, the network will not be the bottleneck.
+However, we do expect that our scheme can perform relatively better compared to Piano in a network-constrained environment.
+
+\subsection{Experiments Results} 
+\label{sec:simplepir_comparison}
+\newcolumntype{?}{!{\vrule width 1pt}}
+
+We evaluate the schemes under two scenarios: 1) a 64GB database with 4.2 billions of 16-byte entries; 2) a 100GB database with 1.6 billions of 64-byte entries.
+As the same as Piano, we use 8-thread parallelization during the preprocessing phase, and only use a single thread during the online phase.
+
+
+\begin{table*}[ht]
+    %\footnotesize
+    \begin{centering}
+        \begin{tabular}{ ccccc} 
+            %\cline{2-5}
+            \toprule
+            \multicolumn{1}{c}{} & \multicolumn{2}{c}{\bf 64GB} & \multicolumn{2}{c}{\bf 100GB }\\
+            %\midrule
+              & Piano & Ours & Piano & Ours \\
+            \midrule
+            \multicolumn{5}{c}{{\bf Preprocessing}}\\ %\hline
+            \multirow{1}{*}{Client time} & 
+            \multirow{1}{*}{ \cellcolor{green!35} 81min} & 
+            \cellcolor{red!35} 114min & 
+            \cellcolor{green!35} 32min &
+            \multirow{1}{*}{ \cellcolor{red!35} 46min} \\
+            %& &  \cellcolor{red!25} 8-thr: 190s & & 
+            % \cellcolor{red!25}
+            %8-thr: 550s\\
+            Communication &  64GB & 64GB& 100GB &100GB \\
+            \midrule
+            \multicolumn{5}{c}{{\bf Per query}}\\ %\hline
+            Online Time & \cellcolor{green!35} 14.0ms &\cellcolor{red!35} 42.7ms & \cellcolor{green!35} 11.9ms &\cellcolor{red!35} 46.3ms \\
+            
+            Online Communication &  \cellcolor{red!35} 256KB & \cellcolor{green!35} 5KB &  \cellcolor{red!35} 100KB & \cellcolor{green!35} 8KB\\
+            % \hline
+            %Online Download  & \cellcolor{red!35} 119KB & \cellcolor{green!35} 32KB& \cellcolor{red!35} 169KB & \cellcolor{green!35} 64KB\\
+            % \hline
+            Am. Offline Time & \cellcolor{green!35} 3.3ms&\cellcolor{red!35}  4.7ms & \cellcolor{green!35} 2.2ms &\cellcolor{red!35} 3.2ms\\
+            %Maintainence time & \cellcolor{green!35} 0 & \cellcolor{red!35} 4.8ms/0.9ms & \cellcolor{green!35} 0 &\cellcolor{red!35} 9.8ms/1.7ms \\
+            Am. Offline Communication &  46KB & 46KB &  120.5KB & 120.5KB \\  
+            % \hline
+            \midrule
+            
+            %  \hline
+            %Client space& \cellcolor{red!35} 123MB &  \cellcolor{green!35} 48MB  & \cellcolor{red!35}  173MB & \cellcolor{green!35} 70MB \\
+            Client Storage & \cellcolor{green!35}  419MB & \cellcolor{red!35} 684MB  & \cellcolor{green!35} 839MB &\cellcolor{red!35} 1.8GB \\
+            \bottomrule
+        \end{tabular}
+        \caption{Performance of our scheme and Piano on 64GB and 100GB sized databases.
+        The 64GB database has 16-byte entries and the 100GB database has 64-byte entries. 
+``Am.'' is an abbreviation of ``Amortized''. We report the online costs as well as the offline costs amortized over $Q=\sqrt{n}\ln n$ queries.
+}
+        \label{table:piano_comparison_table}
+    \end{centering}
+\end{table*}
+
+%\elaine{NOTE: bw is }
+In Table \ref{table:piano_comparison_table}, we show the cost for the one-time preprocessing, the online query cost, and also the amortized offline cost. 
+Notice that the amortized offline cost can also be considered as the background maintenance cost that is not on the critical path of the query.
+
+\parhead{Computation Costs.}
+As seen in Table \ref{table:piano_comparison_table}, our scheme is worse compared to Piano in terms of computation cost.
+The offline time is worse by around $1.4\times$ (the same for the maintenance time), and the per query online time is worse by around $3.0\times$. 
+Although the two schemes have the same asymptotic computation costs, our scheme is more complicated, resulting in a larger constant factor.
+The most significant factor is that our scheme needs to make at least two PRF evaluations per hint, while Piano only makes one PRF evaluation. 
+Also, Piano further optimizes the PRF evaluations.
+This explains the $3.0\times$ gap. 
+
+%However, we still consider the scheme to be reasonably efficient. 
+%However, it is still much better compared to the 
+%The 
+
+%As the database becomes larger, this linear scan quickly becomes the bottleneck of their scheme. Our scheme, on the other hand, is bottlenecked by network latency, which is demonstrated in the following section. 
+
+\parhead{Communication Costs.}
+Our scheme has the same offline communication cost (same streaming preprocessing) and a much better online communication compared to Piano. 
+The asymptotic online communication  is $O_\lambda(n^{1/4})$ for our scheme and is $O(\sqrt{n})$ for Piano.
+Thus, given a bigger $n$, the gap will be bigger.
+The concrete performance also depends on many other factors, including the size of the entries, the size of the chunk and the size of the superblock.
+We see a $12\times$ gap when $n$ is $1.6$ billions in the 100GB database case (with a larger entry size) and a $51\times$ gap when $n$ is 4.2 billions in the 64GB database case (with a smaller entry size).
+
+\parhead{Stroage Costs.}
+Our scheme has worse storage cost compared to Piano.
+In our experiment, the gap is $1.6\times-2.1\times$.
+Our optimized scheme needs to additionally store the superblock parity for each hint, and also stores the constraints generated during the query phase, compared to Piano.

@@ -1,0 +1,233 @@
+\section{Proving the STB Conjecture for $SB \ll T$}\label{sec:secbound}
+This section proves another upper bound on the advantage of any auxiliary-input adversary in the bounded-length collision resistance game of salted MD hash in the AI-ROM. The main theorem is stated next. 
+\begin{theorem}\label{thm:MDST2}
+    Let $C = 2^9\cdot 6 \cdot e^4$. For any $N,M,B,S,T\in \mathbb{N}_{>0}$ and fixing $\hat S := S + \log N$, it holds that 
+    \begin{align*}
+    \Adv_{\MD,N,M,B}^{\aicr}(S,T) \leq C\cdot \max\left\{\left(\frac{T^2}{N}\right),\left(\frac{\hat S^4TB^2}{N}\right)\right\}+\frac{1}{N}\;.    \end{align*}
+\end{theorem}
+
+
+The proof of this theorem mostly mirrors that of Theorem~\labelcref{thm:MDST}, except in the way that few of the cases are handled in the compression argument. Technically, we derive the following Lemma~\labelcref{lem:secbound}~(an analogue of Lemma~\labelcref{lem:comp}), and combine it with Lemma~\labelcref{lem:nu2ai} to get the claimed bound in \Cref{thm:MDST2} (note that the condition $u\leq 6N\gamma$ holds).
+\begin{lemma}\label{lem:secbound}
+    Fix $N,M,B,S,T,u\in \mathbb{N}_{>0}$, $\sigma\in \bits^S$. Then, for any $\advA_2$ that makes at most $T$ queries to its oracle, it holds that
+    \begin{align*}
+    \Adv_{\MD,N,M,B,u}^{\uaicr}(\sigma,\advA_2) \leq\left(2^9e^4\max\left\{\left(\frac{u^4TB^2}{N}\right),\left(\frac{T^2}{N}\right)\right\}\right)^u. 
+\end{align*}
+\end{lemma}
+
+
+The proof of this lemma is in the same spirit as the proof of Lemma~\labelcref{lem:comp} with several key differences. The main difference is how we encode the path back from a given destination node to the associated source node. In \Cref{sec:comparg}, we do this in a somewhat straightforward manner by encoding the length of the path and then the index of every edge to take, where the index might be large if there is a large multi-collision associated with that node. Large-enough multi-collisions were handled separately, so we had a bound ($m_0 \approx \log u /\log\log u$) for the range of the index of each back-edge. In this section, we encode the source node by just writing its lexicographic index among all possible sources within a given distance in the query graph. Of course, there might be too many possible sources at a given distance, making it too expensive to encode. But, and this is our main technical observation in this section, if there are too many possible sources, then there must be many large multi-collision, and therefore we can save enough bits by taking advantage of it.
+
+We proceed by setting up the graph-theoretic definitions and lemmas. In the lemma below, we show that if in the query graph there is a node $v$ such that there are at least $p$ nodes which have a shortest path of length $d$ to the node $v$, then there must be at least $p-1$ edges involved in a multi-collision in the induced sub-graph.
+\begin{definition}[$d$-neighborhood of a vertex] Let $G=(V,E)$ be  a directed graph. We say that a node $v_1\in V$ is in the $d$-neighborhood of $v_2\in V$ if the shortest directed path from $v_1$ to $v_2$ in $G$ consists of (exactly) $d$ edges.
+\end{definition}
+
+\begin{definition}[multi-collision of edges in a graph] 
+For an edge $e=(a,b)$, we refer to $b$ as the target of the edge.
+We say that for $m\geq 2$, edges $e_1,\cdots,e_m$ form a $m$-multi-collision if all of them share a common target. We refer to the common target as the center of the multi-collision. We refer to~$m$ as the size of the multi-collision.
+\end{definition}
+
+
+\ifnum\eprintversion=1
+\noindent We prove the following lemma.
+\fi
+\begin{lemma}\label{lem:neigh}
+    Let $G=(V,E)$ be a directed graph. Let $d\in \mathbb{N}_{>0}$ and $p\in \mathbb{N}_{>0}$ such that $p\geq 2$. Suppose that there is a node $v\in V$ such that there are $p$ distinct nodes in its $d$-neighborhood. 
+    Then, there are  $t\ge 1$ distinct nodes in $G$, such that each of them have in-degree $\beta_i\geq 2$ for $i=1,\ldots,t$, and $\sum_{i=1}^t(\beta_i-1)\geq p-1$. 
+\end{lemma}
+\newcommand{\prooflemneigh}{
+\begin{proof}
+
+% The proof is via induction on $p$. The base case is for $p=2$. If there are at least $2$ nodes in the $d$-neighborhood of $v$, it is easy to see that the graph has to have a node with in-degree $2$. Here $t=1$ and $\beta_1=2$ and therefore, the statement holds.
+
+% For the induction hypothesis, assume that the statement holds for $p=k$, and we will show that it also holds for $p=k+1$. Since $p=k+1$, the graph $G$ has a node $v$ with $k+1$ nodes in its $d$-neighborhood. Let this set of $k+1$ nodes be $S$. Consider the subgraph $G'$ of $G$ with only the edges on the shortest directed path from the nodes in $S$ to the node $v$ (choose one shortest path strategically if there are multiple paths of the same length-- making sure that internal node in $G'$ has out-degree 1. One way to do this is by following a BFS tree). By definition, in $G'$, the node $v$ still has $k+1$ nodes in its $d$-neighborhood. Consider a node $v'\in S$ such that it has in-degree $0$ in $G'$ (note that such a $v'$ must exist as there are no cycles in $G'$). 
+% Further, consider the set of edges $P'$ that are on the path from $v'$ to $v$ but not on the path from the other edges in $S$ to $v$. In other words, denoting $E_{v^*\rightarrow v}$ the set of edges on the path from $v^*$ to $v$, we define 
+% \begin{align*}
+% P'= E_{v'\rightarrow v} \setminus  \bigcup_{v'' \in S\setminus \{v'\}}  E_{v''\rightarrow v} .
+% \end{align*}
+
+% \begin{definition}[Frontal edge of path]
+% For a directed path in a graph, we define the edge whose target node has out-degree zero to be the frontal edge of the path.
+% \end{definition}
+% Define a subgraph $H'$ of $G'$ by removing the edges in $P'$ from $G'$. 
+% Observe that $P'$ will consist of a path and the frontal edge of the path will necessarily be incident on the target of an edge in $H'$ -- this is true because the first possibility is that this path is incident directly on $v$. In this case, there has to be at least one other path incident of $v$ since $p>2$ and we did not remove edges on the shortest path from other nodes in $S$ to $v$. Hence, it is incident on the target of some edge in $H'$.
+% The other possibility is that the frontal edge of this path incident on the end-point of some other edge in $H'$ because we know this is part of a path from $v'$ to $v$. The end-point has to be the target of some edge because otherwise, the length of the path from $v'$ to $v$ would be more than $d$.
+
+% It follows from the definition of $P'$ that $v$ has $p$ distinct nodes in its $d$-neighborhood in $H'$. Using the induction hypothesis $H'$ has $t$ nodes with in-degree $\beta_i$ such that $\beta_i\ge 2$ and $\sum_{i=1}^t(\beta_i-1)\geq k-1$. When we add back the edges in $G'$, there are two possible cases. In the first case, one of the edges we add back is incident to one of the $t$ edges, in which case $G'$ has $t$ edges each of size $\beta_i'$ such that $\beta_i'\ge 2$ and $\sum_{i=1}^t(\beta_i'-1)\geq k-1+1=k$, because one of the $\beta_i'$ will be larger than $\beta_i$ by $1$.
+%  In the other case, one of the edges we add back is incident on the target of an edge in $G$ which was not incident on one of those $t$ nodes. But this edge now creates a node of in-degree $2$ in $G'$. So $G'$ has $t+1$ nodes each of in-degree $\beta_i'$ such that $\beta_i'\ge 2$ and $\sum_{i=1}^t(\beta_i'-1)\geq k-1+1=k$.
+%  Since $G'$ is a subgraph of $G$, it follows that for some $t$, $G$ has $t$ nodes with in-degree $\beta_i'$ such that $\beta_i'\ge 2$ and $\sum_{i=1}^t\beta_i'\geq k$.
+
+Consider a tree of shortest paths of length at most $d$ to $v$ (e.g., the output of BFS from $v$ on the inverse graph). This is a $d$-depth tree with $p$ leaves. Consider all the inner nodes (non-leaves) in this tree, say there are $t$ of the, and let the indegrees of these nodes be $\beta_1,\ldots,\beta_t$. Note that all these internal nodes have outdegree $1$ in this tree, except the root which has outdegree zero.
+Observe that $\sum_{i=1}^t(\beta_i-1)$ is exactly the sum of the difference of in-degree and out-degree of all nodes in the tree, the number of leaves ($i.e.,p$) and $-1$ (for the root). Since the sum of the differences of all in-degree and out-degree is zero, the bound follows.
+
+% Then, notice that the sum we are interested in is exactly the sum of all  of all nodes in the tree, + the number of leaves (p), - 1 for the root. Since the sum of all (in-degree - out-degree) is zero, you can get the bound.
+
+
+% -The proof of Lemma 6.5: maybe it can be made much simpler? Consider a tree of shortest paths of length at most d to v (for example the output of BFS from v on the inverse graph). This is a d-depth tree with p leaves. Take all the inner nodes in this tree - Then the sum you are looking at is exactly the sum of all (in-degree - out-degree) of all nodes in the tree, + the number of leaves (p), - 1 for the root. Since the sum of all (in-degree - out-degree) is zero, you can get the bound.
+
+\end{proof}
+}
+\ifnum\eprintversion=1
+\prooflemneigh
+\else
+The proof of this lemma is via an inductive argument and appears in the full version~\cite{full}.%Appendix~\labelcref{app:lemmamanycols}.
+\fi
+
+A direct corollary is that in the query graph, if for any salt $s$ there are at least $p+1$ salts in its $d$-neighborhood, then there must be $p$ queries involved in multi-collisions on the paths from the nodes in its $d$-neighborhood to $s$. 
+We obtain non-trivial compression for large enough $p$ by encoding those multi-collisions. 
+
+\paragraph{Non-trivial encoding for multiple multi-collisions.} 
+We consider $t$ multi-collisions of sizes $\beta_1,\ldots,\beta_t$. 
+We encode these $t$ multi-collisions by encoding the $t$ centers of the multi-collision, and for each center, we encode the index of the queries in $\qf$ that form the multi-collision in a set. Recall that the indices of the queries in $\qf$ are in $[FT]$.
+The total number bits we need to encode is
+\begin{align}
+\ifnum\eprintversion=1
+\log \left(\binom{N}{t} \binom{FT}{\beta_1}\binom{FT-\beta_1}{\beta_2}\cdots \binom{FT-\sum_{i=1}^{t-1}\beta_i}{\beta_t}\right) & \le \log \left(\frac{N^t (uT)^{\sum_{i=1}^t\beta_i}}{t!\beta_1!\beta_2!\cdots \beta_t!} \right) \nonumber\\
+\else
+\log \Biggl(\binom{N}{t} \binom{FT}{\beta_1}\cdots \binom{FT-\sum_{i=1}^{t-1}\beta_i}{\beta_t}\Biggr)  &\le \log \left(\frac{N^t (uT)^{\sum_{i=1}^t\beta_i}}{t!\beta_1!\beta_2!\cdots \beta_t!} \right) \nonumber\\
+\fi
+& = \log \left(\frac{N^t (u^4T)^{\beta-2t} T^{2t}u^{8t-3\beta} }{t!\beta_1!\beta_2!\cdots \beta_t!} \right), \label{eq:bound}
+\end{align}
+where the inequality follows by using $\binom{n}{r}\leq \frac{n^r}{r!}$ and $F\leq u$, and the equality follows by letting $\beta=\sum_{i=1}^t\beta_i$ and rearranging.
+
+\begin{myclaim}
+\label{claim:savings:largemc}
+If $\beta \ge e^3 u^2 / 2$,  then Eq.~\eqref{eq:bound} $\le \log \left(N^t (u^4T)^{\beta-2t}T^{2t} \right)$.
+% \end{align*}
+\end{myclaim}
+\newcommand{\proofclaimsavings}{
+\begin{proof}\ifnum\eprintversion=0[of Claim~\labelcref{claim:savings:largemc}] \fi
+If $8t<3\beta$, then the claim is immediate. Otherwise, we use the fact that $\beta_1!\beta_2!\cdots \beta_t!\geq \left({\beta}/{(te)}\right)^\beta$ (see Claim~\labelcref{claim:calc} for a proof) and the fact that $t!\geq \left({t}/{e}\right)^t$ in order to get
+\begin{align*}
+\eqref{eq:bound} \le \log \left(\frac{N^t (u^4T)^{\beta-2t}T^{2t}  u^{8t-3\beta}t^{\beta-t}e^{\beta+t}}{\beta^\beta} \right).
+\end{align*}
+Since $3\beta/8 \leq t\leq \beta/2$ (with the upper bound since each $\beta_i\geq 2$ and the lower bound by our assumption), we can show that $\beta^\beta \ge u^{8t-3\beta}t^{\beta-t}e^{\beta+t}$; See Claim~\labelcref{claim:calctwo} for a proof. Then, by plugging this bound into the above inequality we get the claim.
+\end{proof}
+}
+\ifnum\eprintversion=1
+\proofclaimsavings
+\else
+We defer the proof of this claim to the full version~\cite{full}. %Appendix~\labelcref{app:proofclaimsavings}.
+\fi
+From this claim it follows that when $\beta\geq e^3u^2/2$, by storing the multi-collisions as above, the amount of bits saved is at least
+\begin{align*}
+&\log N^\beta - \log \left(N^t (u^4T)^{\beta-2t}T^{2t} \right) = t\log \left(\frac{N}{T^2}\right) +(\beta-2t) \log \left(\frac{N}{u^4T}\right) 
+\\ & \ge (\beta-t) \log\left(\min\left\{\frac{N}{T^2},\frac{N}{u^4T}\right\}\right)      
+% & \ge \frac{\beta}{2} \log\left(\min\left\{\frac{N}{T^2},\frac{N}{u^4T}\right\}\right)    \\
+ \ge u \log\left(\min\left\{\frac{N}{T^2},\frac{N}{u^4T}\right\}\right) ,
+\end{align*}
+where the second inequality follows since $t \le \beta/2$, and $\beta/2\geq e^3u^2/4\geq u^2\geq u$.
+
+For the bound that we want to get in this section, the amount of bits we need to save \emph{per mouse structure}  is $\log\left(\min\left\{\frac{N}{T^2},\frac{N}{u^4TB^2}\right\}\right)$ (see explanation below), and so in this case \emph{we indeed save enough from encoding one such set of multi-collisions}.
+
+\heading{The compression argument.} We encode a source node from a destination node by encoding the distance and which of the nodes at the given distance from the destination node is the source node. If the number of candidate nodes at the specified distance is larger than $e^3u^2/2$, by Lemma~\labelcref{lem:neigh}, we are guaranteed that there exist $t$ multi-collisions of size $\beta_1,\beta_2,\ldots,\beta_t$ such that $\beta \ge \sum_{i=1}^t (\beta_i-1)\geq e^3u^2/2$. This implies,  by Claim~\labelcref{claim:savings:largemc}, that we can already save enough by only encoding this set of multi-collisions.
+Using this argument we prove Lemma~\labelcref{lem:secbound} which in turn implies \Cref{thm:MDST2}, as explained above. 
+\ifnum\eprintversion=0
+We defer the proof of Lemma~\labelcref{lem:secbound} to the full version~\cite{full}.
+\else 
+We sketch the proof of Lemma~\labelcref{lem:secbound} below. (We note that in 
+Appendix~\ref{sec:formal:MDST2} 
+we state the changes in the pseudocode of encoding and decoding algorithms, compared to the algorithms used in the proof of \Cref{thm:MDST}.)
+
+\begin{proof}[Sketch of Lemma~\labelcref{lem:secbound}]
+We continue using the setup and notation we defined in the proof of Lemma~\labelcref{lem:comp}. After encoding $U$ into $\uf,\Pred$ and accounting for the list that classifies the mouse structure into the various cases, here the budget of bits per mouse structure will be $$\log \left(\min\left\{\frac{N}{e^34T^2},\frac{N}{4e^3u^4TB^2}\right\}\right).$$
+
+The first difference here is how we encode source salts from destination salts, an action that we need to do to handle Cases~\labelcref{case:somerep,case:norep}. Except this, there are no differences in the argument, namely, handling Cases~\labelcref{case:newcol,case:oldsl,case:newsl,case:repnew} remains the same.
+
+\heading{Encoding source salts.} 
+We let $d$ be the minimum number of edges between the source and destination nodes. If there are at most $e^3u^2/2$ possible salts such that their shortest path to the source node in the query graph so far has $d$ edges, we encode the distance and which of the nodes is the actual destination node. This would take $\log (e^3u^2B/2)$ bits. By repeating the same proof with this term, we obtain that the term $B(m_0)^{B-2}$ is replaced by $e^3u^2B/2$. In Case~\labelcref{case:somerep} and sub-cases~\labelcref{case:norepa,case:norepb} of Case~\labelcref{case:norep}, this  strategy will save enough directly.
+
+If there are more than $e^3u^2/2$ possible salts such that their shortest path to the destination node in the query graph so far has $d$ edges, we encode the set of multi-collisions that we are guaranteed by Lemma~\labelcref{lem:neigh} and save at least $
+u \log\left(\min\left\{\frac{N}{e^3T^2},\frac{N}{e^3u^4T}\right\}\right)$ bits, which is more than what we need across all mouse structures. In this case, the entire encoding just removes the answers of queries from $\hrest$ involved in these multi-collisions and just outputs the rest of $\hrest$ and these multi-collisions. 
+\fi
+
+\newcommand{\subcasesix}{
+\ifnum\eprintversion=1\heading{Handling sub-cases~\labelcref{case:norepc,case:norepd} of Case~\labelcref{case:norep}.} \fi For sub-cases~\labelcref{case:norepc,case:norepd} of Case~\labelcref{case:norep}, if we use the new strategy to encode the destination nodes, we might not save enough. We explain why this is the case. Recall that in sub-case~\labelcref{case:norepc} of Case~\labelcref{case:norep}, per mouse structure, our savings was
+\[\log \frac{N}{T^2} +\log \frac{N}{uTB^2m_0^{2(B-2)}}\] bits. Now, when we replace $Bm_0^{B-2}$ with $e^3u^2B/2$, the per mouse structure savings is 
+\[\log \frac{N}{T^2} +\log \frac{N}{e^3u^5TB^2}\]
+bits. 
+For our current budget, this is not enough. To accommodate this, we could increase our budget per mouse structure by replacing the $u^4$ term with a $u^5$ term.\footnote{This would result in an $S^5$ term in the total upper bound on the advantage of the attacker. Our improved compression strategy gives an $S^4$ term.} But, by slightly modifying the encoding/decoding procedures, we can use the allocated budget.
+
+The idea here is that because we have a larger budget in terms of $u$,
+we no longer need to use the unordered set trick. In more detail, we were encoding indices of some queries in unordered sets and paths related to that query to figure out the order of these queries. Here we can encode all queries in their right order and no longer encode the paths required to recover the order of these queries. We explain this through the example of how we handle Scenario 1 of sub-case~\labelcref{case:norepc}.
+
+The encoding procedure now stores the following:
+\begin{itemize}
+  \item Minimum index of the query $q_2,q_3$ in $\qf$, index of query $q_1$ in $\q_j$. These are stored in lists.
+  \item The number of edges $d$ on the shortest path from the answer salt of query $q_3$ in the query graph when $q_1$ was queried and the lexicographic index $i$ of the answer salt of $q_1$ among the salts whose shortest path to the answer salt of query $q_3$ is $d$. This is stored in a list ordered by $j$. 
+\end{itemize}
+The answers of queries $q_1$ and $q_3$ are removed from $\hrest$.
+
+The decoding procedure answers $q_3$ with the input salt of $q_2$. On query $q_1$, it locates the salts in the query graph such that they have $d$ edges on the shortest path answers with the salt with lexicographic index $i$ among these salts.
+
+Here the total number of bits saved per mouse structure is at least
+\begin{align*}
+& \log N^2-2\log FT - \log T -\log B-\log (e^3u^2/2)  \\ 
+& \ge \log \frac{N}{T^2} +\log \frac{N}{e^3F^2u^2TB} \\
+&\ge \log \frac{N}{T^2} +\log \frac{N}{e^3u^4TB} ,
+\end{align*}
+where the last inequality follows since $F\le u$. Note that this is within our budget. We can similarly show that we can save enough bits (as required by our budget) for other scenarios of sub-cases~\labelcref{case:norepc,case:norepd}. We avoid repetition and omit the full details. Otherwise, there are no other differences in this proof compared to Lemma~\labelcref{lem:comp}.
+\end{proof}
+
+}
+
+\ifnum\eprintversion=1
+\subcasesix
+\else
+% The proof is very similar to that of Lemma~\labelcref{lem:comp}, except that we need to handle sub-cases~\labelcref{case:norepc,case:norepd} of Case~\labelcref{case:norep} slightly differently. See the full version~\cite{full}
+% %Appendix~\labelcref{app:sub-six} 
+% for all the details.
+\fi
+\newcommand{\proofremclaims}{
+Finally, we prove the two claims we used in calculations earlier.
+\begin{myclaim}\label{claim:calc}
+    Let $t\in \mathbb{N}_{>0}$ and $a_1,a_2,\ldots,a_t\in \mathbb{N}_{>0}$. Let $a=a_1+a_2+\ldots+a_t$. Then
+    \[
+    a_1!a_2!\cdots a_t!\geq \left(\frac{a}{te}\right)^a    
+    \] 
+\end{myclaim}
+\begin{proof}
+    From Sterling's approximation, we have that $a_i!\geq \left(\frac{a_i}{e}\right)^{a_i}$. So it suffices to prove that
+    \[
+    \prod_{i=1}^t a_i^{a_i}\geq \left(\frac{a}{t}\right)^a\;.   
+    \]
+    Since $a=a_1+a_2+\ldots+a_t$, this is equivalent to proving
+    \[
+        \prod_{i=1}^t \left(\frac{a}{ta_i}\right)^{a_i}\leq 1\;.
+    \]
+    We have that 
+    \[\frac{a}{ta_i}=\left(\frac{1}{t}+\sum_{j\in [t]\setminus \{i\}}\frac{a_j}{ta_i}\right)=1+\left(\sum_{j\in [t]\setminus \{i\}}\frac{a_j}{ta_i}-\frac{t-1}{t}\right)\;.\]
+    Using $1+x\le e^x $ we get that
+    \[
+        \prod_{i=1}^t \left(\frac{a}{ta_i}\right)^{a_i}\leq \prod_{i=1}^t e^{a_i{\sum_{j\in [t]\setminus \{i\}}\frac{a_j}{ta_i}-\frac{t-1}{t}}}\;.
+    \]
+    Simplifying we have
+    \[
+        \prod_{i=1}^t \left(\frac{a}{ta_i}\right)^{a_i}\leq  e^{\sum_{j=1}^ta_j\left({\frac{t-1}{t}-\frac{t-1}{t}}\right)}=e^0=1\;.
+    \]
+    Hence, $ \prod_{i=1}^t \left(\frac{a}{ta_i}\right)^{a_i}\leq 1$, as needed.
+\end{proof}
+
+\begin{myclaim}\label{claim:calctwo}
+    Let $\beta,u,t\in \mathbb{N}_{>0}$ such that ${3\beta}/{8}\leq t\leq {\beta}/{2}$ and $\beta\geq {e^3u^2}/{2}$. Then \[\beta^\beta \ge u^{8t-3\beta}t^{\beta-t}e^{\beta+t}\;.\]
+\end{myclaim}
+\begin{proof}
+Let $g(t)={u^{8t-3\beta}t^{\beta-t}e^{\beta+t}}/{\beta^\beta}$. Let $f(t)= \ln g(t)$ where $\ln$ is the natural logarithm. Since $\ln$ is an increasing function, $g(t)$ is maximized where $f(t)$ is maximized and vice versa.
+We show that $g(t)$ is maximized at $t={\beta}/{2}$ (see why below). For this, it suffices to show that $f(t)$ is maximized at $t={\beta}/{2}$ for ${3\beta}/{8}\leq t\leq {\beta}/{2}$ and $\beta\geq {e^3u^2}/{2}$. 
+
+\noindent We have
+\[
+f(t)=(8t-3\beta) \ln u + (\beta-t)\ln t+ (\beta+t)-\beta\ln \beta\;.    
+\]
+Differentiating with respect to $t$, we have
+\[
+f'(t)= 8\ln u+ \frac{\beta-t}{t}-\ln t +1 = \frac{\beta}{t}+\ln \frac{u^8}{t}\;.
+\]
+Since $\beta\geq {e^3u^2}/{2}$, and ${3\beta}/{8}\leq t\leq {\beta}/{2}$, $f'(t)$ is positive throughout in the domain we are interested in. So, the maximum occurs for $t={\beta}/{2}$. At $t={\beta}/{2}$, 
+\[g(t)=\frac{u^\beta \beta^{\frac{\beta}{2}}e^{\frac{3\beta}{2}}}{2^{\frac{\beta}{2}}\beta^{\beta}}=\left(\frac{e^3u^2}{2\beta}\right)^{\frac{\beta}{2}}\;.\]
+Since $\beta\geq {e^3u^2}/{2}$, this is at most $1$. Since at $t={\beta}/{2}$ the value of $g(t)$ is maximized for the range we are interested in, the claim follows.
+\end{proof}
+}
+\ifnum\eprintversion=1
+\proofremclaims
+\fi

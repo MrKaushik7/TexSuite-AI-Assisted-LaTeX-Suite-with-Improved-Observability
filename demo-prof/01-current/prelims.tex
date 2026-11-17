@@ -1,0 +1,137 @@
+\section{Preliminaries}\label{sec:prelims}
+%\heading{Notation.}
+\ifnum\eprintversion=1 Let $\mathbb{N}=\{0,1,2,\ldots\}$ denote the set of all natural numbers and let $\mathbb{N}_{>0}=\mathbb{N}\setminus\{0\}$. \fi
+For \ifnum\eprintversion=0 a positive integer \fi $N\in \mathbb{N}_{>0}$, let $[N]=\{1,2,\ldots,N\}$ and for $k\in \mathbb{N}$ such that $k\leq N$, let $\binom{[N]}{k}$ denote the set of $k$-sized subsets of $[N]$. For a set $X$, let $|X|$ be its size and $X^+$ denote the set of all lists that have one or more elements of $X$. We denote $\Func(D,R)$  the set of all functions mapping elements in $D$ to the elements of $R$.
+% \ifnum\eprintversion=1
+% For a random variable $X$, we use $\Exp{X}$ to denote its expected value and $\Var{X}$ to denote its variance. 
+% \fi
+%For random variables $X, Y$, we use $\Covar{X, Y}$ to denote their covariance. 
+%We let $y\gets\advA^{O_1, \ldots}(x_1,\ldots)$ denote running $\advA$ on inputs $x_1,\ldots$ and access to the oracles $O_1, \ldots$ to produce output $y$.
+% When the coins are implicit, we write $\getsr$ in place of $\gets$ and omit $r$.
+%
+We let $x\getsr\mathcal{D}$ denote sampling $x$ according to the distribution $\mathcal{D}$. We let $\ast$ denote a wildcard element. For example $(\ast,z)\in L$ is true if there is an ordered pair in $L$ where $z$ is the second element (the type of the wildcard element shall be clear from the context).
+If $D$ is a set, we overload notation and let $x\getsr D$ denote uniformly sampling from the elements of $D$. For a bit-string $s$ we use $\abs{s}$ to denote the number of bits in $s$.
+% We use pseudocode games, inspired by the code-based framework of~\cite{EC:BelRog06} to define security notions. are defined via games; for example, see Fig.~\ref{fig:ex-game}.
+%The probability that a Boolean random variable (i.e., an indicator) $\gameG$ is satisfied is denoted $\Pr[\gameG]$.
+
+When referring to directed graphs in this paper, we mean directed multi-graphs, i.e., these directed graphs might have parallel edges.
+All logarithms in this paper are for base $2$ unless otherwise stated.
+
+\ifnum\eprintversion=1
+\heading{Merkle-Damg\aa rd~(MD) hashing.}  For $N,M\in \mathbb{N}_{>0}$, let $h:[N]\times[M]\to [N]$ be a compression function. We recursively define Merkle-Damg\aa rd~(MD) hashing $\MD_h:[N]\times [M]^+\to [N]$ as $\MD_h(a,\alpha)=h(a,\alpha)$ for $a\in [N],\alpha\in [M]$ and \[\MD_h(a,(\alpha_1,\ldots,\alpha_B))=h(\MD_h(a,(\alpha_1,\ldots,\alpha_{B-1})),\alpha_B)\] for $a\in [N]$ and $\alpha_1,\ldots,\alpha_B\in [M]$. The elements of $[M]$ shall be referred to as \emph{blocks} and $a$, the first input to $\MD_h$ is referred to as the \emph{salt}. This is the same abstraction of plain MD hashing as the one used in~\cite{AkshimaCDW20}.
+\fi
+
+\ifnum\eprintversion=0
+	\renewcommand{\len}{0.35}
+	\renewcommand{\lenn}{0.55}
+	\renewcommand{\lennn}{}
+\else
+	\renewcommand{\len}{0.35}
+	\renewcommand{\lenn}{0.55}
+	\renewcommand{\lennn}{}
+\fi
+   \begin{figure}[t]
+    \twoCols{\len}{\lenn}
+    {
+    \underline{Game $\gameG^\aicr_{N,M,B}(\advA=(\advA_1,\advA_2))$}
+    \begin{enumerate}
+    \item $h \getsr \Func([N]\times [M], [N])$
+    \item $a \getsr [N]$
+    \item Return $\AICR_{h,a}(\advA)$
+    \end{enumerate}
+	}
+	{
+    \underline{Subroutine $\AICR_{h,a}(\advA=(\advA_1,\advA_2))$}
+    \begin{enumerate}
+    \item $\sigma \getsr \advA_1(h)$
+    \item $(\alpha,\alpha')\getsr \advA_2^h(\sigma,a)$
+    \item Return $\true$ if: 
+    \begin{enumerate}
+    \item $\alpha\neq \alpha'$, 
+    \item  $\alpha,\alpha'$ consist of $\le B$ blocks from $[M]$, \ifnum\eprintversion=1 and\fi
+    \item $\MD_h(a,\alpha)=\MD_h(a,\alpha')$
+    \end{enumerate}
+    \item Else, return $\false$
+    \end{enumerate}
+	}
+	\caption{The bounded-length collision resistance game of salted MD hash in the AI-ROM, denoted $\gameG^\aicr_{N,M,B}$.}
+    \label{fig:aicrMD}
+    \label{fig:ex-game}
+   \end{figure}
+
+
+\heading{Auxiliary-input Random Oracle Model (AI-ROM).} We use the Auxiliary-Input Random Oracle Model (AI-ROM) introduced by Unruh~\cite{Unruh07} to study non-uniform adversaries in the Random Oracle Model.
+ This model is parameterized by two non-negative integers $S$ and $T$ and an adversary $\advA$ is divided into two stages $(\advA_1,\advA_2)$. Adversary $\advA_1$, referred to as the preprocessing phase of $\advA$, has unbounded access to the random oracle $h$ and outputs an $S$-bit auxiliary input $\sigma$. Adversary $\advA_2$, referred to as the online phase, gets $\sigma $ as input and can make $T$ queries to $h$, attempting to accomplish some goal involving the function $h$. 
+ Formally, we say that $\advA=(\advA_1,\advA_2)$ is an $(S,T)$-AI adversary if $\advA_1$ outputs $S$ bits and $\advA_2$ issues $T$ queries to its oracle.
+ We next formalize the salted-collision resistance of MD hash functions in AI-ROM.
+
+
+
+\heading{Salted short collision resistance of MD in AI-ROM.}  We formalize the hardness of bounded-length collision resistance of salted MD hash functions in the AI-ROM. % which is a random oracle that maps the elements of $[N]\times [M]$ to $[N]$. 
+The game is parametrized by $N, M$, and $B$. 
+The game first samples a function $h$ uniformly at random from $\Func([N]\times [M],[N])$ and a salt $a$ uniformly at random from $[N]$. Then, $\advA_1$ is given unbounded access to $h$, and it outputs $\sigma$. At this time, $\advA_2$ is given the auxiliary input $\sigma$, a salt $a$, as well as  oracle access to $h$, and it needs to find $\alpha\neq \alpha'$ such that (1) $|\alpha|,|\alpha'| \le B\cdot M$, and (2) $\MD_h(a,\alpha)=\MD_h(a,\alpha')$. This game, denoted $\gameG^{\aicr}_{N,M,B}$, is explicitly written in Fig.~\labelcref{fig:aicrMD}. In Fig.~\labelcref{fig:aicrMD}, we write the adversary's execution in its own subroutine only for syntactical purposes (as we shall use it later in our proof).
+
+\begin{definition}[AI-CR Advantage]
+For parameters $N,M,B\in \mathbb N$, the advantage of an adversary $\advA$ against the bounded-length collision resistance of salted MD in the AI-ROM is
+\begin{align*}
+\Adv_{\MD,N,M,B}^{\aicr}(\advA)=\Prob{\gameG^{\aicr}_{N,M,B}(\advA) = \true}
+\end{align*}
+
+\noindent For parameters $S,T\in\mathbb N$, we overload notation and denote 
+\begin{align*}
+\Adv^{\aicr}_{\MD,N,M,B}(S,T) = \max_{\advA}\left\{\Adv^{\aicr}_{\MD,N,M,B}(\advA)\right\},
+\end{align*}
+where the maximum is over all $(S,T)$-AI adversaries.
+\end{definition}
+
+%We define the $(S,T)$-AI-ROM salted-collision resistance of MD hash function with the compression function in $\Func([N]\times [M],[N])$ as the maximum of $\Adv^{\aicr}_{\MD,N,M}(\advA)$ taken over all  and denote it using $\Adv^{\aicr}_{\MD,N,M}(S,T)$.
+
+%Further we consider bounded-length collisions as follows. We say that $\advA=(\advA_1,\advA_2)$ is an $(S,T,B)$-AI adversary if $\advA_1$ outputs $S$ bits and $\advA_2$ issues $T$ queries to its oracle and both outputs of $\advA_2$ are at most $B$ blocks long. 
+
+%We define the $(S,T,B)$-AI-ROM salted-collision resistance of MD hash function with the compression function in $\Func([N]\times [M],[N])$ as the maximum of $\Adv^{\aicr}_{\MD,N,M}(\advA)$ taken over all $(S,T,B)$-AI adversaries $\advA$ and denote it by $\Adv^{\aicr}_{\MD,N,M}(S,T,B)$.
+
+\heading{The compression lemma.}
+Our proof uses the well-known technique of finding an ``impossible compression''. The main idea, formalized in the following proposition, is that it is impossible to compress a random element in set $\mathcal{X}$ to a string shorter than $\log |\mathcal{X}|$ bits long, even relative to a random string.
+    \begin{proposition}[E.g.,~\cite{DeTT10}]\label{complemma}
+  Let $\Encode$ be a randomized map from $\mathcal{X}$ to $\mathcal{Y}$ and let $\Decode$ be a randomized map from $\mathcal{Y}$ to $\mathcal{X}$ such that
+  \begin{align*}
+  \Pr_{x\getsr \mathcal{X}}\left[ \Decode(\Encode(x))=x\right]\geq \epsilon.
+  \end{align*} 
+  Then,
+  $\log{|\mathcal{Y}|} \geq \log{|\mathcal{X}|}- \log (1/\epsilon)$. 
+    \end{proposition}
+
+\newcommand{\constructiveChernoffPrlims}{
+We use the following ``constructive'' Chernoff bound taken from Akshima et al.~\cite{AkshimaCDW20} which in turn is a variant of a similar lemma of Impagliazzo and Kabanets~\cite{AR:ImpKab10}. We refer to~\cite[Section 9]{AkshimaCDW20} for a proof of this proposition.
+\begin{proposition}[{\cite[Theorem 1]{AkshimaCDW20}}] \label{prop:chern}
+    Let $N\in \mathbb{N}_{>0}$, $u\in \mathbb{N}$ such that $u\leq N$,  $0<\delta<1$ and let $X_1,\ldots,X_N$ be 0/1 random variables. Let $X=X_1+\cdots+X_N$ and let $U$ be an independent random subset of $[N]$ of size $u$. 
+    \begin{align*}
+    \text{If} \quad \Prob{\bigwedge_{i\in U} X_i}\leq \delta^u, \quad \text{then}\quad
+%    \end{align*}
+%     then 
+%    \begin{align*}
+    \Prob{X\geq \max\{6\delta N,u\}}\leq 2^{-u}.
+    \end{align*}
+\end{proposition}
+}
+\ifnum\eprintversion=1
+\heading{Constructive Chernoff bound.}
+\constructiveChernoffPrlims
+\else
+\fi
+
+
+% We also use the following standard multiplicative Chernoff bound.
+% \begin{proposition}\label{prop:chernmult}
+%     Let $N\in \mathbb{N}_{>0}$, and let $X_1,\ldots,X_N$ be independent 0/1 random variables. Let $X=X_1+\ldots,X_N$ Then. 
+%     \begin{align*}
+%     \Pr[X\geq (1+\delta)\cdot \Exp{X}]\leq \exp\left(\frac{-\delta^2\cdot \Exp{X}}{2+\delta}\right)\;.
+%     \end{align*}
+% \end{proposition}
+% Finally, we use Markov's inequality in one of our proofs.
+% \begin{proposition}\label{prop:markov}
+%     For any non-negative random variable $X$ and $k>0$,
+%     \begin{align*}
+%     \Prob{X\geq k}\leq \frac{\Exp{X}}{k}.
+%     \end{align*}
+% \end{proposition}

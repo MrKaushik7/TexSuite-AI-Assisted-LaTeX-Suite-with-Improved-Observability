@@ -1,0 +1,130 @@
+% !TEX root = main.tex
+
+\section{Introduction}
+
+Starting from the seminal work of Hellman~\cite{Hellman80}, there have been significant efforts to understand the power of preprocessing attacks in various applications and constructions (e.g.,~\cite{Yao90,FiatN99,Oechslin03,BarkanBS06,Unruh07,DeTT10,DodisGK17,AbusalahACKPR17,CorettiDGS18,CorettiDG18,AkshimaCDW20,Corrigan-GibbsK19,ChawinHM20}). 
+%random-oracle-based constructions. 
+Preprocessing attacks, i.e., ones that utilize a bounded amount of auxiliary
+information, capture the standard modeling of attackers as \emph{non-uniform}, allowing them to obtain some arbitrary (but bounded length) ``advice'' before attacking the system. 
+In this work, we continue the recent line of works studying the power of preprocessing adversaries in the context of finding collisions in the widely used Merkle-Damg{\aa}rd (MD) design. 
+
+\paragraph{Collision resistance of salted MD.}
+The Merkle-Damg{\aa}rd  hash function construction~\cite{Merklephdthesis,Merkle87,Merkle89,Damgard87} is a popular design for building an arbitrary-size-input compression function from a fixed-size-input compression function. This design is not only extremely fundamental in cryptographic theory, but it also underlies popular hash functions used in practice, most notably MD5, SHA-1, and SHA-2. 
+
+The MD construction is defined relative to a  compressing function $h\colon [N]\times  [M] \to [N]$\footnote{We use the notation $[N]$ to denote the set $\{1,2,\ldots,N\}$ for a natural number $N$.}, modeled as a random oracle, as follows. First, for $a\in [N]$ and $\alpha\in[M]$, let
+$\MD_h(a,\alpha)=h(a,\alpha)$. Then, define recursively \[\MD_h(a,(\alpha_1,\ldots,\alpha_B))=h(\MD_h(a,(\alpha_1,\ldots,\alpha_{B-1})),\alpha_B)\] for $a\in [N]$ and $\alpha_1,\ldots,\alpha_B\in [M]$. The $a$ is referred to as \emph{salt} (sometimes also called IV) and each of the following~$B$ elements are referred to as \emph{blocks}. 
+
+Due to the ubiquitous influence of this hashing paradigm, both in theory and practice, characterizing the complexity of finding collisions in $\MD_h$ (on a random salt) is a fundamental problem. The well-known birthday attack gives a $T$-query attacker with $\Theta(T^2/N)$ advantage. However, this attack is very generic: it neither takes advantage of the structure of $\MD_h$ nor does it utilize the fact that the attacker may have access to some limited amount of ``advice'' about $h$ due to a long preprocessing phase. But, there is a good reason that security against non-uniform attackers has become the
+standard notion of security in the cryptographic literature: it captures the natural idea that an adversary may have been designed to attack specific instances, guaranteeing security against an expensive preprocessing stage, or even unknown future attacks.  On the whole, it is widely believed by the theoretical community that non-uniformity is the right
+cryptographic modeling of attackers, despite being overly conservative and including potentially
+unrealistic attackers.
+Therefore, understanding the complexity of finding collisions in MD, allowing preprocessing, is a fundamental problem.
+
+\paragraph{The auxiliary-input random oracle model.}
+The concrete hash functions $h$ used in real-life do not have solid theoretical foundations from the perspective of provable security. Therefore, when analyzing the security of the MD construction, the function $h$ is typically modeled as a completely random one, i.e., a random oracle.
+We follow the standard approach and model preprocessing adversaries using the influential extension of the random oracle model termed  \emph{auxiliary-input random oracle model} (AI-ROM). This model was (implicitly) used, for example, in the classical works of Yao~\cite{Yao90} and Fiat and Naor~\cite{FiatN99}, and formally defined in the influential work of Unruh~\cite{Unruh07} which was recently revisited by Dodis, Guo, and Katz~\cite{DodisGK17} and Coretti et al.~\cite{CorettiDGS18}.
+
+
+The AI-ROM models preprocessing adversaries as two-stage algorithms $(\mathcal {A}_1,\allowbreak\mathcal{A}_2)$ parametrized by $S$ (for ``space'') and $T$ (for ``time''). The first part $\mathcal A_1$ has unbounded access to the random oracle $h$, and its goal is to compute an $S$-bit ``advice'' $\sigma$ for $\mathcal A_2$. The second part $\mathcal A_2$ gets the advice $\sigma$, can make at most $T$ queries to the random oracle, and attempts to accomplish some task involving $h$. In our case, $\mathcal A_2$ gets a random salt~$a$ as a challenge and its goal is to come up with a collision in $\MD_h(a,\cdot)$. Both $\mathcal A_1$ and $\mathcal A_2$ are unbounded in running time. 
+
+\paragraph{Known results.}
+Collision resistance of salted MD hash functions in the AI-ROM was first
+studied by Coretti, Dodis, Guo, and Steinberger~\cite{CorettiDGS18}. Among other results, they showed an attack,  loosely based on the idea of rainbow tables~\cite{Hellman80,Oechslin03}, with advantage $\tilde\Omega(ST^2/N)$.\footnote{Throughout the paper, the $\tilde{}$ notation suppresses poly-logarithmic terms in $N$.} \footnote{By ``advantage'' we mean the probability of finding a collision.} They further showed that this attack is optimal. Namely, no attack can have an advantage better than $\tilde O(ST^2/N)$. (Notice that this attack beats the naive birthday attack mentioned above for typical values of~$S$.) In a more recent work of Akshima,  Cash, Drucker, and Wee~\cite{AkshimaCDW20} observed that the attack of Coretti et al.~\cite{CorettiDGS18} results in very long collisions, of the order of~$T$ blocks, which may limit their practical usefulness. While formally, a length~$T$ collision does violate collision resistance, it is hard to imagine a natural application where it is useful. Indeed, for reasonable values of $T$, say $T=2^{60}$, it is unlikely that such a collision, which is several petabytes long, could damage any widely-used application.
+
+%For Indeed,  we typically think of~$T$ as much bigger than~$S$, and therefore, even storing the collision becomes challenging. %In particular, for a function like SHA-256, where $M=2^{512}$, $N=2^{256}$, and with preprocessed advice of size $S= 2^60$, their attack gives constant advantage after roughly $T=2^{100}$ queries, and the length of the collision is about the same as $T$, more than the number of particles on earth. 
+Akshima et al.~\cite{AkshimaCDW20} therefore raise the very natural question of what is the complexity of finding \emph{short} collisions. 
+
+\ifnum\eprintversion=0
+\begin{center}
+{ \it What is the complexity, as a function of $S$ and $T$ (the allowed space and query bounds, respectively), of finding a  $B$-block collision in salted MD?}
+\end{center}
+\else
+\begin{center}
+{ \it What is the complexity, as a function of $S$ and $T$ (the allowed space and query bounds, respectively), \\of finding a  $B$-block collision in salted MD?}
+\end{center}
+\fi
+
+
+
+Although this question is very natural and clean, as mentioned, a complete answer is known only in the extreme cases, either when $B=2$ or when $B=\tilde \Omega(T)$.  Indeed, when $B$ is very close to $T$, the result above of Coretti et al.~\cite{CorettiDGS18} implies that the advantage is  $\tilde\Theta(ST^2/N)$. The case of $B=2$ was resolved by Akshima et al.~\cite{AkshimaCDW20} who showed that the advantage is $\tilde\Theta(ST/N + T^2/N)$. Even for $B=3$, a complete answer is not known: The analysis of Akshima et al.~\cite{AkshimaCDW20} consists of an elaborate case analysis tailored to the $B=2$ case, and they claim that even for $B=3$ the proof of their lower bound ``{\it …\ would be too long and complex to write down''}.\footnote{For $B=1$ a tight bound of $\Theta(S/N+T^2/N)$ is known~\cite{DodisGK17}.}
+
+\paragraph{The STB conjecture.}  In terms of upper bounds, Akshima et al.~\cite{AkshimaCDW20} showed that a variant of  Coretti et al.'s (rainbow tables inspired) attack could be generalized to get a $B$-block collision with advantage $\tilde \Omega( STB / N)$. This attack generalized the attack of Coretti et al.~\cite{CorettiDGS18} which gives an $O(T)$-block collision with probability $\tilde \Omega(ST^2/N)$. 
+With the lack of better bounds on the best possible attack for a wide range of $B$'s (anywhere between $B=3$ and $B\ll T$),  Akshima et al.~\cite{AkshimaCDW20} put forward the ``\emph{STB conjecture}'' which posits that the optimal attack for finding length $B$ collisions has advantage $\tilde \Theta(STB/N + T^2/N)$ (i.e., the better between their attack and the generic birthday attack).
+
+We believe that our current understanding of the exact security that MD-style constructions could ideally achieve is insufficient. Therefore, given how widespread MD-based hash functions are, progress towards resolving the conjecture is highly important.
+
+\subsection{Our Results}
+Our main result confirms the STB conjecture in many new parameter settings. Specifically, we prove two new upper bounds on the advantage of the best attack for finding short collisions in salted MD hash functions in the AI-ROM. The first bound confirms the STB conjecture for all constant values of $B$. The second result confirms the STB conjecture even for super constant values of~$B$ but only for moderately large values of~$S$ compared to~$T$.
+
+
+
+\paragraph{STB conjecture is true for all constant $B$.}
+We show that for any $B\in O(1)$, the advantage of any  $S$-space $T$-query attacker in finding a length~$B$ collision is bounded by
+$\tilde O (ST/N + T^2/N)$, matching the known attack up to poly-logarithmic factors. 
+\begin{theorem}[Informal; See Theorem~\ref{thm:MDST}]
+\label{thm:MDST_intro}
+For every constant $B$, the STB conjecture is true.
+\end{theorem}
+
+This theorem is obtained as a special case of a more general bound on the advantage of any $S$-space $T$-query attacker in finding a length $B$ collision of the form
+$$%\begin{align*}
+\tilde O\left(\frac{S T B^2 (\log^2 S)^{B-2}}{N} + \frac{T^2}{N}\right).
+$$ %\end{align*}
+Note that this bound is meaningful when $B$ is a constant (or slightly bigger) but becomes vacuous when say, $B= \log N$.
+%In fact, our first upper bound is more general and confirms the STB conjecture even for some $B\in \omega(1)$, as long as $S$ is not too large. Specifically, we show that the advantage is bounded by (see Theorem~\ref{thm:MDST} for a precise statement)
+%This bound implies those above bound for all constant $B$. Indeed, for any fixed constant $B$, the expression can be written as $\tilde O (ST/N + T^2/N)$. Additionally, for any $T$, any $S \in \mathsf{poly}(\log N)$, and whenever $B\in O(\log \log N/\log\log\log N)$,  the above bound can again be written as $\tilde O (ST/N + T^2/N)$.
+
+\paragraph{STB conjecture is true for all $SB \ll T$.}
+We show that as long as $S, B\ll T$, the conjecture is true again. Specifically, we show that whenever $S^4B^2 \in \tilde O(T)$, the maximal advantage of any  $S$-space $T$-query attacker in finding a length~$B$ collision is obtained by the birthday attack, up to poly-logarithmic factors. For example, when $SB\le T^{1/4}$, the maximal advantage is $O(T^2/N)$, and therefore the STB conjecture holds.
+\begin{theorem}[Informal; See Theorem~\ref{thm:MDST2}]
+\label{thm:MDST2_intro}
+For every $S^4B^2 \in \tilde O(T)$, the STB conjecture is true. For instance, the conjecture holds if either
+\begin{itemize}
+\item $B\in \mathsf{poly}\log N$ and $S \in \tilde O(T^{1/4})$, or
+\item $B \in \tilde O(T^{1/4})$ and $S \in \tilde O(T^{1/8})$.
+\end{itemize}
+\end{theorem}
+This theorem is obtained as a special case of a more general bound on the advantage of any $S$-space $T$-query attacker in finding a length $B$ collision of the form
+$$%\begin{align*}
+\tilde O\left(\frac{S^4 T B^2}{N} + \frac{T^2}{N}\right).
+$$% which implies the above theorem.%\end{align*} 
+
+%\paragraph{STB conjecture is true for all distinct-walk attackers.}
+%Lastly, as a bonus, we confirm the STB conjecture for all possible parameters but a restricted class of attacks. This generalizes a similar result of~\cite{AkshimaCDW20} which applied to a strictly smaller class of attacks.
+%
+%We define a distinct-walk attacker as a collision finder that outputs collisions of the form 
+%\begin{align*}
+%(\alpha_1\concat \alpha_2\concat \ldots\concat \alpha_{B-1}\concat \beta) \qquad (\alpha_1\concat \alpha_2\concat \ldots\concat \alpha_{B-1}\concat \beta),
+%\end{align*}
+%where all the $\alpha_i$'s are distinct. We show that the maximal success probability achieved by this broad class of attacks is at most $\tilde{O}(STB/N)$. This result generalizes a similar result of~\cite{AkshimaCDW20} who only considered zero-walk attacks, i.e., attackers that output a collision as above but where $\alpha_2=\ldots=\alpha_{B-1}=0$.
+
+
+\paragraph{A concrete comparison between the results.}
+The two bounds are generally incomparable. While the bound from \Cref{thm:MDST_intro} is asymptotically tight whenever $B$ is constant (independent of $S,T$), it becomes vacuous for say $B= \log N$. On the other hand, the bound from \Cref{thm:MDST2_intro} is meaningful for all $B\in o(N^{1/2})$, as long as $S^4\cdot B^2 \ll N$.  For instance, assume that $S = N^{1/16}$ and $B \in \Theta(N^\epsilon)$ (for $0<\epsilon<1/8$). In this setting, the  bound from \Cref{thm:MDST_intro} is trivial. On the other hand, the bound from \Cref{thm:MDST2_intro} gives that any successful attack must satisfy $T \in \tilde \Omega(N^{1/2})$ which is strictly better than what the generic $\tilde O(ST^2/N)$ bound gives (it only gives $T \in\tilde \Omega(N^{15/32})$).
+
+
+\paragraph{Technical highlight.} The main technical component in both of our bounds is a compression argument that uses a ``too-good-to-be-true'' attacker to non-trivially compress a uniformly random sequence of bits, thereby getting a contradiction. The setup is somewhat similar to the one of Akshima et al.~\cite{AkshimaCDW20} (although slightly more modular), but our compression argument deviates from theirs significantly. Their argument inherently relied on the fact that there are at most two blocks in the collision, therefore greatly simplifying the possible structures to consider. In contrast, we consider arbitrary length collisions, and thus we have to deal with all possible structures of collisions. Our proof identifies and analyzes a general structure for MD collisions and unveils a natural combinatorial problem that influences the resulting upper bound on the advantage of preprocessing adversaries. We formalize the structure of MD collisions using directed graphs that are defined according to the random oracle queries the adversary makes.
+It turns out that the ``dominant extra'' terms in both of our bounds ($(\log^2 S)^{B-2}$ in the first bound and $S^3$ in the second) emerge due to the need to encode a \emph{reverse path} in a general (fan-out 1, but possibly large fan-in) directed graph. Any improvement on this encoding would immediately imply a better upper bound, a fact that we hope will lead to better bounds in the future.
+%This bound, in particular, says that whenever $S^4B^2 \in O(T)$, then the birthday attack is optimal. The bound also confirms the STB conjecture as long as $S,B \in \mathsf{poly}(\log N)$.
+%While reducing the constant 4 to say 3 in the exponent of $S$ may be doable by optimizing and tightening our analysis, we believe that shaving it off entirely and getting the bound $O(STB^2)$ term (let alone $O(STB)$) in the above bound would require new ideas. 
+
+%To this end, Akshima et al.~\cite{AkshimaCDW20} put forward the \emph{STB conjecture}:
+%\begin{quote} 
+%{\it The best $T$-time $S$-space attack has the advantage for finding collisions of length $B$ in salted MD achieves success probability at most $O(STB / N + T^2 / N)$.}
+%\end{quote}
+
+\subsection{Discussion}
+As mentioned, the MD paradigm underlies numerous hash function constructions that are central building blocks in many applications. There are several popular variants of the MD paradigm implemented in practice. In this work, we follow previous works and focus on the cleanest variant for concreteness. One prominent variant withstands length extension attacks by padding the input message with its length. (In fact, this is the version suggested by Merkle and Damg{\aa}rd.)  We remark that our results directly apply to this padded variant.
+Specifically, the ``$STB$'' attack finds a collision with the same number of blocks, so it readily extends to this padded variant. Our bounds on the best possible attacks also extend to this setting since the argument did not use any specific property on the collision blocks. 
+It is interesting to study other practically used variants and understand if similar results can be obtained. To this end, we hope that the techniques we develop in this work will be helpful.
+
+From a theoretical perspective, no single function can be collision-resistant (in the plain model), as a non-uniform attacker can trivially hardwire a collision. This is why collision resistance is considered with respect to a family of hash functions indexed by a key called \emph{salt}. The salt is chosen after the attacker is fixed (and so is the non-uniform advice about the family of functions). Still, in practice, a single hash function is typically defined by fixing a salt, making it insecure against non-uniform attackers. This contrasts with how we define the collision resistance game, where the salt is chosen randomly after the preprocessing phase. Thus, it may seem that the expensive preprocessing needed for attacks in our model does not represent real-life scenarios. However, often the hash function used in a particular application (relying on collision-resistance) is  \emph{salted} by prepending a random salt value to the input. One such well-known application is \emph{password hashing}~\cite{MorrisT79}. Such salting essentially corresponds to the random-salt setting considered here, and, therefore, the attack becomes relevant again. 
+
+The primary motivation for our work is to make progress towards the STB conjecture, which we view as a fundamental problem. To this end, we focused on asymptotic bounds as a function of $S, T$, and $B$. We hope that the concrete bounds could be improved in future works, affecting design choices of real-life hash functions.
+
+\paragraph{Follow up work.}
+A recent work of Akshima, Guo, and Liu~\cite{AkshimaGL22} proved a new bound on the maximal possible advantage in finding $B$-block collisions. Specifically, they confirmed the STB conjecture assuming $ST^2 \leq N$. Their bound is overall incomparable to ours: it is better than our Theorem~\ref{thm:MDST2_intro} but worse than Theorem~\ref{thm:MDST_intro}.
+Also, Freitag, Ghoshal, and Komargodski~\cite{FreitagGK22} studied related problems in the context of sponge hashing, an alternative to the Merkle-Damg{\aa}rd paradigm that underlies  (for instance) the SHA-3 standard.
+
+
+%\subsection*{Paper Organization} In Section~\labelcref{sec:techov}, we provide an overview of the main techniques that we use to prove the results above. In Section~\labelcref{sec:prelims}, we introduce our notation, definitions, and well-known propositions that we use in the paper. We present our modular framework for the analysis (adapted from~\cite{AkshimaCDW20}) in Section~\labelcref{sec:setup}. In Section~\labelcref{sec:comparg}, we prove the STB conjecture for all constant B. Finally, in Section~\labelcref{sec:secbound}, we show how to extend this proof to prove the STB conjecture for $SB\ll T$.

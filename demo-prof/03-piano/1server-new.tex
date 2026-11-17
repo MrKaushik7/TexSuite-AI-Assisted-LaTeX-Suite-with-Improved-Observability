@@ -1,0 +1,609 @@
+\begin{figure}[p]
+    
+    \begin{minipage}{\textwidth}
+        \begin{mdframed}
+            \label{alg:fulloneserv}
+            \begin{center}
+                {\bf Single-Server Scheme for $Q=\sqrt{n}/2$ Queries
+                    \footnote{We first present the scheme supporting distinct and random queries. As mentioned, these restrictions can be removed by applying PRP and local caching.}
+                }
+            \end{center}
+            \parhead{Notation.}
+            $\kappa$ denotes a {\it statistical} security parameter, $\lambda$
+            denotes a computational security parameter. We use $\alpha(\kappa)$
+            to denote an arbitrarily small super-constant function.
+            
+            
+            \parhead{Preprocessing.} 
+            %\ \\[-6pt]
+            \begin{itemize}[leftmargin=3mm,itemsep=1pt]
+                \item 
+                \Client samples $M_1=2\sqrt{n}\log \kappa \cdot \alpha(\kappa)$
+                master \ppps keys denoted $\psk_1, \dots, \psk_{M_1} \in \{0,
+                1\}^\lambda$.
+                %, where $M_1=\sqrt{n}\log \kappa \cdot \alpha(\kappa)$. , such
+                %that $\alpha(n)=\omega(1)$. \elaine{TODO: fix params}
+                Initialize the parities $p_1,\dots,p_{M_1}$ to zeros.
+                
+                %\elaine{TODO: notation inconsistent with earlier text}
+                
+                \item 
+                \Client downloads the whole DB from the server in a streaming
+                way: when the client has the $j$-th chunk
+                $\DB[j\sqrt{n}:(j+1)\sqrt{n}]$:
+                \begin{itemize}
+                    \item {\it Update primary table}: for $i \in [M_1]$, let
+                    $p_i \get p_i \oplus \DB[\Set(\psk_i)[j]]$.
+                    \item {\it Store replacement entries}: sample and store
+                    $M_2=3\log \kappa \cdot \alpha(\kappa)$ % \log \kappa\cdot
+                    % \alpha(\kappa)$ 
+                    tuples of the form $(r, \DB[r])$ where $r$ is a random index
+                    from the $j$-th chunk.
+                    %independent random indices from $[i\sqrt{n}:(i+1)\sqrt{n}]$
+                    %with the associated database values.
+                    \item Delete $\DB[j \sqrt{n}:(j +1)\sqrt{n}]$ from the local
+                    storage.
+                \end{itemize}
+                
+                \item At this moment, let $T := \{(\psk_i, p_i )\}_{i \in
+                [M_1]}$ denote the client's {\it hint table}. Mark all the hints
+                as ``good''.
+            \end{itemize}
+            
+            
+            
+            
+            \parhead{Query for index $x \in \{0, 1, \ldots, n-1\}$.}
+            %When a query $x \in \{0, 1, \ldots, n-1\}$ arrives, \Client
+            %performs the following: 
+%            \begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+%                \item 
+%                {\bf Query:}
+                \begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+\item 
+${\sf Client}$:
+ For each matched entry $(\sk_i, p_i)$ such that $x\in \Set(\sk_i)$
+in the hint table, do the following unless there are already $M_3 = 3 \log \kappa \cdot \alpha$ matched entries: 
+\begin{itemize}[leftmargin=4mm]
+\item 
+For the first good (i.e., non-broken) matched entry,  
+find the first unconsumed replacement entry $(r, \DB[r])$ 
+for $\chunk(x)$. \footnote{If not found, treat it as the otherwise case.}
+\item 
+Otherwise, sample a random index %$r \in \{0, \ldots, \sqrt{n}-1\}$.
+$r$ in $\chunk(x)$.
+\item 
+$(\sk', i^*)\leftarrow {\sf Program}(\sk_i, {\sf chunk}(x), r \text{ mod } \sqrt{n})$.
+\item 
+Send $\sk'$ to the server, and receive  
+$\{\beta_i\}_{i \in \{0, \ldots, n^{1/4}-1\}}$ from the server.
+\item 
+For the first good matched entry, save the answer 
+$p_i \oplus \beta_{i^*} \oplus \DB[r]$. %where $\DB[r]$ is retrieved
+%from the replacement entry consumed.
+\item 
+Sample a fresh 
+\ppps key $\sk_{\rm new}$ subject to $x \in \Set(\sk)$, and 
+replace the 
+consumed entry $(\sk_i, p_i)$ with 
+$(\sk_{\rm new}, 0)$
+and mark the entry as {\it broken}.
+\end{itemize}
+
+\item 
+${\sf Client}$:
+If less than $M_3$ keys are sent in the previous step, send more dummy programmed keys to the server until there are $M_3$ keys sent~\footnote{The dummy key is constructed as sampling a random \ppps key $\sk$ subject to $x\in \Set(\sk)$ and call $\sk', \_ \leftarrow {\sf Program}(\sk, \chunk(x), \delta')$.}.
+%repeat the following $M_3 - {\sf cnt}$ times:
+%sample a random \ppps key $\sk$ subject to $x \in \Set(\sk)$, 
+%call 
+%$\sk', \_ \leftarrow {\sf Program}(\sk, \chunk(x), \delta')$
+%where $\delta'$ is 
+%sampled randomly from $\{0, 1,\ldots, \sqrt{n}-1\}$,
+%and send $\sk'$ to the server. Ignore the answers received.
+
+\item 
+${\sf Client}$: Output the saved answer.  
+If no answer was saved, output $0$.
+\item 
+${\sf Server}$: 
+for each $\sk'$ received, 
+let $S_0, \ldots, S_{n^{1/4}-1} \leftarrow {\sf ListDecode}(\sk')$. 
+For each $i \in \{0, \ldots, n^{1/4}-1\}$, 
+send the xor-sum $\oplus_{j \in S_i}\DB[j]$ to the  
+client\footnote{We use the normal representation of the set $S_i$ and not
+the offset representation.}. 
+\ignore{
+\item 
+${\sf Client}$: 
+Let $g$ be the index of the first 
+matched entry that is not marked broken --- if no such $g$ is found,
+simply output $0$. 
+Let
+$\{\beta_i\}_{i \in [n^{1/4}]}$ 
+be the answers received from the server
+corresponding to the $g$-th programmed key $\sk'$ sent to the server.  
+Output 
+$\beta_i \oplus \DB[r]$
+}
+
+
+\ignore{
+                    \Client finds all the matched hints
+                    $(\sk_1,p_1),\dots,(\sk_m,p_m)$ in the hint table  such that
+                    $x\in \Set(\sk_j)$ for all $j\in[m]$.
+                    
+                    \item 
+                    If there are less than $M_3=6(\ln \kappa \alpha(\kappa))^2$
+                    hints, pad them with random broken hints. If there are more
+                    than $M_3$ hints, sample $M_3$ hints from them. Randomly
+                    shuffle the order of these hints\footnote{We add this random
+                    shuffle to ensure that the order of the hints do not reveal
+                    any information}.
+                    %\item If there are more than $M_3$ matched hints, randomly
+                    %choose $M_3$ hints among them. (see \Cref{eqn:setfromkey}
+                    %for the definition of $\Set(\psk_j, x')$ where $x'$ is
+                    %possibly $\bot$). 
+                    
+                    
+                    % \item For the one of the randomly chosen good matched hint
+                    % $(\sk_j, p_j)$\footnote{If there are no good matched hint,
+                    % just mark the answer as 0.}:
+                    % \begin{itemize}
+                    %     \item \Client finds the first unconsumed replacement
+                    %     entries $(r, \DB[r])$ from $x$'s chunk;
+                    %     \item Execute $\SingleQuery(x, \sk_j, p_j, r, \DB[r])$
+                    %     and mark the answer for the query.
+                    % \end{itemize} 
+                    
+                    % \item Simultaneously, for other matched hints $(\sk_j,
+                    % p_j)$: 
+                    % \begin{itemize}
+                    %     \item \Client executes $\SingleQuery(x, \sk_j, 0, r',
+                    %     0)$ with a random index $r'$ from $x$'s chunk and
+                    %     ignores the answer.
+                    % \end{itemize}
+                    \item For each hint, do the following:
+            \begin{itemize}
+                \item if the hint is marked good, find the first unconsumed replacement entry $(r, \DB[r])$ from $x$'s chunk;
+                and execute $\SingleQuery(x, \sk_j, p_j,r,\DB[r])$ and store the answer for the query.
+                \item Otherwise, execute $\SingleQuery(x, \sk_j, 0,0,r')$ with a random index $r'$ from $x$'s chunk  and ignore the answer.
+            \end{itemize}
+                
+            \item Return the answer of any of the good hints. If none of the hints were good, just return $0$.
+}
+                    
+%                \end{enumerate}
+                
+\ignore{
+                \item 
+                {\bf Refresh:}
+                \begin{itemize}
+                    \item \Client replaces all the keys for the matched hints in
+                    the hint table with $\sk'_1,\dots,\sk'_m$, such that for all
+                    $j$, $\sk'_j$ is rejection-sampled conditioned on $x\in
+                    \Set(\sk'_j)$. Also mark the parities as 0 and mark those
+                    hints as ``broken''.
+                \end{itemize}
+       }         
+            \end{enumerate}
+        \end{mdframed}
+    \end{minipage}
+    \caption{
+Our single-server pre-processing PIR scheme.
+%Sublinear single server preprocessing PIR protocol introduced in
+%    Section ~\labelcref{sec:single-server}. The protocol uses $\SingleQuery$ defined
+%    in Fig.~\labelcref{fig:single-query} as a sub-routine.
+}
+    \label{fig:1server-new}
+\end{figure}
+
+
+\section{Our Single-Server PIR Scheme}\label{sec:one-server}
+
+
+\subsection{Construction}
+
+\paragraph{Notation.} For $x\in \{0,1,\ldots,n-1\}$, we define $\chunk(x):=\lfloor x/n^{1/2} \rfloor$ and $\superblock(x):=\lfloor \chunk(x)/n^{1/4} \rfloor$. We assume $(\Gen,\Set,\Program,\Decode)$ is a \ppps scheme over the distribution $\mcal{D}_n$ as described in Section~\labelcref{sec:ppps}.
+
+\paragraph{Intuition.} The major differences between our single-server scheme and the two-server scheme are summarized below.
+
+\begin{itemize}[leftmargin=*]
+    \item \textit{Preprocessing.} The two server scheme allows the client to do preprocessing with one server and do online queries with another server. 
+    Our single-server scheme uses the technique from Piano~\cite{piano} such that the client makes a streaming pass over the whole database (retrieving from the only server) and runs the preprocessing locally. 
+    
+    \item \textit{Query and Refresh.}
+    The two-server scheme allows the client to replace a consumed set with a new set on-the-fly, because the client can query another server for the new parity.
+    Instead, in the single-serve scheme, we use a new \underline{broken hint} idea. 
+    The client still generates a new set after the query, but it only marks the new set as ``broken hint'' since the parity is unknown. 
+    To ensure correctness, the client now  \textit{uses all the matched sets} given one query, and as long as there is one non-broken hint, the answer can be computed correctly.
+\end{itemize}
+
+
+\paragraph{Detailed algorithm for bounded, random queries.}
+%We describe the detailed construction
+In \Cref{fig:1server-new}, we describe
+our algorithm which supports  
+$Q = \sqrt{n}/2$ random and distinct queries.
+It is well-known how to upgrade such an algorithm
+to support an {\it unbounded} number of 
+{\it arbitrary} queries~\cite{pir-ec23}.
+For completeness, we briefly describe the upgrade shortly after.
+
+\paragraph{Efficiency.}
+Observe that although the list decoding
+produces $n^{1/4}$ candidate sets
+each of size $\sqrt{n}$, all $n^{1/4}$ 
+sets can actually be represented using 
+only $O(\sqrt{n})$ 
+space. Further, computing the parities 
+of all sets 
+takes only $O(\sqrt{n})$ time.
+This is because all $n^{1/4}$ sets are derived
+from some common set $S$, but replacing 
+offsets within each of the $n^{1/4}$ superblocks
+with another random vector $\delta_0, \ldots, \delta_{n^{1/4}-1}$.
+We give a full efficiency analysis
+in the proof of Theorem~\labelcref{thm:eff1srv}.
+
+
+\paragraph{Supporting unbounded, arbitrary queries.}
+% \elaine{TODO: add}
+We can easily get rid of the distinct query
+assumption in the following way: we can require the client to store a local cache of size $Q$ for caching the
+most recent $Q$ queries. If the client wants a repeated query, it can lookup
+in the cache and make a dummy query. 
+
+Further, we can assume that the queries are random without loss of generality as follows: we can let the client and the server agree on a pseudorandom permutation (PRP)~\cite{prp1,prp2} upfront and the server can permute the database according to the PRP. Another option is let the server
+build the database as a key-value storage and use a cuckoo hash
+table~\cite{cuckoo1,cuckoo2} directly based on a PRF to locate the queries.
+Notice that, in both implementations, the client can still make queries
+adaptively depending on the real query sequence and the responses, which is
+sufficient for practical usage. Then, as long as the client makes the
+queries independent of the randomness of the PRP/PRF, those queries can be
+considered as uniformly random. This assumption is only needed for the
+correctness.
+
+Lastly, we can remove the bounded $Q$ query assumption as follows: the straightforward way is that once the client finishes a window of $Q$ queries, the client and the server reruns the preprocessing phase again, using fresh randomness. 
+The drawback is that the client has to wait a long time before starting the next window.
+As previous work pointed out~\cite{piano,pir-ec23}, we can easily avoid
+this drawback 
+through a simple pipelining trick, by spreading
+the preprocessing work of the next $Q$ window
+over the current $Q$ window of queries. 
+\ignore{
+We can do something relatively better using a simple pipelining trick, similar to that suggested in Piano~\cite{piano}. 
+The scheme first runs a preprocessing phase for the first $Q$ queries. 
+Then, during the query phase, the client interacts with the preprocessing server and gradually finishes the preprocessing for the next $Q$ queries. 
+Essentially, the client and the server can split the work (including computation and communication) of the preprocessing into $Q$ pieces.
+Whenever the client finishes a query, the client and the server will finish the next piece of work about preprocessing.
+Once the client finishes the $Q$ queries, it can immediately start the next window of $Q$ queries because the preprocessing for the next window is done. 
+The main advantage is that the client never waits long time after the first preprocessing phase.
+The downside is: 1) in the two server setting, it requires the preprocessing server to be always online; 2) in the single-server setting, the online communication will be dominated by the preprocessing parts and become $O(\sqrt{n})$, instead of $\widetilde{O}_\lambda(n^{1/4})$.
+}
+
+\ignore{
+    The client only stores $M_1=2\sqrt{n}\log \kappa\alpha(\kappa)$
+    $\lambda$-bit keys and store in total $\sqrt{n}\cdot M_2=3\sqrt{n}\log
+    \kappa\alpha(\kappa)$ index-value pairs. So the storage is
+    $O(\lambda\sqrt{n}\log \kappa \alpha(\kappa))$.
+    
+    The pre-processing phase's performance bounds follow straightforward by the algorithm descriptions.
+    
+    For the query phase, the client first enumerates all $M_1$ hints to find
+    $x$, which takes $O(\lambda\sqrt{n}\log \kappa\alpha(\kappa))$ time. For all
+    the $M_3=\Theta((\log \kappa \alpha(\kappa))^2)$ found hints, the
+    $\SingleQuery$ algorithm takes $O(\lambda n^{1/4})$ client computation and
+    $O(\lambda \sqrt{n})$ server computation, while the communication cost is $O(\lambda
+    n^{1/4})$. During the refresh phase, we consider the expected computation time: each hint in the table will have $1/\sqrt{n}$ probability to be resampled and each resample takes $O(\lambda\sqrt{n})$ expected time to finish. 
+    So the total expected time is $O(\lambda\sqrt{n}\log \kappa
+    \alpha(\kappa))$  per query. The server time is
+    $O(\lambda\sqrt{n}(\log \kappa \alpha(\kappa))^2)$ per query. The online
+    communication per query is $O(\lambda n^{1/4}(\log \kappa
+    \alpha(\kappa))^2)$.
+}
+
+
+
+
+\begin{theorem}
+    \label{thm:main-1server} %Let $\lambda,\kappa\in \mathbb{N}$.
+    \label{thm:eff1srv}
+    Let $\alpha(\kappa)$ be any super-constant function. 
+Suppose that $\PRF_1,\PRF_2$ are secure pseudorandom functions, and 
+$n$ is bounded by $\poly(\lambda)$ and
+    $\poly(\kappa)$. 
+The single-server scheme in~\Cref{fig:1server-new} that supports
+    $\sqrt{n}/2$ random, distinct queries is private, and correct with probability
+    $1-\negl(\lambda)-\negl(\kappa)$ for some negligible function $\negl(\cdot)$.
+Further, it achieves the following performance
+    bounds:
+    \begin{itemize}
+        \item $O_\lambda(\sqrt{n}\log \kappa \cdot \alpha)$ client storage and
+        no additional server storage;
+        \item \textbf{Pre-processing Phase}:
+        \begin{itemize}
+\item $O(n)$ server time and $O_\lambda(n\log \kappa \cdot \alpha)$ 
+client time;
+            \item {$O(n)$ communication};
+        \end{itemize}
+        \item \textbf{Query Phase}:
+        \begin{itemize}
+            \item $O_\lambda(\sqrt{n}\log \kappa \cdot \alpha)$ expected client
+            time and $O_\lambda(\sqrt{n}\log \kappa \cdot \alpha)$ server
+            time per query; 
+            \item $O_\lambda(n^{1/4}\log \kappa\cdot \alpha)$
+            communication per query.
+        \end{itemize}
+    \end{itemize} 
+Therefore, the amortized 
+online communication per query is $O_\lambda(n^{1/4} \log \kappa 
+\cdot \alpha)$, 
+the amortized offline communication per query 
+is $O(\sqrt{n})$, the amortized
+client and server computation per query is
+$O_\lambda(\sqrt{n}\log \kappa \cdot \alpha)$.
+\end{theorem}
+
+\begin{proof}
+    We defer the privacy and the correctness proof to
+\Cref{sec:1server-priv}
+and 
+\Cref{sec:1server-correct}
+respectively.
+%~\Cref{sec:proof}.
+    The client only stores $M_1=2\sqrt{n}\log \kappa\alpha$
+    $\lambda$-bit keys and store in total $\sqrt{n}\cdot M_2=3\sqrt{n}\log
+    \kappa\cdot \alpha$ index-value pairs. So the storage is
+    $O_\lambda(\sqrt{n}\log \kappa \cdot \alpha)$.
+    The pre-processing phase's performance bounds follow straightforward by the algorithm descriptions.
+    
+    For the query phase, the client first enumerates all $M_1$ hints to find
+    $x$, which takes $O_\lambda(\sqrt{n}\log \kappa\cdot \alpha)$ time. For all
+    the $M_3=\Theta(\log \kappa \cdot \alpha)$ found hints, the
+    $\Program$ algorithm takes $O_{\lambda}(n^{1/4})$ client computation. For the server, during the query phase, the client sends $M_3$ programmed \ppps key to the server, the size of which is $O_\lambda(n^{1/4})$. The server sends back the xor-sum of $n^{1/4}$ candidate sets for each key after running $\ListDecode$. Even though each candidate set has size $n^{1/2}$, all the candidate sets have a succinct representation of size $n^{1/2}$ and server can compute this representation in time $O_\lambda(n^{1/2})$. Further, as observed in Theorem~\labelcref{thm:eff2srv}, due to the structure of the candidate sets, the sever can compute all the $n^{1/4}$ xor-sums in time only $O(n^{1/2})$. Hence, the server's running time %for each hint is
+    $O_{\lambda}(\sqrt{n})$. 
+    
+    The client needs to find $M_3$ matched hints, compute $O(\log \kappa \cdot \alpha)$ xor operations during each query and for the matched hints, it needs to sample fresh \ppps key $\sk_\new$ subject to $x\in \Set(\sk_\new)$. The client's computation time is dominated by this sampling step. We consider the expected computation time: each key in the hint table will have $1/\sqrt{n}$ probability to be replaced in this and each sampling takes $O_\lambda(\sqrt{n})$ expected time to finish using Lemma~\labelcref{lem:hintone} and pseudorandomness of \ppps, the expected number of keys checked until a key $\sk$ such that $\Set(\sk)$ contains the current query is found is $O(\sqrt{n})$.
+    So the total expected time for the query phase is $O_\lambda(\sqrt{n}\log \kappa
+    \alpha)$  per query. The server time is
+    $O_\lambda(\sqrt{n}(\log \kappa \cdot\alpha))$ per query. The online
+    communication per query is $O_\lambda( n^{1/4}(\log \kappa
+    \cdot \alpha))$.
+\end{proof}
+
+
+\subsection{Privacy Proof}
+\label{sec:1server-priv}
+
+Suppose that the underlying \ppps scheme satisfies
+private programmability.
+Below, we prove the privacy of our single-server PIR scheme.
+
+In the pre-processing 
+phase, the server observes a single scan over the database,
+and thus no information is leaked.
+The rest of the proof will therefore
+focus on the query phase.
+
+\begin{lemma}\label{lem:hintone}
+Recall that in each time step $t$, the adversary \algA 
+adaptively chooses a query $x_t \in \{0, 1, \ldots, n-1\}$ for the client.
+%The following statements are true:
+%\begin{enumerate}[leftmargin=5mm]
+%\item 
+At the end of each time step $t$, 
+the client's hint table  
+is distributed 
+as a table of size $M_1$
+where each entry is a freshly sampled \ppps key, even when
+conditioned on $\algA$'s view so far.  
+\ignore{
+\item 
+In each time step $t$, 
+the programmed key $\sk'$ 
+sent to $\algA$ 
+is the same as sampling a random \ppps key 
+}
+%\end{enumerate}
+\label{lem:hintfresh}
+\end{lemma}
+\begin{proof}
+Suppose the above statement holds at the end of time step $t-1$.
+We prove that it still holds 
+at the end of time step $t$.
+Since the hint table is distributed as a fresh randomly sampled
+table even when conditioned on $\algA$'s view
+at the end of $t-1$, we may henceforth assume
+an arbitrary fixed query $x_t$.
+The distribution of the hint table 
+before the $t$-th query can be equivalently rewritten as:
+\begin{itemize}[leftmargin=5mm]
+\item 
+First, sample the indices of the entries (henceforth denoted $I$)
+that contain the query $x_t$. Specifically, each  
+$i \in [M_1]$ is chosen into the set $I$ 
+independently with probability $1/\sqrt{n}$.
+\item 
+For each $i \notin I$, sample a random \ppps
+key subject to not containing $x_t$.
+\item 
+For each $i \in I$, sample a random \ppps
+key subject to containing $x_t$.
+\end{itemize}
+
+Using the above interpretation, it is easy to see 
+that the distribution of the hint table 
+after the $t$-th query is unaltered.
+\end{proof}
+
+
+\paragraph{Simulator construction and the ${\sf Ideal}$ experiment.}
+Consider the following simulator construction which does not make
+use of the queries: 
+in every time step $t$, call the simulator $\Sim$ of the \ppps
+scheme, and let the output be $\sk'$. 
+Send $\sk'$ to the server. 
+
+\paragraph{Indistinguishability of ${\sf Real}$ and 
+${\sf Ideal}$.}
+We now prove the indistinguishability of the ${\sf Real}$ and
+${\sf Ideal}$
+assuming the 
+private programmability of the underlying \ppps scheme.
+
+First, due to \Cref{lem:hintfresh}, 
+we can equivalently rewrite the ${\sf Real}$ experiment as follows:
+at the end of each time step, resample the entire hint table
+freshly at random before continuing to answer more queries.
+As a result, the %distribution of the $\sk'$ received by 
+messages sent to 
+\algA in each time step $t$
+is distributed as 
+\begin{itemize}[leftmargin=5mm]
+\item[]
+Repeat $M_3$ times: 
+\begin{itemize}[leftmargin=5mm]
+\item 
+sample a \ppps key $\sk$
+ at random subject to containing the query $x_t$;
+sample $\delta$ at random
+from $\{0, \ldots, \sqrt{n}-1\}$.
+\item 
+call $\sk', \_ \leftarrow {\sf Program}(\sk, \chunk(x_t), \delta)$; 
+\item 
+send $\sk'$ to \algA.
+\end{itemize}
+\end{itemize}
+One way to see this is to think of the distribution of the table
+as the equivalent distribution
+in the proof of \Cref{lem:hintfresh}.
+
+Therefore, the rest of the proof follows
+due to a straightforward hybrid argument
+where we replace
+the programmed keys (denoted $\sk'$ earlier) 
+sent to the server in all time steps one by one
+with a simulated key, 
+relying on the private programmability of the underlying \ppps.
+
+\subsection{Correctness Proof}
+\label{sec:1server-correct}
+
+
+    %Recall that in our full scheme, the server will first sample a pseudorandom permutation~(PRP) to permute the database upfront and the client will download the key from the server. 
+    %Replacing the PRP with a true random permutation only affects the failure probability by a negligible amount, $\negl(\lambda)$.
+    %We also assume that the client does not make any duplicative queries for those $Q$ queries.
+    %Therefore, taking the randomness of the permutation, we can view all $Q$ queries are randomly sampled from $\{0,1,\dots,n-1\}$ without replacement.
+    
+%    We assume the client uses a true random oracle to sample the sets, instead of a PRF. 
+%    Due to the pseudorandomness of the PRF, this assumption will not affect the failure probability by a negligible amount, $\negl(\lambda)$. 
+For the correctness analysis, 
+we may assume that every set
+is sampled independently from $\mcal{D}_n$. 
+Due to the pseudorandomness property of the \ppps,
+this will only affect the correctness probability 
+by a negligible amount.
+   
+Recall that we have a window of $Q = \sqrt{n}/2$
+random, distinct queries.
+    There are only two 
+bad events that can cause correct failure: 
+1) the client cannot find a good hint that contains the query index; 2) the client runs out of replacements in a chunk.
+
+    We first analyze the second bad event, i.e., depleting replacement entries
+For every query, at most one replacement
+entry is consumed. 
+Therefore, the second bad event  
+only happens when the client makes more than $M_2$ queries in one chunk. 
+The analysis is the same 
+as analysis of depleting replacement entries
+in the proof of correctness 
+for our 2-server scheme (see \Cref{sec:2server-correct}).
+\ignore{
+Since the client is making $\sqrt{n}\ln \kappa \alpha(\kappa)$ queries and there are $\sqrt{n}$ groups, we can use a standard balls-into-bins argument.  
+    For $t\in [Q], i\in \{0,1,\dots,\sqrt{n}-1\}$, define the random variables $Y_{t,i}\in \{0,1\}$ such that $Y_{t,i}=1$ if and only if the $t$-th query locates in the $i$-th chunk.
+    Denote $X_i=Y_{1,i}+\dots+Y_{t,i}$ be the number of queries located in the $i$-th chunk. 
+    We know $\E[Y_{t,i}]=1/\sqrt{n}$ and $\E[X_i]=\ln \kappa \alpha(\kappa)$.
+    Notice that we are taking the randomness of the permutation and the queries do not have duplication, so $Y_{1,1},\dots,Y_{Q,1}$ are negatively correlated.     
+    With the Chernoff bound for negatively correlated variables, we know that 
+    \begin{align*}
+        & \Pr[X_1 \ge (1+2)\ln \kappa \alpha(\kappa) ] \\ 
+        \le & \exp \left(\frac{-2^2}{2+2}\ln
+        \kappa\alpha(\kappa)\right) = \kappa^{-\Theta(\alpha(\kappa))}.
+    \end{align*}
+    
+    Taking the union bound over all $\sqrt{n}$ chunks, the failure probability is bounded by $\sqrt{n}\cdot \kappa^{-\Theta(\alpha(\kappa))}$, which is a negligible function of $\kappa$.% since $n=\poly(\kappa)$.
+}
+    
+    The first bad event, i.e., no matched good hint, 
+can only arise from the following events: 
+1) there are no good hints left that match the query; 
+2) there are more than $M_3$ matched hints 
+but the first $M_3$ matched hints are all broken. 
+    
+    Fix a sequence of query $x_1,\dots,x_m$ and consider the 
+error probability for $x_m$. 
+    Consider the initial hint table
+in which each entry represents a random set sampled from $\mcal{D}_n$. 
+%, whose generation process is independent of $x_1,\dots,x_m$. %due to the assumption of random queries.
+    If a hint in the initial hint table contains $x_m$ and does not contain $x_1,\dots,x_{m-1}$, this hint will remain good until the query for $x_m$. We have that, for any hint
+    \begin{displaymath}
+        \Prob{\text{ the hint contains }x_m}=1/\sqrt{n}\;.
+    \end{displaymath}
+    % We know that each independent hint contains $x$ with probability $1/\sqrt{n}$. 
+Further, conditioned on a hint containing $x_m$, if $x_i$ and $x_m$ are not in the same chunk, then the hint contains $x_i$ with probability $1/\sqrt{n}$ because each chunk has its own randomness.
+Moreover, if $x_i$ and $x_m$ are in the same chunk, this hint definitely will not contain $x_i$.
+    Hence, we have that 
+    \begin{align*}
+        &\CondProb{\text{ hint is broken}}{\text{ the hint contains }x_m}\\
+        \leq& \CondProb{\exists i\in \{1,\ldots,m-1\}\text{ hint contains }x_i}{\text{ the hint contains }x_m}\\
+%        \leq &\Prob{\exists i\in \{1,\ldots,m-1\}\text{ hint contains }x_i }
+\leq & (m-1)/\sqrt{n}\leq Q/\sqrt{n}\leq 1/2\;.
+    \end{align*}
+%    The second inequality above follows because a hint cannot be broken if it did not contain any earlier $x_i$. The third inequality above follows because the events that $x_i$'s are contained in a hint are independent. 
+%    The last inequality follows because $Q\le \sqrt{n}/2$.
+    Therefore, 
+    \begin{align*}
+        &\Prob{\text{ hint is good and contains }x_m}\\
+        \geq &\CondProb{\text{ hint is good}}{\text{ the hint contains }x_m}\cdot \Prob{\text{ the hint contains }x_m} \geq 1/(2\sqrt{n})\;.
+    \end{align*}
+    Then, the probability that 
+there is no good hint matching $x_m$ in the table is 
+at most 
+    \begin{align*}
+        & \left(1-\frac{1}{2\sqrt{n}}\right)^{M_1}  = \left(1-\frac{1}{2\sqrt{n}}\right)^{2\sqrt{n}\ln \kappa\cdot \alpha(\kappa)}  \\
+        \le & \left(1/e\right)^{\ln \kappa \alpha(\kappa)}  = \kappa^{-\alpha(\kappa)}.
+    \end{align*}
+Now let us argue that for query $x_m$, the probability of more than $M_3$ hints being matched is small. 
+    Due to the Lemma~\ref{lem:hintfresh}, 
+we may assume that at the beginning of each query,
+the hint table contains freshly and independently chosen sets.
+%the local hints will be identically distributed as freshly-random and each hint will contain the query with probability $1/\sqrt{n}$. 
+Each set sampled from $\mcal{D}_n$ 
+contains the query with probability $1/\sqrt{n}$.
+The expected number of hints that match
+the query is therefore $M_1/\sqrt{n} = 2 \log \kappa  \cdot \alpha$.
+    Using the Chernoff bound, we have that the probability of more than more than $M_3 = 3 \log \kappa \cdot \alpha$ hints being matched is bounded by
+a negligibly small function in $\kappa$.
+\ignore{
+    \begin{align*}
+     & \Pr[\#\textsf{matched hints} \ge (1+2) (M_1/\sqrt{n})\ln \kappa \alpha(\kappa) ] \\ 
+     \le & \exp \left(\frac{-2^2}{2+2}\ln
+     \kappa\alpha(\kappa)\right) = \kappa^{-\Theta(\alpha(\kappa))}.
+    \end{align*}   
+}
+
+Finally, we can apply a union bound
+over all $\sqrt{n}/2$ queries and conclude that 
+the probability of 
+the first bad event (i.e., no matched good hint)
+ever happening is negligibly small in $\kappa$.
+\ignore{
+With the union bound, for all $\sqrt{n}/2$ queries, the probability of any query cannot find a set is bounded by $\frac{1}{2}\sqrt{n}\cdot 
+    (\kappa^{-\alpha(\kappa)} + \kappa^{-\Theta(\alpha(\kappa))})$, which is negligible in $\kappa$ since $n$ is bounded by $\poly(\kappa)$.
+    
+    
+    Then, there is some negligible function $\negl(\cdot)$ that all the queries are answered correctly with probability at least $1-\negl(\lambda)-\negl(\kappa)$.
+    %This proves the statement.
+   } 
+

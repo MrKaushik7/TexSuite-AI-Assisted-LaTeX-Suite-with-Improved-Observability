@@ -1,0 +1,166 @@
+
+\def\eprintversion{1}
+\ifnum\eprintversion=0
+	\documentclass[runningheads,a4paper]{llncs}
+	\newtheorem{myclaim}[theorem]{Claim}
+	\newtheorem{fact}[theorem]{Fact}
+\else
+	\documentclass{article}[11pt]
+	\usepackage{fullpage}
+    \usepackage{amsthm}	
+	\usepackage{authblk}
+	\theoremstyle{plain}
+	\newtheorem{theorem}{Theorem}[section]
+	\newtheorem{lemma}[theorem]{Lemma}
+	\newtheorem{corollary}[theorem]{Corollary}
+	\newtheorem{observation}[theorem]{Observation}
+	\newtheorem{fact}[theorem]{Fact}
+	\newtheorem{remark}[theorem]{Remark}
+	\newtheorem{myclaim}[theorem]{Claim}
+	\newtheorem{notation}[theorem]{Notation}
+	\theoremstyle{definition}
+	\newtheorem{definition}[theorem]{Definition}
+	\newtheorem{proposition}[theorem]{Proposition}
+	\fi
+
+\usepackage{graphicx} 
+\usepackage{enumerate}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{aliascnt,lscape}
+% \usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{color} 
+%\usepackage{xspace} 
+\usepackage{multicol}
+\usepackage{mathabx}
+\usepackage{calc}
+\usepackage{subcaption}
+\usepackage[pagebackref,
+			colorlinks=true,
+			linkcolor=blue,
+			citecolor=blue,
+			pdftitle={MDCols},
+    		pdfauthor={Ashrujit Ghoshal, Ilan Komargodski}]{hyperref}
+\usepackage{colonequals}  % for \ratio in :<=>
+\usepackage{cleveref}
+\usepackage{xcolor}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{thm-restate}
+\usepackage{xstring}
+\usepackage{pifont}
+\usepackage{xspace}
+\usetikzlibrary{arrows.meta}
+\tikzset{>={Latex[width=0.5mm,length=1mm]}}
+\usepackage{orcidlink}
+
+
+\usetikzlibrary{decorations.pathreplacing}
+\input{macros}
+\ifnum\eprintversion=1
+\pagestyle{plain}
+\fi
+\begin{document}
+\ifnum\eprintversion=1
+
+\newcommand{\ilan}[1]{{\color{orange}[Ilan: #1]}}
+\title{On Time-Space Tradeoffs for Bounded-Length Collisions\\ in Merkle-Damg\aa rd Hashing\footnote{A preliminary version of this paper appears in the proceedings of CRYPTO 2022. This is the full version.}}
+\author[1]{Ashrujit Ghoshal}
+\author[2]{Ilan Komargodski}
+  \affil[1]{
+		Paul G.\ Allen School of Computer Science \& Engineering \protect\\
+		University of Washington, Seattle, Washington, USA \protect\\
+		\texttt{ashrujit@cs.washington.edu}}
+	\affil[2]{Hebrew University of Jerusalem and NTT Research \protect\\
+	\texttt{ilank@cs.huji.ac.il}
+}
+\renewcommand\Affilfont{\small}
+\date{}
+\else
+\newcommand{\ilan}[1]{}
+\title{On Time-Space Tradeoffs for Bounded-Length Collisions in Merkle-Damg\aa rd Hashing}
+\titlerunning{On Time-Space Tradeoffs for Bounded-Length Collisions in MD Hashing}
+\author{%
+  Ashrujit Ghoshal\index{Ghoshal,Ashrujit}\inst{1}\orcidlink{0000-0003-2436-0230}
+  \and Ilan Komargodski\index{Komargodski,Ilan}\inst{2}\orcidlink{0000-0002-1647-2112}}
+  \institute{
+		Paul G.\ Allen School of Computer Science \& Engineering\\
+		University of Washington, Seattle, Washington, USA\\
+		\email{ashrujit@cs.washington.edu}
+		\and
+		School of Computer Science and Engineering, Hebrew University of Jerusalem, 91904 Jerusalem, Israel
+		and NTT Research\\
+		\email{ilank@cs.huji.ac.il}
+}
+\authorrunning{Ashrujit Ghoshal and Ilan Komargodski}
+\fi
+
+%\author{\vspace*{-2em}}
+%\institute{\vspace*{-3em}}
+
+%\author{AAA \and BBB \and CCC}
+%\institute{DDD\\
+%  \email{\{EEE\}@abc.edu}}
+\numberwithin{theorem}{section}
+\ifnum\eprintversion=0
+\numberwithin{lemma}{section}
+\fi
+
+\maketitle
+
+\input{tikz-figs}
+% \vspace{-0.3cm}
+\input{abstract}
+
+\ifnum\eprintversion=1
+\newpage
+\tableofcontents
+\newpage
+\fi
+
+
+\input{intro}
+\input{technical-overview}
+\input{prelims}
+\input{tradeoff}
+\input{second-upper-bound}
+\input{acks}
+\addcontentsline{toc}{section}{References}
+
+\ifnum\eprintversion=0
+\bibliographystyle{splncs04}
+\else
+\bibliographystyle{alpha}
+\fi
+%\bibliography{./cryptobib/abbrev3,./cryptobib/crypto,./other}
+\bibliography{other}
+\appendix
+\addcontentsline{toc}{section}{Appendices}
+
+% \ifnum\eprintversion=0
+% \newpage
+% \begin{center}{\textsc{{\Large Supplementary Materials}}}\end{center}
+% \input{app-lemonepf}
+% \input{app-case-six}
+% \input{app-lem-many-cols}
+% \input{app-claim-savings}
+% 
+% \fi
+% \input{layered-attack}
+\ifnum\eprintversion=1
+\input{app-encode-decode}
+\input{app-def}
+
+\fi
+
+
+	
+\end{document}
+
+
+
+
+

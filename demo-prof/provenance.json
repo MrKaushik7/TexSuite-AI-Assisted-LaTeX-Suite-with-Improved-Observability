@@ -1,0 +1,368 @@
+{
+  "description": "Byte-exact manuscript sources and dependencies; excludes generated TeX state, editor settings, git history, nested historical manuscripts and unrelated files.",
+  "projects": {
+    "01-current": {
+      "source": "/Users/adithyakaushik/Downloads/Current",
+      "main": "main.tex",
+      "tex_files": 22,
+      "tex_lines": 3613,
+      "tex_bytes": 275441,
+      "files": {
+        "abstract.tex": {
+          "sha256": "db2924f4e077c4da64f14c850bf2aa6c4141cae53559c5af25e8d2c0e64a0f52",
+          "bytes": 3007
+        },
+        "acks.tex": {
+          "sha256": "1494b3ab18c5a14d49cba9a7c6cf89812494e3bf21fab15b13dac3e34352a888",
+          "bytes": 421
+        },
+        "app-case-six.tex": {
+          "sha256": "60499b73b31cf7fef8e6212ce362281fcb25d133a16d6ebbd6630f4193903e4d",
+          "bytes": 126
+        },
+        "app-claim-savings.tex": {
+          "sha256": "90e713708aa04d88abc8f3b3c6e8ee623ecbd668906071167750cff07112ab55",
+          "bytes": 123
+        },
+        "app-def.tex": {
+          "sha256": "16e7ff63ac58dd9f0cb2113cc92bb8f5cfd34f85fc47253b7244bf7b4583f421",
+          "bytes": 8211
+        },
+        "app-encode-decode.tex": {
+          "sha256": "36785d2ef7fba0f996a7f2530eff74e777f9b9dcd43b6e9498930a40dd59f4a8",
+          "bytes": 31521
+        },
+        "app-lem-many-cols.tex": {
+          "sha256": "dc21ba0341c4f18ca01f5b0a420b9d984cbf2f803f6f658a4e5ee042d1a3ed2f",
+          "bytes": 87
+        },
+        "app-lemonepf.tex": {
+          "sha256": "61eaacdfcfee343cc9787a20936528bb742cd419178015516ea140c38e21b453",
+          "bytes": 76
+        },
+        "app-sub-six.tex": {
+          "sha256": "34a7fb23eb4628c4a20b2b412d37486386e754611442c71056595a408505a0fa",
+          "bytes": 161
+        },
+        "attack.tex": {
+          "sha256": "7c094d79de7b53d8849f2d0368bb33c9049ed03d3fa6c55201d6f7a9c9b982a7",
+          "bytes": 8068
+        },
+        "high-level-comp-arg.tex": {
+          "sha256": "ea59b468396e536eaa67d948c2e6c7c5fd13ac134692abb0747944f1c4ec77c8",
+          "bytes": 42
+        },
+        "intro.tex": {
+          "sha256": "750dd6ab5ed3649db23ff9ca28a19b94eff394a5c061a1b5381f987a8a82c61d",
+          "bytes": 19519
+        },
+        "layered-attack.tex": {
+          "sha256": "4f47be05977dd6c3adde884c62077a3078287d0be35b070e110502a247e89ab8",
+          "bytes": 14292
+        },
+        "llncs.cls": {
+          "sha256": "ac191e65422acb0fd50f4affb47ed11ea9ab8d0e8f76c718a3ac419483b6fa86",
+          "bytes": 42249
+        },
+        "macros.tex": {
+          "sha256": "01261e623d4bfbede94c5ec372a93032ae75fa4416ad0763052c0dcbf067402d",
+          "bytes": 9428
+        },
+        "main.tex": {
+          "sha256": "3523e9740484379d0bc2e959eff22923952f9b1501ee0311f0e9d0e9faeded5f",
+          "bytes": 4183
+        },
+        "mixed-walk-attack.tex": {
+          "sha256": "9b3e89f11409bf57ec83da22583aac53aadee412591725d0b9102285ed0c0fa1",
+          "bytes": 13286
+        },
+        "old.tex": {
+          "sha256": "afc8cccfbdc2e996e41289a227f4c7525c5e4fe21958f2788921aa4d4adfb01b",
+          "bytes": 13972
+        },
+        "orcidlink.sty": {
+          "sha256": "2941c36b772ae89cbcaca60fb14d888b59e41733c6255c5a0ef23043c190bc74",
+          "bytes": 2267
+        },
+        "other.bib": {
+          "sha256": "e9a580519009e6babd41c642abf6127fb89b729125fa4236ff330503ff10eff4",
+          "bytes": 10007
+        },
+        "prelims.tex": {
+          "sha256": "33ab76a5c692fa60eeb436613c0f329eeed528adce3d7eec819d4698eff09b98",
+          "bytes": 9616
+        },
+        "second-upper-bound.tex": {
+          "sha256": "054f0de8bebc828d7bfc66586fbe3f6260e3cb122bfe757d2e6240943b56c8e9",
+          "bytes": 22268
+        },
+        "splncs03.bst": {
+          "sha256": "4ae369ebc9451325e36410b35bbf5958bd71e91f06f3a3171efaf919f997424d",
+          "bytes": 31579
+        },
+        "splncs04.bst": {
+          "sha256": "a370ad563909f7264038e3388d59036306c3ecd53c6de26279ba921f3a9979df",
+          "bytes": 33694
+        },
+        "technical-overview.tex": {
+          "sha256": "90f606954b9030b08fb885d1eea0dc1e7a534b44ffa530ac65b8d3001addd7e7",
+          "bytes": 23099
+        },
+        "tikz-figs.tex": {
+          "sha256": "24d215c0ba387e88d069bff1bfa093695bba293b3dfeaeaba182b2aaff4a0441",
+          "bytes": 18937
+        },
+        "tradeoff.tex": {
+          "sha256": "14251071c3895c1707a55f17834ff36ee7e9abce92e15f9ab6cb28ce5086f0df",
+          "bytes": 74998
+        }
+      }
+    },
+    "02-current-variant": {
+      "source": "/Users/adithyakaushik/Downloads/Current 2",
+      "main": "main.tex",
+      "tex_files": 22,
+      "tex_lines": 3612,
+      "tex_bytes": 275464,
+      "files": {
+        "abstract.tex": {
+          "sha256": "859fc14479afe84e12768f4d400472198dbeb8d1916a3e872ad415ecef85482f",
+          "bytes": 3008
+        },
+        "acks.tex": {
+          "sha256": "1494b3ab18c5a14d49cba9a7c6cf89812494e3bf21fab15b13dac3e34352a888",
+          "bytes": 421
+        },
+        "app-case-six.tex": {
+          "sha256": "60499b73b31cf7fef8e6212ce362281fcb25d133a16d6ebbd6630f4193903e4d",
+          "bytes": 126
+        },
+        "app-claim-savings.tex": {
+          "sha256": "90e713708aa04d88abc8f3b3c6e8ee623ecbd668906071167750cff07112ab55",
+          "bytes": 123
+        },
+        "app-def.tex": {
+          "sha256": "16e7ff63ac58dd9f0cb2113cc92bb8f5cfd34f85fc47253b7244bf7b4583f421",
+          "bytes": 8211
+        },
+        "app-encode-decode.tex": {
+          "sha256": "36785d2ef7fba0f996a7f2530eff74e777f9b9dcd43b6e9498930a40dd59f4a8",
+          "bytes": 31521
+        },
+        "app-lem-many-cols.tex": {
+          "sha256": "dc21ba0341c4f18ca01f5b0a420b9d984cbf2f803f6f658a4e5ee042d1a3ed2f",
+          "bytes": 87
+        },
+        "app-lemonepf.tex": {
+          "sha256": "61eaacdfcfee343cc9787a20936528bb742cd419178015516ea140c38e21b453",
+          "bytes": 76
+        },
+        "app-sub-six.tex": {
+          "sha256": "34a7fb23eb4628c4a20b2b412d37486386e754611442c71056595a408505a0fa",
+          "bytes": 161
+        },
+        "attack.tex": {
+          "sha256": "7c094d79de7b53d8849f2d0368bb33c9049ed03d3fa6c55201d6f7a9c9b982a7",
+          "bytes": 8068
+        },
+        "high-level-comp-arg.tex": {
+          "sha256": "ea59b468396e536eaa67d948c2e6c7c5fd13ac134692abb0747944f1c4ec77c8",
+          "bytes": 42
+        },
+        "intro.tex": {
+          "sha256": "750dd6ab5ed3649db23ff9ca28a19b94eff394a5c061a1b5381f987a8a82c61d",
+          "bytes": 19519
+        },
+        "layered-attack.tex": {
+          "sha256": "4f47be05977dd6c3adde884c62077a3078287d0be35b070e110502a247e89ab8",
+          "bytes": 14292
+        },
+        "llncs.cls": {
+          "sha256": "ac191e65422acb0fd50f4affb47ed11ea9ab8d0e8f76c718a3ac419483b6fa86",
+          "bytes": 42249
+        },
+        "macros.tex": {
+          "sha256": "01261e623d4bfbede94c5ec372a93032ae75fa4416ad0763052c0dcbf067402d",
+          "bytes": 9428
+        },
+        "main.tex": {
+          "sha256": "e4381a65f4d7374c874e534a44dded3c9cd18acf164b8af2daae2926046c5234",
+          "bytes": 4201
+        },
+        "mixed-walk-attack.tex": {
+          "sha256": "9b3e89f11409bf57ec83da22583aac53aadee412591725d0b9102285ed0c0fa1",
+          "bytes": 13286
+        },
+        "old.tex": {
+          "sha256": "afc8cccfbdc2e996e41289a227f4c7525c5e4fe21958f2788921aa4d4adfb01b",
+          "bytes": 13972
+        },
+        "orcidlink.sty": {
+          "sha256": "2941c36b772ae89cbcaca60fb14d888b59e41733c6255c5a0ef23043c190bc74",
+          "bytes": 2267
+        },
+        "other.bib": {
+          "sha256": "e9a580519009e6babd41c642abf6127fb89b729125fa4236ff330503ff10eff4",
+          "bytes": 10007
+        },
+        "prelims.tex": {
+          "sha256": "33ab76a5c692fa60eeb436613c0f329eeed528adce3d7eec819d4698eff09b98",
+          "bytes": 9616
+        },
+        "second-upper-bound.tex": {
+          "sha256": "054f0de8bebc828d7bfc66586fbe3f6260e3cb122bfe757d2e6240943b56c8e9",
+          "bytes": 22268
+        },
+        "splncs03.bst": {
+          "sha256": "4ae369ebc9451325e36410b35bbf5958bd71e91f06f3a3171efaf919f997424d",
+          "bytes": 31579
+        },
+        "splncs04.bst": {
+          "sha256": "a370ad563909f7264038e3388d59036306c3ecd53c6de26279ba921f3a9979df",
+          "bytes": 33694
+        },
+        "technical-overview.tex": {
+          "sha256": "90f606954b9030b08fb885d1eea0dc1e7a534b44ffa530ac65b8d3001addd7e7",
+          "bytes": 23099
+        },
+        "tikz-figs.tex": {
+          "sha256": "24d215c0ba387e88d069bff1bfa093695bba293b3dfeaeaba182b2aaff4a0441",
+          "bytes": 18937
+        },
+        "tradeoff.tex": {
+          "sha256": "b29e1a9e7c5b0a7904fca4d5b0d437207fd193ee2bccf2dd8ed7f907654754e3",
+          "bytes": 75002
+        }
+      }
+    },
+    "03-piano": {
+      "source": "/Users/adithyakaushik/Downloads/piano-improved",
+      "main": "pir-main-new.tex",
+      "tex_files": 18,
+      "tex_lines": 7152,
+      "tex_bytes": 357082,
+      "files": {
+        "1server-new.tex": {
+          "sha256": "5c05632579e8502c98fb11c4eabb95eac37817aef1fc73807bbc2442f0219a28",
+          "bytes": 30635
+        },
+        "2server-new.tex": {
+          "sha256": "6e799f3c2aa2f6d7864425be1326f4fcb5c6284f9c38652c5b85871c41e2a17c",
+          "bytes": 29031
+        },
+        "abstr.tex": {
+          "sha256": "30edd3970f10a84beefbae85d2631370cf11b6abd548b2da6b07b311348a365e",
+          "bytes": 3432
+        },
+        "construction-polylog.tex": {
+          "sha256": "a770d81eb02bcf98c507d39b12be7f344db28a786a76726a4a8f5bb598c64f62",
+          "bytes": 27568
+        },
+        "constructions.tex": {
+          "sha256": "eec377060dde2d4f86ae4a8041ec9884f1745f8528c7fe816fcff3fa00905a99",
+          "bytes": 61376
+        },
+        "crypto.bib": {
+          "sha256": "fca4a2ae145b4eda2f2945406c72264403fd203bfe292afb27fb5264743bfab5",
+          "bytes": 146463
+        },
+        "deferred-proof.tex": {
+          "sha256": "99a4e555bd9f37cf647ff8144bd3ea6ca007928bf057753fded0525d7f42bd63",
+          "bytes": 16941
+        },
+        "definition.tex": {
+          "sha256": "3e05914a75d1df9bea7e2cbddd4d93a88745ab45b9340f768b695032b9256371",
+          "bytes": 4105
+        },
+        "experiment.tex": {
+          "sha256": "3ab139374af2edfed3fa50b24dac5023a390e75d28500ab5b364ff9b18f0e71f",
+          "bytes": 7237
+        },
+        "fig/figures_1.pdf": {
+          "sha256": "70de70ae743be0fe3e017bb2a00fbf68a927c2211112f9a237dba89d64a87321",
+          "bytes": 10076
+        },
+        "fig/figures_2.pdf": {
+          "sha256": "1b023f0f76ac66ac81c53bfaf6585f7db36ca7d41013b33e32b4f226523e719b",
+          "bytes": 10416
+        },
+        "fig/figures_3.pdf": {
+          "sha256": "76c4f569aaa9826f6fa0b5c781c7ee3ada192fa7205772797aa2ea7b9307e315",
+          "bytes": 10403
+        },
+        "figs/set-rep.pdf": {
+          "sha256": "3c94d2c852e34ca667386eac9a19308263b8ac694336d6f591ef08113d7eba73",
+          "bytes": 9960
+        },
+        "figs/step1.pdf": {
+          "sha256": "5fdc2a8a4940ae17b7ee09a04b71c55aabf3acd2b748cdb7b92a9402e53fb0f5",
+          "bytes": 21256
+        },
+        "figs/step2.pdf": {
+          "sha256": "515a1a525897e877faf4a224d18cb4e714bc716dc31cf80a6f113b71f6f5fad2",
+          "bytes": 21476
+        },
+        "intro.tex": {
+          "sha256": "556ba53593e81589e347738cdfa6c4e6e423814cec0bd55e6581a21ceb79b32a",
+          "bytes": 26788
+        },
+        "llncs.cls": {
+          "sha256": "ac191e65422acb0fd50f4affb47ed11ea9ab8d0e8f76c718a3ac419483b6fa86",
+          "bytes": 42249
+        },
+        "macros.tex": {
+          "sha256": "b47962b0d250c98daefbb2ee6cf7d10129f65d98a248e488e0a2bd166c11ba96",
+          "bytes": 13925
+        },
+        "opt-1server-elaine.tex": {
+          "sha256": "f36acbb7bafd92a17feb942fc0bde8f89e484f99e4f7d64eb239b6e659e09fa7",
+          "bytes": 5862
+        },
+        "optimized-1server.tex": {
+          "sha256": "5816a1e5053cd012e23487754ba356a20d672063ee57c516f5ddfd310d78d550",
+          "bytes": 40816
+        },
+        "orcidlink.sty": {
+          "sha256": "2941c36b772ae89cbcaca60fb14d888b59e41733c6255c5a0ef23043c190bc74",
+          "bytes": 2267
+        },
+        "pir-main-new.tex": {
+          "sha256": "cc7894bd08f3f57058c933c54a4031bac33bbf215497732d8b672ed043555fe5",
+          "bytes": 10898
+        },
+        "pir-main.tex": {
+          "sha256": "babf19f5038640a59700a0e356400ef35736b9d8463ad2512e77e73325a36eed",
+          "bytes": 9923
+        },
+        "pir.bib": {
+          "sha256": "dd378cb4d9ce908e01fb40bb266537250e84c44cb60c6d564a3ecb9745904630",
+          "bytes": 21593
+        },
+        "proof.tex": {
+          "sha256": "e92b33f801208120574b82e47b6351b15a2949808ec5abbb4e9d11886f761bc4",
+          "bytes": 17786
+        },
+        "refs.bib": {
+          "sha256": "e05d45d7341a0175767a2154e5836c2fdb854b7ef066f1f6b324ebe8dd625338",
+          "bytes": 137144
+        },
+        "related.tex": {
+          "sha256": "21777c297c56030479618840c3d0eb8ad22470a687701c6c22b9b6ee4d572e93",
+          "bytes": 5956
+        },
+        "splncs04.bst": {
+          "sha256": "a370ad563909f7264038e3388d59036306c3ecd53c6de26279ba921f3a9979df",
+          "bytes": 33694
+        },
+        "temp.tex": {
+          "sha256": "44bf2f77f3b73fd826b04d3fce69440d0b340463557f4a21534a0b686597b0d9",
+          "bytes": 20446
+        },
+        "weakprivprogset.tex": {
+          "sha256": "1af707f849e77be1db14b5d4b5599e9eb860508347dd2e268bbfe5239265f864",
+          "bytes": 24357
+        }
+      }
+    }
+  }
+}

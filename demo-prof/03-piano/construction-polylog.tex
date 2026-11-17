@@ -1,0 +1,416 @@
+
+\section{Sublinear Preprocessing PIR with $\widetilde{O}(1)$ Online Communication from Stronger Assumptions}\label{sec:polylog}
+Previously, we focused on designing preprocessing PIR schemes that rely only on one way functions~(OWF).
+In this section, we show that the ``broken hint'' technique used in our one-server construction~\Cref{sec:one-server} can also be applied to the state-of-the-art two-server scheme, TreePIR~\cite{treepir}. This gives us a single-server 
+scheme with $\widetilde{O}_\lambda(1)$ online communication cost, 
+$O(\sqrt{n})$ offline communication, and 
+$\widetilde{O}_\lambda(\sqrt{n})$
+computation per query,  %\elaine{TODO: check the bounds, update intro}
+assuming %LWE or DDH.
+the existence of a classical single-server PIR scheme with polylogarithmic bandwidth.
+%\elaine{TODO: double check assumption}
+
+
+\ignore{
+Theoretically, our scheme is not a new feasible result for nearly-optimal single-server PIR scheme based on LWE. 
+    Two previous works~\cite{pir-ec23,lazza-pir} achieved the same feasible result.
+    However, our construction removes the need of heavy-cryptographic constructions for the online phase, such as privately puncturable PRF or privately programmable PRF required in the two previous schemes.
+    The only remaining heavy cryptographic component is the FHE evaluation for the offline phase.
+    We argue that this makes a step towards more practical nearly-optimal single-server preprocessing PIR scheme. 
+}
+
+\subsection{Privately Puncturable Pseudorandom Set with List Decoding}
+The elegant TreePIR 
+work~\cite{treepir} constructs
+a Privately Puncturable Pseudorandom Set with List Decoding (henceforth
+denoted ${\sf PPPS}^-$).  
+Specifically, their implied ${\sf PPPS}^-$ also emulates
+the same set distribution $\mcal{D}_n$ which we inherit in our paper 
+(see \Cref{sec:ppps-defn}), and it 
+supports
+the following operations:
+\begin{itemize}[leftmargin=5mm]
+\item
+$\sk \leftarrow {\sf Gen}(1^\lambda, n)$:
+takes in the security parameter $1^\lambda$, the size of the universe $n$,
+and outputs a secret key $\sk$ representing a set.
+\item 
+$S \leftarrow {\sf Set}(\sk)$: takes 
+in a secret key $\sk$ and outputs a set $S$ of size $\sqrt{n}$.
+\item 
+$\sk', i \leftarrow {\sf Puncture}(\sk, \chunkid)$:
+takes in a secret key $\sk$, a chunk index $\chunkid$, and 
+outputs a punctured key $\sk'$ which 
+removes 
+the element in the $\chunkid$-th chunk from the set,
+as well as auxiliary information $i$ that indicates
+which of the list decoded answers later is the correct answer.
+\item 
+$S_0, \ldots, S_{L-1} \leftarrow {\sf ListDecode}(\sk')$:
+takes in a punctured key $\sk'$, and outputs a set of candidate
+sets $S_0, \ldots, S_{L-1}$. It is guaranteed that one of them is the correctly
+punctured set.
+\end{itemize}
+
+A ${\sf PPPS}^-$ scheme needs to satisfy the following properties:
+\begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+\item 
+{\bf Correctness.}
+For any $\lambda, n$,  
+any $\ell \in \{0, \ldots, \sqrt{n}-1\}$, 
+the following must hold with probability $1$:
+let 
+$\sk \leftarrow {\sf Gen}(1^\lambda, n)$, 
+$\sk', i \leftarrow {\sf Puncture}(\sk, \ell)$, 
+$S_0, \ldots, S_{L-1} \leftarrow {\sf ListDecode}(\sk')$, 
+it must be that 
+$S_i$ is equal to ${\sf Set}(\sk)$ but with the $\ell$-th element removed.
+
+\item 
+{\bf Pseudorandomness.}
+Defined in the same way as in \Cref{sec:ppps-defn}.
+\item 
+{\bf Private puncturability.}
+There exists a probabilistic polynomial-time simulator ${\sf Sim}$ such that 
+for any $n$
+that is polynomially bounded in $\lambda$, for any $x \in \{0, \ldots, n-1\}$, 
+the following two distributions are computationally indistinguishable:
+\begin{itemize}
+\item  ${\sf Real}$:
+Sample $\sk \leftarrow {\sf Gen}(1^\lambda, n)$ subject to 
+$x \in {\sf Set}(\sk)$, let $\sk', \_ \leftarrow  
+{\sf Puncture}(\sk, \chunk(x))$, output $\sk'$. 
+\item  ${\sf Ideal}$:
+Let $\sk' \leftarrow {\sf Sim}(1^\lambda, n)$, output $\sk'$.
+\end{itemize}
+\end{enumerate}
+
+TreePIR~\cite{treepir}
+implies a ${\sf PPPS}^-$ scheme 
+constructed from PRFs, 
+satisfying not only the above properties but also the following efficiency requirements:
+\begin{itemize}[leftmargin=5mm]
+\item  
+{\it Fast membership}: 
+testing whether an element $x \in \{0, \ldots, n-1\}$ is
+in the set or not takes 
+$O_\lambda(1)$ time.
+\item 
+{\it Small punctured key}:
+a punctured key has size $\widetilde{O}_\lambda(1)$.
+\item 
+{\it Efficient list decoding}: 
+Although ${\sf ListDecode}$ outputs $\sqrt{n}$ candidate sets,
+all $\sqrt{n}$ candidate sets has a succinct representation of size $O(\sqrt{n})$;
+moreover, the 
+${\sf ListDecode}$ algorithm runs in $O_\lambda(\sqrt{n})$ time.
+% \elaine{TODO: double check if there is tilde}
+\end{itemize}
+
+\subsection{A Single-Server PIR Scheme with Polylogarithmic Online Communication}
+
+Given a ${\sf PPPS}^-$ scheme with the aforementioned
+security and efficiency requirements, we can construct a
+single-server pre-processing PIR scheme as in %\elaine{refer}.
+\Cref{fig:1server-polylog}.
+
+\begin{figure}[t]
+    \begin{minipage}{\textwidth}
+        \begin{mdframed}
+            \label{alg:full}
+            \begin{center}
+                {\bf Single-Server Scheme for $Q=\sqrt{n}/2$ Queries}
+            \end{center}
+\parhead{Notation.}
+            $\kappa$ denotes a {\it statistical} security parameter, $\lambda$
+            denotes a computational security parameter. We use $\alpha(\kappa)$
+            to denote an arbitrarily small super-constant function.
+ 
+            \parhead{Preprocessing.} 
+           Same as in \Cref{fig:1server-new} 
+but no more need for replacement entries.
+
+            \parhead{Query for index $x \in \{0, 1, \ldots, n-1\}$.}
+            %When a query $x \in \{0, 1, \ldots, n-1\}$ arrives, \Client
+            %performs the following: 
+%            \begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+%                \item 
+%                {\bf Query:}
+                \begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+\item 
+%${\sf Client}$:
+ For each entry $(\sk_i, p_i)$
+in the client's hint table, 
+if $x \in \Set(\sk_i)$ (henceforth called a matched entry),  do the following unless there are already $M_3 = 3 \log \kappa \cdot \alpha$ matched entries: 
+\begin{itemize}[leftmargin=2mm]
+%\item 
+%For the first good (i.e., non-broken) matched entry,  
+%find the first unconsumed replacement entry $(r, \DB[r])$ 
+%for $\chunk(x)$. If not found, let $r$
+%be a random index in $\chunk(x)$ and use
+%$0$ for $\DB[r]$ when needed later.
+%\item 
+%Otherwise, sample a random index %$r \in \{0, \ldots, \sqrt{n}-1\}$.
+%$r$ in $\chunk(x)$.
+\item 
+Let $\sk', i^* \leftarrow {\sf Puncture}(\sk_i, {\sf chunk}(x))$.
+Send $\sk'$ to the server. 
+\item 
+Server calls $S_0, \ldots, S_{\sqrt{n}-1} \leftarrow {\sf ListDecode}(\sk')$,
+and for each $i \in \{0, \ldots, \sqrt{n}-1\}$,
+it computes $\beta_i := \oplus_{j \in S_i} \DB[j]$.
+\item 
+Client and server run a classical PIR scheme on the database
+$(\beta_0, \ldots, \beta_{\sqrt{n}-1})$, and the client
+retrieves $\beta_{i^*}$.
+\item 
+If the matched entry is good, client saves the answer 
+$p_i \oplus \beta_{i^*}$.
+\item 
+Client samples a fresh 
+${\sf PPPS}^-$ key $\sk_{\rm new}$ subject to $x \in \Set(\sk)$, and 
+replaces the 
+consumed entry $(\sk_i, p_i)$ with 
+$(\sk_{\rm new}, 0)$
+and mark the entry as {\it broken}.
+\end{itemize}
+
+\item 
+%${\sf Client}$:
+Let ${\sf cnt}$ be the number of matched entries in the previous step. 
+If ${\sf cnt}<M_3$, then  
+client repeats the following $M_3 - {\sf cnt}$ times:
+sample a random ${\sf PPPS}^-$ key $\sk$ subject to $x \in \Set(\sk)$, 
+call 
+$\sk', \_ \leftarrow {\sf Puncture}(\sk, \chunk(x))$, 
+%where $\delta'$ is 
+%sampled randomly from $\{0, 1,\ldots, \sqrt{n}-1\}$,
+and send $\sk'$ to the server. 
+Invoke a classical PIR scheme with the server to retrieve
+any index in $\{0, \ldots, \sqrt{n}-1\}$, and ignore the answer 
+received.
+\item 
+Client outputs any saved answer. If no answer was saved, output $0$.
+            \end{enumerate}
+        \end{mdframed}
+    \end{minipage}
+    \caption{
+Our single-server pre-processing PIR scheme
+with $\widetilde{O}(1)$ online bandwidth from a classical PIR scheme.
+}
+    \label{fig:1server-polylog}
+\end{figure}
+
+We can prove the following theorem about this construction. 
+\begin{theorem}
+    Assume the existence of a classical PIR scheme with linear computation, storage and polylogarithmic communication. We can construct a PIR scheme supporting $\sqrt{n}/2$ queries that is private and achieves the following performance bounds:
+    \begin{itemize}
+        \item $O_\lambda(\sqrt{n}\log \kappa \alpha(\kappa))$ client storage and no additional server storage;
+        \item \textbf{Pre-processing Phase}:
+        \begin{itemize}
+            \item $O_\lambda(n \log\kappa \cdot \alpha)$ client time and ${O}_\lambda(n\log \kappa \cdot \alpha)$ server time;
+            \item $O(n)$ communication;
+        \end{itemize}
+        \item \textbf{Query Phase}:
+        \begin{itemize}
+            \item $\widetilde{O}_\lambda(\sqrt{n})$ expected client time and server time per query; 
+            \item $\widetilde{O}_\lambda(1)$ communication per query.
+        \end{itemize}
+    \end{itemize} 
+    Further, assuming that $n$ is bounded by $\poly(\lambda)$ and $\poly(\kappa)$, all the $Q= \sqrt{n}/2$ queries in the scheme in Section~\labelcref{sec:polylog} will be answered correctly with probability at least $1-\negl(\lambda)-\negl(\kappa)$ for some negligible function $\negl(\cdot)$.
+\end{theorem}
+
+\begin{proof}
+    The proofs about efficiency is nearly the same as the proof of~\Cref{thm:eff1srv} -- the main differences being that the ${\sf PPPS^-}$ replaces the \ppps here and that the classical PIR scheme that is run during the query phase needs to be taken into account for the storage, computation and communication. Since the storage and computation of the classical scheme is linear, and the communication polylogarithmic, the overall complexities do not change asymptotically. Also, we note in the context of the $\sf{PPPS^-}$ scheme that the parities of the $\sqrt{n}$ sets can be computed by the server in $O(\sqrt{n})$ time as shown in~\cite{treepir}.
+
+    The proof of correctness is the same as the analysis in~\Cref{sec:1server-correct}, 
+assuming correctness of the underlying classical PIR scheme.
+    The privacy proof is also nearly the same as the privacy proof in~\Cref{sec:1server-priv} 
+except the following couple changes:
+1) the PIR's simulator additionally calls the underlying classical PIR's simulator;
+and 2) instead of calling the simulator of \ppps scheme,  
+the PIR's simulator now calls the simulator of the ${\sf PPPS}^-$ scheme.
+%assuming the privacy of the classical PIR scheme.
+\end{proof}
+
+
+
+\iffalse
+\subsection{\LARGE OLD TEXT}
+
+The high-level idea is as follows.
+We can think about a hint-based single-server scheme consists of two core designs -- the ``frontend'' and the ``backend''.
+The frontend design captures how the client makes a single query.
+The backend design captures how the client maintains the local hints to extend the single-query algorithm to multiple queries.
+Essentially, we are just changing the frontend in our main construction in~\Cref{sec:one-server}, which has $\widetilde{O}_\lambda(n^{1/4})$ communication and only relies on OWF, to the frontend in the TreePIR scheme, which has polylogarithmic communication cost but relies on a stronger assumption. 
+Then, the resultant PIR scheme requires the cryptographic assumptions needed for TreePIR and has polylogarithmic online communication.
+
+\paragraph{The frontend of TreePIR.}
+For completeness, we briefly introduce the frontend design of TreePIR.
+TreePIR has the same underlying hint distribution as our scheme, where each hint has is distributed according to $\mcal{D}_n$ (defined in Section~\labelcref{sec:ppps}) and each set contains one random index in each of those $\sqrt{n}$ chunks.
+The scheme also uses PRF to compress these sets\footnote{The TreePIR scheme can be re-cast into our \ppps framework, but we state it as is here.}, where a key $\sk$ can evaluate to $\sqrt{n}$ offsets.
+Again, given the query $q$, when the client finds a hint $\sk$ such that $q
+\in \Set(\sk)$, the client wants to query the parity of $\Set(\sk)/\{q\}$.
+TreePIR proposed a new primitive called \emph{weak privately puncturable} $\PRF$ to ``compile'' this query to a standard PIR query with a $\sqrt{n}$-size dynamically-generated database, then use a polylogarithmic communication linear computation non-preprocessing scheme like Spiral~\cite{spiral} to solve this smaller PIR problem. 
+This non-preprocessing PIR scheme is not known to be implied by one way functions, and hence needs stronger assumptions like LWE or DDH.
+
+
+
+%In the version of the $\Piano$ construction we gave in the overview in Section~\label{}, the reason bandwidth was $\Theta(\sqrt{n})$ was because the client needed to send the set of offsets of size $\sqrt{n}$ to the server, and receive the set of $\sqrt{n}$ parities $q_0,\ldots,q_{\sqrt{n}-1}$. The key idea in TreePIR was to use a \emph{weak privately puncturable} $\PRF$ that would reduce the upload cost for the client to $O(\polylog(n))$ and then reduce the problem to a $1$ out of $\sqrt{n}$ size PIR problem and
+
+ %We refer the reader to~\cite{treepir} for details. The upload cost in $\Piano$ is high because the client needs to send over a vector of size $\sqrt{n}-1$ in the online phase. It cannot send over the compressed form of the vector i.e., the $\PRF$ key to the server because that would reveal the punctured point. TreePIR therefore uses a \emph{puncturable} $\PRF$: in particular, puncturing the $\PRF$ key at the point $i^*$ and send over the punctured key to the server. In many puncturable $\PRF$ constructions however, the punctured key reveals the punctured point, which in this case would compromise security. Constructions that avoid that often require extremely strong assumptions~\cite{}. They get around this by instead using \emph{weak privately puncturable} $\PRF$.
+
+%A weak privately puncturable $\PRF$ additionally hides the puncture point but has relaxed correctness.
+The construction of weak privately puncturable $\PRF$ relies on the GGM PRF construction~\cite{GGM86}. Recall that  GGM PRF is a tree based PRF construction that builds a $\PRF$ from a length doubling Pseudorandom Generator~(PRG) $G:\{0,1\}^\lambda\to\{0,1\}^{2\lambda}$.
+We denote $G(x)[0]$ as the first $\lambda$ bits of the PRG's output and $G(x)[1]$ as the last $\lambda$ bits of the output.
+For secret key $\sk$, the  evaluation of $\PRF$ on input $x\in \bits^t$ proceeds as follows: for $i=1,\ldots,t$, $y_i=G(y_{i-1})[x_{i-1}]$ where $(x_0x_1\ldots x_{t-1})$ are the bits of $x$ and $y_0=\sk$. The output of the $\PRF$ evaluation is $y_t$.
+Traditionally, puncturing a point at $x$ in a GGM PRF construction can be done by computing $k_i=G(k_{i-1})[1-x_{i-1}]$ where $k_0=\sk$ and letting $(k_1,\dots,k_{t}, x)$ be the punctured key.
+In other words, the punctured key contains all the siblings of the path of the leaf $x$ towards the root, and also the position of $x$. This key allows the evaluation of the $\PRF$ on all points other than $x$ because whoever receives the key can restore all the tree leaves except the leaf $x$.
+However, giving out the punctured key reveals the puncture point $x$. 
+
+
+In contrast, the key for a weak privately puncturable $\PRF$ only contains $(k_1,\ldots,k_t)$, i.e., the puncture point $x$ is omitted from the puncture key. This ensures the punctured location is hidden given the key. %The client sends this key for the weak privately puncturable $\PRF$  to the server.
+TreePIR uses this construction as follows: if the client wants to read the location $q$, they puncture the matched hint key at $\chunk(q)$ and send the punctured key to the server.
+The upload cost is only $O_\lambda(\log n)$.
+The server will then enumerate all possible puncturing location at $\{0,\ldots,\sqrt{n}-1\}$.
+For each possible punctured chunk $i$, the server can restore the PRF evaluations for the rest of the $\sqrt{n}-1$ chunks and compute the parity $b_i$.
+An optimized algorithm is proposed in TreePIR to ensure that computing all $b_0,\dots,b_{\sqrt{n}-1}$ only takes $\widetilde{O}_\lambda(\sqrt{n})$ time (see~\cite{treepir} for more details).
+The server now has a dynamically generated DB of size $\sqrt{n}$, $(b_0,\dots,b_{\sqrt{n}-1})$.
+The client now needs to query the value of $b_{\chunk(q)}$ privately.
+This is a standard $\sqrt{n}$-size PIR problem that does not allow preprocessing, and using a polylogarithmic-communication linear-computation non-preprocessing scheme like Spiral~\cite{spiral} is sufficient.
+Notice that this is where the stronger assumptions like LWE or DDH are needed -- non-preprocessing single-server PIR scheme with polylogarithmic communication is not known to be implied by OWF.
+
+
+
+\paragraph{The backend.} To get a PIR scheme that supports multiple queries, we deviate from TreePIR and use nearly the same backend of our main construction in~\Cref{sec:one-server}. When the client wants to read $q$, they find \emph{all} the hint keys $sk_i$ such that $q\in\Set(\sk_i)$.
+The client does padding or down-sampling to ensure that there are $M_3=\Theta(\log \kappa \cdot \alpha)$ keys (where $\alpha=\alpha(\kappa)$ is a superconstant).
+The client then runs the frontend of TreePIR to retrieve the answer for all those $M_3$ hints. 
+It only keeps the first answer for a non-broken hint, discarding others. 
+Finally, for every matched hint in the hint table, the client replaces it with a newly sampled key $\sk'$ subject to $q\in\Set(\sk')$ like in the previous construction and marks it as broken.
+
+\paragraph{Handling the Pre-processing Phase.} We can still use the similar streaming idea used by our main scheme to build the hints. 
+It takes $O(n)$ communication cost and the amortized offline communication cost for $Q=\sqrt{n}/2$ is $O(\sqrt{n})$. 
+We can go one step further and use the pipelining trick mentioned earlier in~\Cref{sec:one-server}, such that when the client is making query in the query phase, it can simultaneouly do the streaming preprocessing to prepare for the next $Q$-query window. 
+Specifically, after the $i$-th query, the client just downloads the two new chunks from the server and update the hints. 
+
+
+We stress that this approach is \textbf{lightweight and server memoryless}.
+This preprocessing algorithm does not have any heavy-cryptographic operations other than PRF evaluations, while the previous schemes~\cite{pir-ec23,lazza-pir} require the server to evaluate a quasilinear size circuit using FHE.
+Moreover, the preprocessing phase in the previous schemes requires the server to have $\Omega(n)$ size space dedicated for each client, making the server storage to be $\Omega(m\cdot n)$, where $m$ is the client number. 
+On the contrary, this streaming preprocessing does not require the server to store anything else other than the database itself, even with the pipelining technique.
+
+
+
+%Or, we can use the FHE idea similar to previous single-server PIR constructions~\cite{pir-ec22,pir-ec23,lazza-pir} where the server simply simulates the client's preprocessing by FHE evaluations and only returning the necessary hints. 
+%This reduces the offline communication to $\widetilde{O}_\lambda(\sqrt{n})$ and the total amortized cost is $\widetilde{O}_\lambda(1)$.
+%Notice that FHE is implied by LWE.
+
+
+%For the scheme in Section~\labelcref{sec:polylog}, we can prove analogous theorems for correctness and efficiency. We omit these proofs for their overwheling similarity to the proofs of corresponding theorems for the scheme in Section~\labelcref{sec:nquarter}.
+\begin{theorem}
+    Assume the hardness of LWE or DDH. We can construct a PIR scheme supporting $\sqrt{n}/2$ queries that is private and achieves the following performance bounds:
+    \begin{itemize}
+        \item $O_\lambda(\sqrt{n}\log \kappa \alpha(\kappa))$ client storage and no additional server storage;
+        \item \textbf{Pre-processing Phase}:
+        \begin{itemize}
+            \item $\widetilde{O}_\lambda(n)$ client time and $\widetilde{O}_\lambda(n)$ server time;
+            \item $O(n)$ communication;
+        \end{itemize}
+        \item \textbf{Query Phase}:
+        \begin{itemize}
+            \item $\widetilde{O}_\lambda(\sqrt{n})$ client time and server time server time per query; 
+            \item $\widetilde{O}_\lambda(1)$ communication per query.
+        \end{itemize}
+    \end{itemize} 
+    Further, assuming that $n$ is bounded by $\poly(\lambda)$ and $\poly(\kappa)$, all the $Q= \sqrt{n}/2$ queries in the scheme in Section~\labelcref{sec:polylog} will be answered correctly with probability at least $1-\negl(\lambda)-\negl(\kappa)$ for some negligible function $\negl(\cdot)$.
+\end{theorem}
+
+\begin{proof}
+    The proofs about efficiency is nearly the same as the proof of~\Cref{thm:eff1srv}, and the proof of correctness is nearly the same as the analysis in~\Cref{sec:1server-correct}.
+    The privacy proof is also nearly the same as the privacy proof in~\Cref{sec:1server-priv} assuming the privacy of the single query algorithm of TreePIR, which requires LWE or DDH.
+\end{proof}
+
+
+
+%\heading{Towards reducing online communication.} We start off with the following simple observation: in the original $\Piano$ construction, the client needs to download the set of parities $q_0,\ldots,q_{\sqrt{n}-1}$ but actually needs only $q_{i^*}$ to compute its answer. So, this is essentially another PIR problem where the client needs to get one value out of $\sqrt{n}$. To reduce the download bandwidth for the client, we can use another PIR scheme recursively that does not use preprocessing and has linear costs and polylogarithmic communication. This PIR needs to not use preprocessing because the database of parities is generated on the fly. Constructions for such PIR schemes exist e.g., Spiral~\cite{MW22}. While reducing download costs, the total bandwidth is effectively unchanged upto constant factors because upload cost does not go down. While we will not use this directly, this idea of reduction to a smaller PIR problem will come into play in our new construction.
+
+%\heading{How to reduce the upload costs? Weak Privately Punctured PRF.} The upload cost is high because the client needs to send over a vector of size $\sqrt{n}-1$ in the online phase. It cannot send over the compressed form of the vector i.e., the $\PRF$ key to the server because that would reveal the punctured point. Our idea therefore is to use a \emph{puncturable} $\PRF$: in particular, puncturing the $\PRF$ key at the point $i^*$ and send over the punctured key to the server. In many puncturable $\PRF$ constructions however, the punctured key reveals the punctured point, which in this case would compromise security. Constructions that avoid that often require extremely strong assumptions~\cite{}. We get around this by instead using \emph{weak privately puncturable} $\PRF$, as was also used in~\cite{treepir}.
+
+%A weak privately puncturable $\PRF$ additionally hides the puncture point but has relaxed correctness. The specific construction of a weak privately puncturable $\PRF$ that we use is based on the GGM construction~\cite{GGM86}. Recall that in the GGM is a tree based construction that builds a $\PRF$ from a length doubling Pseudorandom Generator~(PRG) $G$. For secret key $\sk$, the  evaluation of $\PRF$ on input $x\in \bits^t$ proceeds as follows: for $i=1,\ldots,t$, $y_i=G(y_{i-1})[x_{i-1}]$ where $(x_0x_1\ldots x_{t-1})$ are the bits of $x$ and $y_0=\sk$. The output of the $\PRF$ evaluation is $y_t$. The $\PRF$ is punctured at a point $x$ by computing $k_i=G(k_{i-1})[1-x_{i-1}]$ where $k_0=\sk$ and setting the punctured key to $k_1,\ldots,k_t,x$. This key lets the evaluation of the $\PRF$ on all points other than $x$ -- however the point $x$ is revealed. 
+%In TreePIR the client sends $k_1,\ldots,k_t$ to the server, omitting $x$ from the puncture key. While this ensures that the server does not know $x$, it seems unclear whether it is even possible for the server to compute the parities $q_i$ at all. 
+%The server will then for $i\in \{0,\ldots,\sqrt{n}-1\}$ assume that the puncture point was $i$ and compute the parities $q_{i}$. The client now needs the value of only one of these $q_i$'s- therefore the problem has been reduced to a $1$ out of $\sqrt{n}$ PIR problem.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+\ignore{
+
+In Figure~\labelcref{alg:polylog:full} we provide the pseudocode with details for this scheme.
+
+\begin{figure}[p]
+    
+\begin{minipage}{\textwidth}
+        \begin{mdframed}
+            \label{alg:polylog:full}
+            \begin{center}
+                {\bf Single-Server Scheme for $Q=\sqrt{n}/2$ Queries}
+            \end{center}
+            $\kappa$ denotes a {\it statistical} security parameter, $\lambda=\log n$ denotes
+            a computational security parameter. We use $\alpha(\kappa)$ to denote
+            an arbitrarily small super-constant function.
+            
+            
+\parhead{Preprocessing.} 
+%\ \\[-6pt]
+\begin{itemize}[leftmargin=3mm,itemsep=1pt]
+    \item 
+    \Client samples $M_1=\sqrt{n}\log \kappa \cdot \alpha(\kappa)$ master PRF keys 
+    denoted $\psk_1, \dots, \psk_{M_1} \in \{0, 1\}^\lambda$
+    for the primary table.
+
+    Initialize the parities $p_1,\dots,p_{M_1}$ to zeros.
+   
+    
+    \item 
+    \Client downloads the whole DB from the server in a streaming way: 
+    when the client has the $j$-th chunk $\DB[j\sqrt{n}:(j+1)\sqrt{n}]$:
+    \begin{itemize}
+        \item {\it Update primary table}: for $i \in [M_1]$, let $p_i \get p_i \oplus \DB[\Set(\psk_i)[j]]$.
+        \item Delete $\DB[j \sqrt{n}:(j +1)\sqrt{n}]$ from the local storage.
+    \end{itemize}
+    
+    \item At this moment, let $T := \{(\psk_i, p_i )\}_{i \in [M_1]}$ denote 
+    the client's {\it hint table}.
+    Mark all the hints as ``good''.
+\end{itemize}
+
+
+\textbf{Query for index} $x\in \{0,\ldots,n-1\}$.
+\begin{enumerate}
+    \item \textbf{Query:}
+        \begin{enumerate}
+            \item \Client finds all the matched hints $(\sk_1,p_1),\dots,(\sk_m,p_m)$ in the hint table  such that $x\in \Set(\sk_j)$ for all $j\in[m]$.
+            \item If there are less than $M_3=6(\ln \kappa \alpha(\kappa))^2$ hints, pad them with random broken hints. 
+            If there are more than $M_3$ hints, sample $M_3$ hints from them. Randomly shuffle the order of these hints.
+
+            \item For each hint, do the following:
+            \begin{itemize}
+                \item if the hint is marked good, find the first unconsumed replacement entry $(r, \DB[r])$ from $x$'s chunk;
+                and execute $\SingleQuery(x, \sk_j, p_j,r,\DB[r])$ and store the answer for the query.
+                \item Otherwise, execute $\SingleQuery(x, \sk_j, 0,0,r')$ with a random index $r'$ from $x$'s chunk  and ignore the answer.
+            \end{itemize}
+                
+            \item Return the answer of any of the good hints. If none of the hints were good, just return $0$.
+            \end{enumerate}
+    \item \textbf{Refresh (Client):}
+    \begin{itemize}
+        \item \Client replaces all the keys for the matched hints in the hint table with $\sk'_1,\dots,\sk'_m$, such that for all $j$, $\sk'_j$ is rejection-sampled conditioned on $x\in \Set(\sk'_j)$. Also mark the parities as $0$ and mark those hints as ``broken''.
+    \end{itemize}
+\end{enumerate}
+\end{mdframed}
+\end{minipage}
+\caption{The full algorithm of the PIR scheme with polylog communication.}
+\label{fig:piano:online}
+
+\end{figure}
+}
+\fi

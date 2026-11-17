@@ -1,0 +1,45 @@
+\section{Formal Definitions}\label{sec:defs}
+\heading{Single-server pre-processing PIR.}
+We first define a single-server pre-processing PIR scheme. 
+A single-server pre-processing PIR scheme consists of two stateful algorithms: the client and the server. The scheme consists of the two following phases.
+\begin{enumerate}
+    \item {\bf Pre-processing :} The pre-processing is run only once at the beginning. The client receives no input, while the server receives a database $\DB\in \bits^n$ as input. The client and server interact and the client may store some information in its local storage. We refer to this information as ``hints''.
+    \item {\bf Queries:} This phase is repeated for every index $x$ of the $\DB$ that the client wants to read. For every query, the client sends a single message to the server, and the server responds with a single message. The client then performs some computation and outputs an answer $\beta$.
+\end{enumerate}
+
+\paragraph{Correctness.} Given a database $\DB$ with entries indexed by $0,1,\ldots,n-1$, correctness entails that the query for an index $x\in \{0,1.\ldots,n-1\}$ by the client in the query phase, results in an answer $\DB[x]$ (the $x$-th bit of $\DB$) output by the client. 
+%We actually consider a slightly relaxed notion of correctness where the scheme is allowed to be incorrect with a small probability.
+Formally, correctness requires that for any 
+%statistical security parameter $\kappa \in \mathbb{N}$, 
+security parameter $\lambda \in \mathbb{N}$, 
+for any $n,q$ which are polynomially bounded in $\lambda$, 
+there exists a negligible function $\negl$ such that for any database 
+$\DB\in \bits^n$, for any sequence of queries $x_1,x_2,\ldots,x_q\in \{0,1,\ldots,n-1\}$, an honest execution of the PIR scheme with $\DB$ and queries $x_1,x_2,\ldots,x_q$ returns all correct answers with probability 
+at least $1-\negl(\lambda)$.
+
+\paragraph{Privacy.} Privacy of a PIR scheme entails that for any index $x$ queried by the client to the server, 
+the view of the server must not leak information about the query $x$. 
+Formally, we define the privacy of a single-server PIR scheme as follows.
+
+A single-server PIR scheme satisfies privacy if and only if there exists a probabilistic polynomial-time simulator $\Sim(1^\lambda,n)$ such that for any probabilistic polynomial-time adversary $\advA$ acting as the server, any polynomially bounded $n$ and $q$, any database $\DB\in \bits^n$, $\advA$'s
+views in the following two experiments are computationally indistinguishable:
+\begin{itemize}
+    \item $\mathsf{Real}$:  an honest client interacts with $\advA(1^\lambda,n,\DB)$ who acts as the server and may arbitrarily deviate from the prescribed protocol. In every query step $t\in [q]$, $\advA$ may adaptively choose the next query $x_t\in \{0,1,\ldots,n-1\}$ for the client, and the client is invoked with $x_t$ as input.
+    \item $\mathsf{Ideal}$: the simulated client $\Sim(1^\lambda,n)$ interacts with $\advA(1^\lambda,n,\DB)$ who acts as the server and may arbitrarily deviate from the prescribed protocol. In every  query step $t\in [q]$, $\advA$ may adaptively choose the next query $x_t\in \{0,1,\ldots,n-1\}$ for the client, and the client is invoked without $x_t$ as input.
+\end{itemize}
+
+\paragraph{Two-server pre-processing PIR.}
+In the two-server setting, there are two non-colluding servers, and the client
+may interact with both servers in both the preprocessing and query phases. 
+The two servers do not interact with each other.
+
+Correctness is defined in the same way as the single-server setting. 
+For privacy, we want the definition of the single-server setting
+to hold for each individual server. 
+%Privacy for a two-server pre-processing PIR scheme are analogously defined, with the change that there are two servers now instead of one. For the privacy definition, the adversary controls one of the two servers.
+
+\paragraph{Additional notation.}
+In the formal sections later, for clarity we  
+distinguish
+between a statistical security parameter denoted $\kappa$
+and a computational security parameter denoted $\lambda$.

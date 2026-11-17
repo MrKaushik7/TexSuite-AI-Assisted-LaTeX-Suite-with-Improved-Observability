@@ -1,0 +1,48 @@
+
+
+
+\section{Additional Related Works}
+
+Now we review some additional related works.
+
+
+\paragraph{PIR with linear computation cost.}
+The classical single-server PIR setting does not have preprocessing and the server is required to store the database without further encodings.
+Beimel, Ishai and Malkin~\cite{bim-pir} proved that the per-query time of any PIR scheme in the classical model has to be $\Omega(n)$. 
+%Inspired by their work, many subsequent studies followed the ``pre-processing'' model to achieve amortized sublinear per-query time.
+Early theoretical works~\cite{pir05,pir02,pir06} improve the communication cost of PIR to polylogarithmic. 
+Some later works~\cite{xpir,fastpir,spiral} focus on improving the concrete computation time, mainly by reducing the number of public key cryptographic operations. 
+%Spiral~\cite{spiral} achieves the best performance 
+
+Within the scope of linear-computation cost PIR, recent schemes~\cite{psir,onionpir,frodopir,simplepir} also utilize preprocessing to improve the concrete performance.
+In particular, SimplePIR~\cite{simplepir} achieves the fastest computation time and claims that the online query time in their implementation is already limited by the server's memory I/O speed, instead of the computation.
+
+Nonetheless, all these schemes have linear online time per query, which hinders them from being practical when scaling to large databases. 
+
+\paragraph{Batch PIR.} 
+%l~, Batch PIR schemes~\cite{batch-pir-osdi16, angel-pir,vector-pir, pirana} are designed for batched queries.
+In batch PIR schemes~\cite{batchcode,batch-pir-osdi16,angel-pir,vector-pir,pirana}, the client is assumed to have a $Q$-size batch of queries simultaneously. 
+The client can make a batched query and the server's computation cost for the whole batch is still $O(n)$, while the amortized computation cost for each query is reduced to $\widetilde{O}(n/Q)$. 
+The main drawback of batch PIR schemes is that the client cannot make adaptive queries. 
+Also, batch PIR schemes usually need some form of homomorphic encryption evaluation on the whole database, making the query latency significantly large.
+See the comparison in~\cite{simplepir}.
+
+\paragraph{Preprocessing PIR with sublinear computation cost.} 
+Biemel, Ishai and Malkin~\cite{bim-pir} introduced PIR with preprocessing in order to circumvent the $\Omega(n)$ lower-bound on server side computation. They showed that the servers could compute polynomially many bits offline that reduces the online computation for the servers. Specifically, for any $\epsilon>0,k\ge 2$, they gave a $k$-server protocol that has $O(n^{1/2k-1})$ communication and $O(n/(\epsilon\log n)^{2k-2})$ online server computation, and needs $O(n^{1+\epsilon})$ extra server storage. In order to reduce the online server computation further, they gave a second construction which for any $\epsilon>0$ achieves $O(n^{1/2+\epsilon})$ online server computation and communication, and requires $O(n^{1+\epsilon'})$ extra server storage, where $\epsilon'$ depends on $\epsilon$. While the second construction reduces online server computation significantly, the extra server storage is concretely very large, e.g., to achieve $n^{0.6}$ server side computation, the server must store roughly $n^{3.2}$ extra bits. In practice, this kind of overhead is prohibitively large.
+
+Our scheme can be categorized as the ``client-preprocessing'' model, where the client will store some database-dependent hints and use those hints to make efficient online query. 
+In fact, most of the recent schemes follow the same design framework proposed by Corrigan-Gibbs and Kogan~\cite{sublinearpir}: the client will store many sets and their corresponding parities as hints and later on the client will find a local set $S$ that contains the online query $x$, then make a carefully-designed query to learn the parity of $S/\{x\}$. 
+The initial scheme~\cite{sublinearpir} only supports one query, and subsequent works extend the idea to support multiple queries. 
+In the two-server setting, Shi et al.~\cite{shi-pir}, Checklist~\cite{checklist} and TreePIR~\cite{treepir} improve the communication cost to $\widetilde{O}_\lambda(1)$ while the amortized computation cost is $\widetilde{O}_\lambda(\sqrt{n})$. TreePIR is also concretely efficient.
+In the single-server setting, Corrigan-Gibbs, Henzinger and Kogan~\cite{pir-ec22} provide a scheme that has $\widetilde{O}_\lambda(\sqrt{n})$ amortized computation and communication cost using FHE. Zhou et al.~\cite{pir-ec23} and Lazzaretti and Papamanthou~\cite{lazza-pir} further improve the communication cost to $\widetilde{O}_\lambda(1)$, relying on privately puncturale PRF. 
+%We introduce a single-server scheme that does not rely on the heavy cryptographic primitives, i.e., privately puncturable PRF in~\Cref{sec:polylog}.
+
+All these aforementioned schemes require cryptographic assumptions that imply PKC, such as DDH and LWE.
+Recnetly, Piano~\cite{piano} and a subsequent work from Mughees, I, and Ren~\cite{lingrenpir} introduce concretely efficient schemes based on the OWF assumption, while achieving optimal client-storage and online communication tradeoff (both are $\widetilde{O}_\lambda(\sqrt{n})$) and $\widetilde{O}_\lambda(\sqrt{n})$ amortized communication cost per query.
+Our work preserves the optimal tradeoff and improves the online communication cost to $\widetilde{O}_\lambda(n^{1/4})$.
+
+
+Doubly Efficient PIR (DEPIR), also known as the ``server-proprocessing model'', requires the server
+first preprocesses the database and store additional bits, and subsequently, the server may answer queries with sublinear computation time. 
+Earlier DEPIR schemes~\cite{depir00,depir01} rely on non-standard assumptions such as oblivious locally decodable code (OLDC) or virtual-blackbox obfuscation (VBB). 
+Recently, a breakthrough work from Lin, Mook and Wichs~\cite{weikai-depir} constructs a DEPIR scheme based on the standard Ring-LWE assumption. 

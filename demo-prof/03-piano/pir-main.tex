@@ -1,0 +1,333 @@
+\def\eprintversion{0}
+\def\vertempyd{0}
+\ifnum\eprintversion=0
+	\documentclass{llncs}
+	\newtheorem{myclaim}[theorem]{Claim}
+	% \newtheorem{myclaim}{Claim}[section]
+	\newtheorem{fact}[theorem]{Fact}
+    % \usepackage[paper=letterpaper,margin=1in]{geometry}    
+\usepackage{booktabs}
+\else
+\documentclass[11pt,letterpaper]{article}
+\usepackage[paper=letterpaper,margin=1in]{geometry}    
+\usepackage{amsthm}
+\usepackage{booktabs}
+
+
+
+	\theoremstyle{plain}
+	\newtheorem{theorem}{Theorem}[section]
+	\newtheorem{lemma}[theorem]{Lemma}
+	\newtheorem{corollary}[theorem]{Corollary}
+	\newtheorem{observation}[theorem]{Observation}
+	\newtheorem{fact}[theorem]{Fact}
+	\newtheorem{remark}[theorem]{Remark}
+	\newtheorem{myclaim}[theorem]{Claim}
+	\newtheorem{notation}[theorem]{Notation}
+	\theoremstyle{definition}
+	\newtheorem{definition}[theorem]{Definition}
+	\newtheorem{proposition}[theorem]{Proposition}
+	\fi
+
+\usepackage[table]{xcolor}
+\usepackage{wrapfig}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{graphicx} 
+\usepackage{enumerate}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{aliascnt,lscape}
+\usepackage{amsfonts}
+%\usepackage{authblk}
+\usepackage{mdframed}
+\usepackage{caption}
+\usepackage{subcaption}
+%\usepackage[table]{xcolor}
+
+
+\usepackage{amssymb}
+\usepackage{color} 
+\usepackage{multicol}
+\usepackage{calc}
+\usepackage{subcaption}
+\ifnum\eprintversion=1
+\usepackage[pagebackref,
+			colorlinks=true,
+			linkcolor=blue,
+			citecolor=blue,
+			pdftitle={sublinear-pir-improved},
+    		pdfauthor={anonymous}]{hyperref}
+\else
+\usepackage[
+			colorlinks=true,
+			linkcolor=blue,
+			citecolor=blue,
+			pdftitle={sublinear-pir-improved},
+    		pdfauthor={anonymous}]{hyperref}
+\fi
+\usepackage{colonequals}  % for \ratio in :<=>
+\usepackage{cleveref}
+
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{thm-restate}
+\usepackage{xstring}
+\usepackage{pifont}
+\usepackage{xspace}
+\usepackage{orcidlink}
+
+\usetikzlibrary{arrows.meta}
+\tikzset{>={Latex[width=0.5mm,length=1mm]}}
+
+\usetikzlibrary{decorations.pathreplacing}
+\input{macros}
+
+\usepackage{amssymb}% http://ctan.org/pkg/amssymb
+\usepackage{pifont}% http://ctan.org/pkg/pifont
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+
+
+
+\newcommand{\elaine}[1]{{\footnotesize\color{magenta}[Elaine: #1]}}
+\newcommand{\mingxun}[1]{{\footnotesize\color{magenta}[Mingxun: #1]}}
+\newcommand{\ashrujit}[1]{{\footnotesize\color{magenta}[Ashrujit: #1]}}
+%\newcommand{\yiannis}[1]{{\footnotesize\color{blue}[Yiannis: #1]}}
+%\newcommand{\weikai}[1]{{\footnotesize\color{green}[WK: #1]}}
+\newcommand{\oldcomment}[1]{}
+%\newcommand{\hubert}[1]{{\footnotesize\color{blue}[Hubert: #1]}}
+%\renewcommand{\elaine}[1]{}
+%\renewcommand{\mingxun}[1]{}
+% \renewcommand{\andy}[1]{}
+% \renewcommand{\hubert}[1]{}
+%\renewcommand{\fan}[1]{}
+
+
+\newenvironment{MyEnumerate}[1]{\begin{enumerate}\setlength{\itemsep}{0.1cm}
+        \setlength{\parskip}{-0.05cm} #1}{\end{enumerate}}
+\newenvironment{MyItemize}[1]{\begin{itemize}\setlength{\itemsep}{0.1cm}
+        \setlength{\parskip}{-0.05cm} #1}{\end{itemize}}
+
+
+
+\newcounter{cnt:challenge}
+
+%\urlstyle{sf}
+
+\newcommand{\elainetodo}[1]{%
+    \colorbox{red!20}{%
+        \parbox{\textwidth}{
+            elaine: \\
+            #1
+        }
+    }
+}
+
+
+
+
+%%%%%new command for piano%%%%%%%%
+\newcommand{\mcal}[1]{\ensuremath{\mathcal{#1}}\xspace}
+% \newcommand{\PRE}{\ensuremath{\mathit{PRE}}}
+% \newcommand{\SIG}{\mathit{SIG}
+    \newcommand{\dig}{\ensuremath{\mathit{dig}}}
+    \newcommand{\window}{\ensuremath{T}\xspace}
+    
+    %%\newcommand{\name}{\textcolor{red}{NAME}}
+    %\newcommand{\name}{\textsc{Ponyta}\xspace}
+    %\newcommand{\nameprime}{\textsc{Ponyta'}\xspace}
+    \newcommand{\DS}{\ensuremath{\mathsf{DS}}}
+    %\newcommand{\dummy}{\ensuremath{\mathsf{burn}}}
+    \newcommand{\keygen}{\ensuremath{\mathsf{KGen}}}
+    \newcommand{\Sign}{\ensuremath{\mathsf{Sign}}}
+    
+    
+    
+    \newcommand{\trnode}{\ensuremath{\mathcal{B}}\xspace}
+    
+    \newcommand{\cpu}{CPU\xspace}
+    \newcommand{\cpus}{CPUs\xspace}
+    
+    \newcommand{\mem}{{\ensuremath{\mathsf{mem}}}\xspace}
+    \newcommand{\add}{{\ensuremath{\mathsf{addr}}}\xspace}
+    
+    \newcommand{\Read}{{\ensuremath{\mathsf{read}}}\xspace}
+    \newcommand{\Write}{{\ensuremath{\mathsf{write}}}\xspace}
+    
+    \newcommand{\rf}{{\ensuremath{\mathsf{ref}}}\xspace}
+    \newcommand{\pos}{{\ensuremath{\mathsf{pos}}}\xspace}
+    \newcommand{\opram}{{\ensuremath{\mathsf{OPRAM}}}\xspace}
+    \newcommand{\PQ}{{\ensuremath{\mathsf{PQ}}}\xspace}
+    \newcommand{\PathOHeap}{{\ensuremath{\mathsf{PathOHeap}}}\xspace}
+    \newcommand{\PathOHeapinf}{{\ensuremath{\mathsf{PathOHeap}_{\infty}}}\xspace}
+    \newcommand{\PQinf}{{\ensuremath{\mathsf{PQ}_\infty}}\xspace}
+    
+    
+    \newcommand{\param}{\ensuremath{{\sf pp}}\xspace}
+    %\newcommand{\Gen}{\ensuremath{{\bf Gen}}\xspace}
+    \newcommand{\Left}{\ensuremath{{\sf Left}}\xspace}
+    \newcommand{\Right}{\ensuremath{{\sf Right}}\xspace}
+    \newcommand{\Client}{\ensuremath{{\sf Client}}\xspace}
+    %\newcommand{\DB}{\ensuremath{{\bf DB}}\xspace}
+    \newcommand{\Setup}{\ensuremath{{\bf Setup}}\xspace}
+    \newcommand{\Expt}{\ensuremath{{\sf Expt}}\xspace}
+    \newcommand{\CExpt}{\ensuremath{{\sf CExpt}}\xspace}
+    \newcommand{\CExptIdeal}{\ensuremath{{\sf CExpt\text{-}Ideal}}\xspace}
+    \newcommand{\Real}{\ensuremath{{\sf Real}}\xspace}
+    \newcommand{\Ideal}{\ensuremath{{\sf Ideal}}\xspace}
+    \newcommand{\Hyb}{\ensuremath{{\sf Hyb}}\xspace}
+    \newcommand{\Gb}{\ensuremath{{\bf Gb}}\xspace}
+    \newcommand{\Eval}{\ensuremath{{\bf Eval}}\xspace}
+    \newcommand{\PEval}{\ensuremath{{\bf PEval}}\xspace}
+    \newcommand{\Enc}{\ensuremath{{\bf Enc}}\xspace}
+    %\newcommand{\Encode}{\ensuremath{{\bf Encode}}\xspace}
+    %\newcommand{\Decode}{\ensuremath{{\bf Decode}}\xspace}
+    \newcommand{\Rte}{\ensuremath{{\bf Rte}}\xspace}
+    \newcommand{\Dec}{\ensuremath{{\bf Dec}}\xspace}
+    \newcommand{\KeyGen}{\ensuremath{{\bf KeyGen}}\xspace}
+    \newcommand{\KGen}{\ensuremath{{\bf KGen}}\xspace}
+    %\renewcommand{\prf}{\ensuremath{{\sf PRF}}\xspace}
+    %\newcommand{\PRF}{\ensuremath{{\sf PRF}}\xspace}
+    \newcommand{\PRP}{\ensuremath{{\sf PRP}}\xspace}
+    \newcommand{\boldtau}{\ensuremath{{\boldsymbol{\tau}}}\xspace}
+    
+    
+    \newcommand{\ek}{\ensuremath{{\sf ek}}\xspace}
+    \newcommand{\gsk}{\ensuremath{{\sf gsk}}\xspace}
+    \newcommand{\dk}{\ensuremath{{\sf dk}}\xspace}
+    \newcommand{\rk}{\ensuremath{{\sf rk}}\xspace}
+    \newcommand{\tk}{\ensuremath{{\sf tk}}\xspace}
+    \newcommand{\crupt}{\ensuremath{{\sf crupt}}\xspace}
+    
+    
+    
+    \newcommand{\dummy}{{\sf dummy}\xspace}
+    \newcommand{\parhead}[1]{\vspace{.05in}\noindent \textbf{#1}} 
+
+%\newcommand{\offset}{\ensuremath{{\bf offset}}\xspace}
+\newcommand{\guess}{\ensuremath{{\bf PossibleParities}}\xspace}
+\newcommand{\get}{\ensuremath{\leftarrow}}
+\newcommand{\bak}{\ensuremath{{\sf bak}}\xspace}
+\newcommand{\added}{\ensuremath{{\sf added}}\xspace}
+\newcommand{\addElem}{\ensuremath{{\sf addedElem}}\xspace}
+\newcommand{\Elem}{\ensuremath{{\bf Element}}\xspace}
+\newcommand{\Expand}{\ensuremath{{\bf Expand}}\xspace}
+\newcommand{\psk}{\ensuremath{{\sf sk}}\xspace}
+\newcommand{\sqrn}{\ensuremath{\sqrt{n}}\xspace}
+\newcommand{\barsk}{\ensuremath{\overline{\sk}}\xspace}
+\newcommand{\barpsk}{\ensuremath{\overline{\psk}}\xspace}
+\newcommand{\barp}{\ensuremath{\overline{p}}\xspace}
+\newcommand{\QueryQ}{\ensuremath{\sqrt{n}\ln n}\xspace}
+\newcommand{\camera}[1]{{\color{red}{#1}}}
+\renewcommand{\camera}[1]{{#1}}
+\newcommand{\blfootnote}[1]{%
+    \begingroup
+    \renewcommand\thefootnote{}\footnote{#1}%
+    \addtocounter{footnote}{-1}%
+    \endgroup
+}
+
+
+%%%%%%%%%%%%%macros for piano new%%%%%%%%%%%%%
+\newcommand{\ignore}[1]{}
+\newcommand{\pk}{\ensuremath{\mathsf{pk}}}
+\newcommand{\I}{\ensuremath{\mathbf{1}}}
+\newcommand{\F}{\ensuremath{\mathcal{F}}}
+\renewcommand{\lf}{\ensuremath{\mathsf{Left}}}
+\newcommand{\ri}{\ensuremath{\mathsf{Right}}}
+\newcommand{\ans}{\ensuremath{\mathsf{Answer}}}
+\newcommand{\PrivateIntervalSum}{\ensuremath{\mathsf{PrivateIntervalSum}}}
+\newcommand{\xor}{\ensuremath{\oplus}}
+\newcommand{\cache}{\ensuremath{\mathsf{cache}}}
+\newcommand{\SubTreeEval}{\ensuremath{\mathsf{SubTreeEval}}}
+\newcommand{\SingleQuery}{\ensuremath{\mathsf{SingleQuery}}}
+\newcommand{\SingleQueryTP}{\ensuremath{\mathsf{SingleQueryTreePIR}}}
+\newcommand{\poly}{\ensuremath{\mathsf{poly}}}
+\newcommand{\negl}{\ensuremath{\mathsf{negl}}}
+\newcommand{\E}{\ensuremath{\mathbf{E}}}
+\newcommand{\D}{\ensuremath{\mathbf{D}}}
+\newcommand{\adv}{\ensuremath{\mathcal{A}}}
+
+
+%=============Elaine's defns ===============
+\newcommand{\ppps}{PPPS\xspace}
+\newcommand{\PPPS}{PPPS\xspace}
+\newcommand{\chunkid}{\ensuremath{\ell}\xspace}
+\newcommand{\sbkey}{\ensuremath{k}\xspace}
+\newcommand{\algA}{\ensuremath{\mcal{A}}\xspace}
+
+
+
+\pagestyle{plain}
+\begin{document}
+\title{Efficient Preprocessing PIR Without Public-Key Cryptography}
+
+%\renewcommand\Affilfont{\small}
+\date{}
+
+
+% \institute{\vspace*{-3em}}
+
+%\author{AAA \and BBB \and CCC}
+%\institute{DDD\\
+%  \email{\{EEE\}@abc.edu}}
+
+\maketitle
+\thispagestyle{empty}
+
+\ifnum\eprintversion=1
+% \newpage
+% \tableofcontents
+% \thispagestyle{empty}
+
+% \newpage\setcounter{page}{1}
+\fi
+
+\begin{abstract}
+    \mingxun{Bandwidth or communication?}
+    \input{abstr}
+\end{abstract}
+
+\input{intro}
+\input{definition}
+\input{constructions}
+% 
+\input{proof}
+\input{construction-polylog}
+\input{experiment}
+\input{related}
+%\input{constructions}
+
+
+
+\ifnum\eprintversion=0
+%\bibliographystyle{splncs04}
+\bibliographystyle{alpha}
+\else
+\addcontentsline{toc}{section}{References}
+\bibliographystyle{alpha}
+\fi
+\bibliography{pir,refs}
+% \bibliography{other}
+\appendix
+\ifnum\eprintversion=1
+\newpage
+\fi
+
+
+
+
+\appendix
+
+\input{deferred-proof}
+\input{weakprivprogset}
+\input{1server-new}
+\input{2server-new}
+%\input{temp}
+
+
+
+\end{document}
+

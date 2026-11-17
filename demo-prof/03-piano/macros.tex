@@ -1,0 +1,467 @@
+% !TEX root = main.tex
+%Section: Macros
+\newcommand{\MyAtop}[2]{\genfrac{}{}{0pt}{}{#1}{#2}}
+\newcommand{\qedsymb}{\hfill{\rule{2mm}{2mm}}}
+\renewenvironment{proof}{\begin{trivlist} \item[\hspace{\labelsep}{\bf
+\noindent Proof.\/}] }{\qedsymb\end{trivlist}}
+
+
+%%%%%%%%%%%%%%%%%%%
+% Generic Macros
+%%%%%%%%%%%%%%%%%%%
+\newcommand{\bA}{\mathbf{A}}
+\newcommand{\bB}{\mathbf{B}}
+\newcommand{\bC}{\mathbf{C}}
+\newcommand{\bD}{\mathbf{D}}
+\newcommand{\bE}{\mathbf{E}}
+\newcommand{\bF}{\mathbf{F}}
+\newcommand{\bG}{\mathbf{G}}
+\newcommand{\bH}{\mathbf{H}}
+\newcommand{\bI}{\mathbf{I}}
+\newcommand{\bJ}{\mathbf{J}}
+\newcommand{\bK}{\mathbf{K}}
+\newcommand{\bL}{\mathbf{L}}
+\newcommand{\bM}{\mathbf{M}}
+\newcommand{\bN}{\mathbf{N}}
+\newcommand{\bO}{\mathbf{O}}
+\newcommand{\bP}{\mathbf{P}}
+\newcommand{\bQ}{\mathbf{Q}} 
+\newcommand{\bR}{\mathbf{R}}
+\newcommand{\bS}{\mathbf{S}}
+\newcommand{\bT}{\mathbf{T}}
+\newcommand{\bU}{\mathbf{U}}
+\newcommand{\bV}{\mathbf{V}}
+\newcommand{\bW}{\mathbf{W}}
+\newcommand{\bX}{\mathbf{X}}
+\newcommand{\bY}{\mathbf{Y}}
+\newcommand{\bZ}{\mathbf{Z}}
+\newcommand{\by}{\mathbf{y}}
+\newcommand{\bc}{\mathbf{c}}
+\newcommand{\bz}{\mathbf{z}}
+\newcommand{\br}{\mathbf{r}}
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bv}{\mathbf{v}}
+
+\newcommand{\thatis}{\emph{i.e.}}
+
+	\makeatletter
+	\newcommand\parag{%
+   \@startsection{paragraph}{4}{\z@}%
+       {-3\p@ \@plus -1\p@ \@minus -1\p@}%
+       {-0.2em \@plus -0.12em \@minus -0.05em}%
+       {\normalfont\normalsize\scshape}}
+\newcommand{\heading}[1]{\parag{#1}}
+	\makeatother
+
+\newcommand{\MyParagraph}[1]{\medskip \noindent {\bf #1}}
+\renewcommand{\paragraph}{\MyParagraph}
+\renewcommand{\heading}{\paragraph}
+%%%%%%%%%%%%%%%%%%%
+% Boxes
+%%%%%%%%%%%%%%%%%%%
+\newcommand{\gamesfontsize}{\small}
+\newcommand{\len}{0.33}
+\newcommand{\lenn}{0.33}
+\newcommand{\lennn}{0.33}
+
+\newcommand{\oneCol}[2]{
+\begin{center}
+        \framebox{
+        \begin{tabular}{c@{\hspace*{.4em}}}
+        \begin{minipage}[t]{#1\textwidth}
+        	\gamesfontsize #2 \end{minipage}
+        \end{tabular}
+        }
+\end{center}
+}
+
+\newcommand{\twoCols}[4]{
+\begin{center}
+        \framebox{
+        \begin{tabular}{c@{\hspace*{.4em}}|c@{\hspace*{.4em}}c}
+        \begin{minipage}[t]{#1\textwidth}
+        	\gamesfontsize #3 \end{minipage}
+        &
+        \begin{minipage}[t]{#2\textwidth}
+        	\gamesfontsize #4 \end{minipage}
+        \end{tabular}
+        }
+\end{center}
+}
+
+\newcommand{\threeCols}[6]{
+\begin{center}
+        \framebox{
+        \begin{tabular}{@{\hspace{-0.2em}}c@{\hspace{0.2em}}|@{\hspace{0.2em}}c@{\hspace{0.2em}}|@{\hspace{0.2em}}c@{\hspace{0.2em}}}
+        \begin{minipage}[t]{#1\textwidth}
+        	\gamesfontsize #4
+        \end{minipage} &
+        \begin{minipage}[t]{#2\textwidth}
+        	\gamesfontsize #5
+        \end{minipage} &
+        \begin{minipage}[t]{#3\textwidth}
+        	\gamesfontsize #6
+        \end{minipage}
+        \end{tabular}
+        }
+\end{center}
+}
+
+\newcommand{\oneColNoBox}[1]{
+\begin{center}\begin{tabular}{c}
+\begin{minipage}[t]{1in}\begin{tabbing}
+123\=123\=123\=\kill
+#1
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+\newcommand{\twoColsNoBox}[2]{
+\begin{center}\begin{tabular}{c|c}
+\begin{minipage}[t]{1in}\begin{tabbing}
+123\=123\=123\=\kill
+#1
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#2
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+
+\newcommand{\twoColsNoBoxNoDivide}[2]{
+\begin{center}\begin{tabular}{ccc}
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#1
+\end{tabbing}\end{minipage} & \hspace{10pt} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#2
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+\newcommand{\threeColsNoBox}[3]{
+\begin{center}\begin{tabular}{c|c|c}
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#1
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#2
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#3
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+\newcommand{\fourColsNoBox}[4]{
+\begin{center}\begin{tabular}{c|c|c|c}
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#1
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#2
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#3
+\end{tabbing}\end{minipage} &
+\begin{minipage}[t]{1in}\begin{tabbing}
+12\=12\=12\=\kill
+#4
+\end{tabbing}\end{minipage} 
+\end{tabular}\end{center}}
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%
+% Colors
+%%%%%%%%%%%%%%%%%%%
+\newcommand{\blah}{{\color{red}\text{blah}}}
+\newcommand{\red}[1]{{\color{red}#1}}
+\newcommand{\blue}[1]{{\color{blue}#1}}
+\definecolor{yellow}{rgb}{0.8, 0.7, 0.0}
+\definecolor{brown}{rgb}{0.59, 0.29, 0.0}
+\definecolor{green}{rgb}{0.0, 0.5, 0.0}
+\definecolor{orange}{rgb}{1.0, 0.55, 0.0}
+
+\definecolor{highlight-gray}{gray}{0.90}
+\newcommand{\gamechange}[2][highlight-gray]{{\setlength{\fboxsep}{0pt}\colorbox{#1}{\ifmmode$\displaystyle#2$\else#2\fi}}}
+\newcommand{\hlg}[1]{\gamechange{#1}}
+
+
+%%%%%%%%%%%%%%%%%%%
+% Game code Macros
+%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\glab}[1]{{\color{magenta}//#1}}
+
+\newcommand{\true}{\mathsf{true}}
+\newcommand{\false}{\mathsf{false}}
+\newcommand{\win}{\mathsf{win}}
+\newcommand{\bad}{\mathsf{bad}}
+
+\newcommand{\ind}{\hspace*{10pt}}
+\newcommand{\blip}{\\[0.2ex]}
+\newcommand{\concat}{\,\|\,}
+\newcommand{\bits}{\{0,1\}}
+\newcommand{\bin}[1]{\ensuremath{\{0,1\}^{#1}}}
+%\newcommand{\getsr}{\xleftarrow{_\$}}
+%\newcommand{\getsr}{{\:{\leftarrow{\hspace*{-3pt}\raisebox{.75pt}{$\scriptscriptstyle\$$}}}\:}}
+\newcommand{\getr}{\ensuremath{{\overset{\$}{\leftarrow}}}\xspace}
+\newcommand{\getsr}{\getr}
+%{\stackrel{\mbox{\tiny $\$$}}{\leftarrow}}
+
+
+%%%%%%%%%%%%%%%%%%%
+% Games, Advantages, Oracles, Adversaries etc
+%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\Adv}{\mathsf{Adv}}
+\newcommand{\gameG}{\mathsf{G}}
+\newcommand{\gameH}{\mathsf{H}}
+\newcommand{\gameL}{\mathsf{L}}
+
+\newcommand{\advA}{\mathcal{A}}
+\newcommand{\advB}{\mathcal{B}}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%
+% Schemes, Algorithms, Functions, etc.
+%%%%%%%%%%%%%%%%%%%
+\newcommand{\Sp}{\mathsf{Sp}}
+\newcommand{\MD}{\mathsf{MD}}
+\newcommand{\IV}{\mathsf{IV}}
+\newcommand{\AICR}{{\mathsf{AI}\mbox{-}\mathsf{CR}}}
+\newcommand{\aicr}{{\mathsf{ai}\mbox{-}\mathsf{cr}}}
+\newcommand{\BFCR}{{\mathsf{BF}\mbox{-}\mathsf{CR}}}
+\newcommand{\bfcr}{{\mathsf{bf}\mbox{-}\mathsf{cr}}}
+\newcommand{\Encode}{\mathsf{Encode}}
+\newcommand{\Decode}{\mathsf{Decode}}
+
+\newcommand{\niv}{N_{\IV}}
+\newcommand{\out}{\mathsf{out}}
+\newcommand{\nout}{N_{\out}}
+\newcommand{\blen}{\mathsf{blen}}
+
+
+%%%%%%%%%%%%%%%%%%%
+% Misc 
+%%%%%%%%%%%%%%%%%%%
+
+% Notation
+\newcommand{\mal}{m\mbox{-}\alpha}
+\newcommand{\mtal}{t\mbox{-}m\mbox{-}\alpha}
+\newcommand{\tbet}{{t\mbox{-}\beta}}
+
+%Complexity measures
+\newcommand{\LocalTime}{\mathbf{Time}}
+\newcommand{\LocalMem}{\mathbf{Mem}}
+\newcommand{\QueryComp}{\mathbf{Query}}
+
+%Functions sets
+\newcommand{\Func}{\mathsf{Fcs}}
+\newcommand{\Perm}{\mathsf{Perm}}
+\newcommand{\Inj}{\mathsf{Inj}}
+
+\newcommand{\ber}{\mathsf{Ber}}
+
+%Fancy Probabilities, absolute value
+\newcommand{\Prob}[1]{\Pr\left[#1 \right]}
+\newcommand{\CondProb}[2]{ \Prob{#1 \,\big|\, #2}}
+\newcommand{\abs}[1]{\left| #1 \right|}
+\newcommand{\Exp}[1]{\mathsf{E}\left[#1 \right]}
+\newcommand{\Var}[1]{\mathsf{Var}\left[#1 \right]}
+\newcommand{\Covar}[1]{\mathsf{Cov}\left[#1 \right]}
+\newcommand{\polylog}{\mathsf{polylog}}
+
+
+%Aesthetics related
+\newcommand{\shline}{\vspace{-0.5em}\hrulefill}
+
+
+%%%%%%%%%%%%%%%%%%%
+
+
+%to-sort
+
+\newcommand{\threshval}{C\cdot\max{\left\{\left(\frac{\hat STB^2\left(\frac{3e\log \hat S}{\log \log \hat S}\right)^{2(B-2)}}{N}\right),\left(\frac{T^2}{N}\right)\right\}}}
+\newcommand{\reqconst}{{2^{16}}}
+\newcommand{\uthreshval}{\reqconst e^2\cdot \max\left\{\left(\frac{uTB^2(3e\log u/\log \log u)^{2({B-2})}}{N}\right),\left(\frac{T^2}{N}\right)\right\}}
+\newcommand{\uaicr}{{\mathsf{mi}\mbox{-}\mathsf{cr}}}
+\newcommand{\FuncNM}{\Func([N]\times [M],[N])}
+\newcommand{\Queries}{\mathsf{Qrs}}
+\newcommand{\Answers}{\mathsf{Ans}}
+\newcommand{\EQueries}{\mathsf{EQrs}}
+\newcommand{\IQueries}{\mathsf{IQrs}}
+\newcommand{\Salts}{\mathsf{Slts}}
+\newcommand{\OldIVs}{\mathsf{SIVs}}
+%\newcommand{\uq}{\mathsf{UQ}}
+\newcommand{\uq}{\mathsf{MouseQrs}}
+%\newcommand{\us}{\mathsf{US}}
+\newcommand{\us}{\mathsf{MouseSlts}}
+\newcommand{\uf}{U_\textsf{fresh}}
+\newcommand{\Pred}{\mathsf{P}}
+\newcommand{\q}{\mathsf{Q}}
+\newcommand{\iq}{\mathsf{IQ}}
+\newcommand{\eq}{\mathsf{eQ}}
+\newcommand{\qf}{\mathsf{Q}_\textsf{fresh}}
+\newcommand{\cs}{\mathsf{Cases}}
+\newcommand{\esl}{\mathsf{NSL}}
+\newcommand{\encol}{\mathsf{NC}}
+\newcommand{\efc}{\mathsf{FC}}
+\newcommand{\eul}{\mathsf{USL}}
+\newcommand{\guosn}{\mathsf{GUN1S}}
+\newcommand{\gutsn}{\mathsf{GUN2S}}
+\newcommand{\guoso}{\mathsf{GUO1S}}
+\newcommand{\gutso}{\mathsf{GUO2S}}
+\newcommand{\gf}{\mathsf{GF}}
+\newcommand{\mc}{\mathsf{MC}}
+\newcommand{\smc}{\mathsf{SMC}}
+\newcommand{\mcset}{S_\mathsf{{MC}}}
+\newcommand{\repmcolor}{blue}
+\newcommand{\frep}{{\color{\repmcolor} \textsc{repeatedUsed}}}
+\newcommand{\repnmcolor}{green}
+\newcommand{\urep}{{\color{\repnmcolor} \textsc{repeatedUnused}}}
+\newcommand{\sfrep}{{\color{purple} \textsc{semifamiliarRepeated}}}
+\newcommand{\rep}{{\color{\repmcolor} \textsc{repeatedMouse}}}
+\newcommand{\Pirest}{\tilde{\Pi}}
+\newcommand{\sfL}{\mathsf{L}}
+\newcommand{\sfP}{\mathsf{P}}
+\newcommand{\fin}{\mathsf{Fin}}
+\newcommand{\budget}{\left(\min\{(c-1)-2\log T, (r-1)-2\log T,c+r-2-\log FT-2\log T,2c-2-\log FT-2\log T,2c+r-3-2\log FT-\log T,3c-3-2\log FT-\log T\}\right)}
+\newcommand{\ancs}{\mathsf{A}}
+\newcommand{\maxancs}{\mathsf{MA}}
+\newcommand{\Ne}{\mathsf{N}}
+\newcommand{\newadd}{\mathsf{N}}
+\newcommand{\Table}{\mathsf{T}}
+% \newcommand{\case}{\mathsf{cases}}
+
+
+\newcommand{\perms}[1]{\mathsf{Perm}\left( #1\right)}
+\newcommand{\cody}[1]{{\color{red}[Cody: #1]}}
+\newcommand{\encode}{\mathsf{Enc}}
+\newcommand{\decode}{\mathsf{Dec}}
+\newcommand{\expect}{\mathbb{E}}
+\newcommand{\colgame}{\mathsf{ColGame1}}
+\newcommand{\bbN}{\mathbb{N}}
+\newcommand{\good}{\mathsf{G}}
+\newcommand{\few}{\mathsf{F}}
+\newcommand{\gexpt}{\mathsf{GExpt}}
+\newcommand{\cnt}{\mathsf{count}}
+\newcommand{\iv}{\mathsf{iv}}
+\newcommand{\mesg}{\mathsf{msg}}
+\newcommand{\piiv}{\Pi_{\iv}}
+\newcommand{\pimsg}{\Pi_{\mesg}}
+\newcommand{\nocol}{\mathsf{NoCol}}
+\newcommand{\newev}{\mathsf{New}}
+\newcommand{\tabnewev}{\mathsf{TableNew}}
+\newcommand{\success}{\mathsf{Success}}
+\newcommand{\prog}{\mathsf{Prog}}
+\newcommand{\tabprog}{\mathsf{TableProg}}
+\newcommand{\tablech}{\mathsf{Table}}
+\newcommand{\inverse}{\mathsf{Inverse}}
+\newcommand{\distinct}{\mathsf{Distinct}}
+
+\newcommand{\migame}{\mathsf{MICH}}
+
+
+
+\newcommand{\MDIVrep}{\mathsf{MDrep}}
+\newcommand{\constr}{\mathsf{C}}
+\newcommand{\subconstr}{\mathsf{D}}
+
+\newcommand{\key}{\mathsf{key}}
+\newcommand{\msg}{\mathsf{msg}}
+
+\newcommand{\mdlong}{Merkle-Damg\aa rd }
+\newcommand{\keyedmd}[1]{\mathsf{KMD}^{#1}}
+\newcommand{\keyedmt}[1]{\mathsf{KMT}^{#1}}
+\newcommand{\md}[1]{\mathsf{MD}^{#1}}
+\newcommand{\fixedmd}[2]{\mathsf{FMD}^{#1}_{#2}}
+\newcommand{\zeropad}{\mathsf{zeropad}}
+\newcommand{\colevent}{\mathsf{E}^i_\mathsf{col}}
+\newcommand{\mcolevent}{\mathsf{E}^i_\mathsf{mcol}}
+\newcommand{\squeryevent}{\mathsf{E}^i_\mathsf{hit}}
+\newcommand{\twomt}[2]{\mathsf{2MT}^{#1}_{#2}}
+\newcommand{\hitting}{hitting}
+\newcommand{\colsearch}{\mathsf{CollisionSearch}}
+\newcommand{\node}{\mathsf{root}}
+
+\newcommand{\IdealDist}{\mathcal{I}}
+\newcommand{\sD}{\mathcsf{D}}
+\newcommand{\sR}{\mathcsf{R}}
+\newcommand{\pre}{\mathsf{\pre}\mbox{-}}
+
+
+\newcommand{\Gen}{\mathsf{Gen}}
+\newcommand{\PuncKey}{\mathsf{PuncKey}}
+\newcommand{\PrePunc}{\mathsf{GetPrePuncKey}}
+\newcommand{\Piano}{\textsc{Piano}}
+\newcommand{\Punc}{\mathsf{Punc}}
+\newcommand{\sk}{\mathsf{sk}}
+\newcommand{\PRF}{\mathsf{PRF}}
+\newcommand{\DB}{\mathsf{DB}}
+\newcommand{\Set}{\mathsf{Set}}
+\newcommand{\ComputeParity}{\mathsf{ComputeParity}}
+\newcommand{\TreeConstruct}{\mathsf{TreeConstruct}}
+\newcommand{\PrefixTreeConstruct}{\mathsf{PrefixConstruct}}
+\newcommand{\RetrieveQueries}{\mathsf{RetrieveQueries}}
+\newcommand{\PIR}{\mathsf{PIR}}
+\newcommand{\PIRQuery}{\mathsf{PIRQuery}}
+\newcommand{\PIRSetup}{\mathsf{PIRSetup}}
+\newcommand{\PIRA}[1]{a^{\PIR}_{#1}}
+\newcommand{\PIRAnswer}{\mathsf{PIRAnswer}}
+\newcommand{\PIRQ}[1]{q^{\PIR}_{#1}}
+\newcommand{\pp}{\mathsf{pp}}
+\newcommand{\qk}{\mathsf{qk}}
+\newcommand{\LinearPIR}{\mathsf{LinearPIR}}
+\newcommand{\old}{\mathsf{old}}
+\newcommand{\new}{\mathsf{new}}
+\newcommand{\cut}{\mathsf{cut}}
+\newcommand{\CurrSeed}{\mathsf{CurrSeed}}
+\newcommand{\PunctKey}{\mathsf{PunctKey}}
+\newcommand{\PuncIndex}{\mathsf{PuncIndex}}
+\newcommand{\PrePuncChunk}{\mathsf{PrePuncChunk}}
+\newcommand{\InTreeIndex}{\mathsf{InTreeIndex}}
+\newcommand{\CurrNode}{\mathsf{CurrNode}}
+\newcommand{\leftint}{\mathsf{LeftIntv}}
+\newcommand{\rightint}{\mathsf{RightIntv}}
+\newcommand{\QueryIntv}{\mathsf{QueryIntv}}
+\newcommand{\offset}{\mathsf{offset}}%
+%\newcommand{\Prefix}[3]{\mathsf{Prefix}^{(#1)}_{#2}[{#3}]}
+\newcommand{\Prefix}{\mathsf{Prefix}}
+\newcommand{\PrefixDB}[2]{\mathsf{Prefix}^{(#1)}_{#2}}
+\newcommand{\chunk}{\mathsf{chunk}}
+\newcommand{\idx}{i^*}
+\newcommand{\PIRExtract}{\mathsf{PIRExtract}}
+\newcommand{\st}{\mathsf{st}}
+\newcommand{\lf}{\mathsf{left}}
+\newcommand{\rt}{\mathsf{right}}
+\newcommand{\prefixsum}{\mathsf{PrefixSum}}
+\newcommand{\intervalsum}{\mathsf{IntervalSum}}
+\newcommand{\result}{\mathsf{Result}}
+\newcommand{\flag}{\mathsf{flag}}
+\newcommand{\Anote}[1]{
+ \begin{flushleft}
+    \color{blue} \framebox{
+      \begin{minipage}[t]{0.8\textwidth}
+    {\bf Ashrujit:} #1 
+    \end{minipage}}
+\end{flushleft}}
+\newcommand{\Control}{\mathsf{Control}}
+\newcommand{\superblock}{\mathsf{superblock}}
+\newcommand{\Sim}{\mathsf{Sim}}
+
+
+\newcommand{\Program}{\mathsf{Program}}
+\newcommand{\ListDecode}{\mathsf{ListDecode}}

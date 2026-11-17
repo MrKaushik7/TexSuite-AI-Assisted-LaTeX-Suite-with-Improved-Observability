@@ -1,0 +1,659 @@
+\section{Our Two-Server PIR Scheme}\label{sec:two-server}
+
+\begin{figure}[p]
+    \begin{minipage}{\textwidth}
+        \begin{mdframed}
+            \label{alg:one-query-ppwps-two}
+            \begin{center}
+                {\bf Two-server scheme for $Q = \sqrt{n} \log \kappa \cdot \alpha$ queries}
+            \end{center}
+
+            \parhead{Offline preprocessing.} 
+            %\ \\[-6pt]
+%{\it Client}:
+            \begin{itemize}[leftmargin=3mm,itemsep=1pt,topsep=1pt]
+            %    \item 
+                            %, where $M_1=\sqrt{n}\log \kappa \cdot \alpha(\kappa)$. , such
+                %that $\alpha(n)=\omega(1)$. 
+                % Initialize the parities $p_1,\dots,p_{M_1}$ to zeros.
+                
+                
+                \item 
+{\it Hint table.}
+Let $M_1=\sqrt{n}\log \kappa \cdot \alpha(\kappa)$. For each $i\in [M_1]$, 
+sample a fresh \ppps key $\sk_i$, 
+send $\sk_i$ 
+to the \underline{right server} 
+and receive a parity $p_i := \oplus_{j \in \Set(\sk_i)} \DB[j]$ back. 
+%and receive their parities $p_1,\ldots,p_{M_1}$. 
+Let $T := \{(\psk_i, p_i )\}_{i \in
+                [M_1]}$ denote the client's {\it hint table}.
+                \item 
+{\it Replacement entries.}
+For each chunk $\ell \in \{0,\ldots,\sqrt{n}-1\}$,
+repeat the following 
+$M_2=3\log \kappa \cdot \alpha(\kappa)$  times:
+sample a random index $r_1 \in \{0, \ldots, n-1\}$ in chunk $\ell$, 
+send $r_1$ to the \underline{left server}, and receive $\DB[r_1]$.
+Store the tuple $(r_1,\DB[r_1])$. 
+
+Similarly, 
+for each chunk $\ell \in \{0,\ldots,\sqrt{n}-1\}$,
+repeat the following $M_2$  times:
+sample a random index $r_2$ in chunk $\ell$, 
+send $r_2$ to the \underline{right server}, and receive $\DB[r_2]$.
+Store the tuple $(r_2,\DB[r_2])$. 
+            \end{itemize}
+
+%\vspace{5pt}
+%{\it Right server}:
+%upon receiving a \ppps key $\sk$, return $\oplus_{i \in \Set(\sk)}\DB[i]$.
+
+            
+            \parhead{Query for index $x \in \{0, 1, \ldots, n-1\}$.}
+            
+            \begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+                \item 
+                {\bf Step 1: (Client Querying)}
+
+                \begin{itemize}[leftmargin=5mm,itemsep=1pt]
+                        \item Find the first entry $(\sk,p)$ in the hint table such that $x\in \Set(\sk)$.~\footnote{
+In a rare case, if not found, let $\sk$ be a freshly sampled \ppps key subject
+to $x \in \Set(\sk)$, 
+and let $p = 0$.}
+\item 
+Find the first unconsumed 
+replacement entries  
+$(r_1, \DB[r_1])$ retrieved from right server,
+such that $r_1$ is in $\chunk(x)$.
+\footnote{In a rare case, if such an $r_1$ is not found, let it be a random
+index in $\chunk(x)$, and use $0$ whenever $\DB[r_1]$ is needed later.} 
+                        \item $(\sk_1',j_1)\gets\Program(\sk,\chunk(x),r_1\text{ mod } \sqrt{n})$.
+                        \item 
+                        Send $\sk'_1$ to the left server.     
+                \end{itemize}
+
+                \item
+               {\bf Step 2: (Client Reconstructing)}
+               \begin{itemize}[leftmargin=5mm,itemsep=1pt]
+                   \item Receive $(\beta_{0,1},\ldots,\beta_{n^{1/4}-1,1})$ from the left server.
+                   \item Save the answer as $y=p\xor  \DB[r_1]\xor\beta_{j_1,1}$.
+               \end{itemize}
+               
+                \item
+               {\bf Step 3: (Client Refreshing)}
+               \begin{itemize}[leftmargin=5mm,itemsep=1pt]
+                   
+                   \item Sample $\sk_2$ such that $x\in\Set(\sk_2)$.
+                   \item 
+                   Find the first unconsumed 
+                   replacement entries  
+                   $(r_2, \DB[r_2])$ retrieved from left server, 
+                   such that $r_2$ is in $\chunk(x)$.
+                   \item $(\sk_2',j_2)\gets\Program(\sk_2,\chunk(x),r_2\text{ mod } \sqrt{n})$. 
+                   \item Send $\sk_2'$ to right server.
+                   \item Receive $(\beta_{0,2},\ldots,\beta_{n^{1/4}-1,2})$
+                   from the right server.        
+                   \item Replace the hint $(\sk,p)$ with $(\sk_2,\DB[r_2]\xor \beta_{j_2,2}\xor y)$ in the table.
+               \end{itemize}
+               
+               \item 
+               {\bf Server Responding: (Same for Left and Right Server)}
+               \begin{itemize}[leftmargin=5mm,itemsep=1pt]
+                   \item  Upon receiving $\sk'$, compute $(S_0,S_1,\ldots,S_{n^{1/4}-1})\gets \ListDecode(\sk')$.
+                   \item Return $(\beta_0,\dots,\beta_{n^{1/4}-1})$ to the client where $\beta_i=\oplus_{i\in S_b}\DB[i]$.
+               \end{itemize} %\hfill {\it // $L= n^{1/4}$}
+               
+            \end{enumerate}
+        \end{mdframed}
+    \end{minipage}
+    \caption{Two-server preprocessing PIR with ${O}_\lambda(n^{1/4})$ communication, ${O}_\lambda(n^{1/2})$ computation based on PRFs. 
+    }
+    \label{fig:2server-new}
+\end{figure}
+
+
+
+
+
+\subsection{Construction}
+
+\paragraph{Intuition.} 
+The scheme has three major components.
+\begin{itemize}[leftmargin=*]
+    \item \textit{Preprocessing.} The client randomly samples $\tilde{O}(\sqrt{n})$ privately programmable pseudorandom sets, each of size $\sqrt{n}$. 
+    It queries the \underline{right server} for the sets' parities, storing them along with the keys.
+    Moreover, the client queries the \underline{right server} for the values of logarithmic numbers of randomly sampled indices for each $\sqrt{n}$-size chunk.
+    Those entries are stored as the ``replacement'' entries.
+    
+    \item \textit{Online Query.} 
+    Given a query $x$, the client finds a set $S$ such that $x\in S$.
+    The client then finds a replacement entry $r$ that resides in the same chunk as $x$. 
+    The client privately programs the set, intending to change it from $S$ to $(S/\{x\})\cup \{r\}$.
+    Once the client knows the parity for this new set, it can compute $\DB[x]$ because it already knows $\DB[r]$ and the parity for $S$.
+    The client uses the PPPS programming function to program the set, and sends the programmed key $\sk'$ to the \underline{left server}.
+    The \textit{left server} runs the list decoding algorithm, then computes and returns all $n^{1/4}$ candidate sets' parities.
+    The client knows that there is one candidate parity corresponding to the correct set $(S/\{x\})\cup \{r\}$, which is enough to compute the answer.
+    
+    \item \textit{Refresh.} 
+    Each query consumes a set. %The client needs to replace the consumed set with a new set.
+    After each query, the client just samples a new set conditioned on it containing the query $x$, and queries the \textit{right server} for its parity with the same query technique mentioned above. 
+    The new set will replace the consumed set.
+\end{itemize}
+
+\ignore{
+\paragraph{Intuition of the PIR scheme based on PPPS.} 
+During the preprocessing phase, the client randomly samples $M_1=\tilde{O}(\sqrt{n})$ privately programmable pseudorandom sets, whose keys are denoted as $\sk_1\dots,\sk_{M_1}$, and queries the \textit{right server} for the parities for all these sets, denoted as $p_1,\dots,p_{M_1}$.
+Moreover, the client queries the \textit{right server} for $M_2=\tilde{O}(1)$ random ``replacement'' entries for each $\sqrt{n}$-size chunk, and stores their indices and values as the form of $(r,\DB[r])$.
+During the online phase, given a query $x$, the client finds a key $\sk$ that $\Set(\sk)$ contains $x$. The set's parity is denoted as $p$.
+The client then finds a replacement entry $r$ that is in the same chunk as $x$, and it privately programs the set, intending to change it from $\Set(\sk)$ to $(\Set(\sk)/\{x\})\cup \{r\}$.
+Once the client knows the parity for this new set, it can computes $\DB[x]$ because it already knows $\DB[r]$ and the parity for $\Set(\sk)$.
+Specifically, the client programs the offset of $r$ in $\chunk(x)$ to the key $\sk$ using the PPPS programming function, and sends the programmed key $\sk'$ to the \textit{left server}.
+The \textit{left server} runs the list decoding algorithm, then computes and returns all $n^{1/4}$ candidate sets' parities.
+The client knows that there is one candidate parity corresponding to the correct set $(\Set(\sk)/\{x\})\cup \{r\}$ and it is enough to compute the answer.
+To support multiple queries, the client needs to replace the consumed key with a new one.
+After each query, the client just samples a new PPPS key conditioned on its set containing the query $x$, and queries the \textit{right server} for the parity for this new set with the same private query technique mentioned above. 
+The client will replace the consumed key with this new key.
+}
+
+\paragraph{Detailed algorithm for bounded, random queries.}
+We describe the detailed construction
+for $Q = \sqrt{n} \log \kappa \cdot \alpha$ random, distinct queries 
+in \Cref{fig:2server-new}.
+We can easily extend such a scheme to support
+unbounded, arbitrary queries using known techniques~\cite{pir-ec23}. 
+For completeness, we explain how the extension works shortly after.
+
+
+
+\paragraph{Efficiency.}
+Observe that the list decoding
+produces $n^{1/4}$ candidate sets
+each of size $\sqrt{n}$.
+Naively, expanding all sets and computing their corresponding parities takes $O_\lambda(n^{3/4})$ time.
+We are still going to rely on the fact that $\ListDecode$ has an $O(\sqrt{n})$-size succinct representation to optimize the computation. 
+Recall that we can first compute the common set of size $\sqrt{n}$, and then the symmetric difference between each possible decoding set and the common set will only contain $2n^{1/4}$ elements. 
+Therefore, to compute the parities for all $n^{1/4}$ possible sets, we first compute the parity for the common set $S$, which takes $O_\lambda(\sqrt{n})$ time.
+Then, it takes $O_\lambda(n^{1/4})$ time to enumerate the symmetric difference between the $i$-th set and the common set, which suffices to compute the parity for the $i$-th set.
+So the total computation time will be $O_\lambda(\sqrt{n})$.
+
+\paragraph{Supporting unbounded, arbitrary queries.}
+For completeness, we review the techniques described in previous works 
+for upgrading the scheme for $Q$ random, distinct queries to a scheme
+supporting unbounded, arbitrary queries.
+We can easily get rid of the distinct query
+assumption in the following way: we require the client to store a local cache of size $Q$ for caching the
+most recent $Q$ queries. If the client wants a repeated query, it can lookup
+in the cache and make a distinct fake query. 
+
+Further, we can assume that the queries are random without loss of generality as follows: 
+we can let the client and the servers agree on 
+a small-domain pseudorandom permutation (PRP)~\cite{prp1,prp2} 
+(which is implied by one-way functions~\cite{swapornot})
+upfront and the server can permute the database according to the PRP. 
+Another option is let one of the servers
+build the database as a key-value storage and use a cuckoo hash
+table~\cite{cuckoo1,cuckoo2} directly based on a PRF to locate the queries, and share it with the other server.
+Notice that, in both implementations, the client can still make queries
+adaptively depending on the real query sequence and the responses, which is
+sufficient for practical usage. Then, as long as the client makes the
+queries independent of the randomness of the PRP/PRF, those queries can be
+considered as uniformly random. This assumption is only needed for the
+correctness.
+
+Lastly, we can remove the bounded $Q$ query assumption as follows: 
+we use a pipelining trick suggested in earlier works~\cite{pir-ec23,piano}. 
+Essentially, we can spread the pre-processing for the next window of $Q$ queries
+over the current window of $Q$ queries.
+\ignore{
+The scheme first runs a preprocessing phase for the first $Q$ queries. 
+Then, during the query phase, the client interacts with the preprocessing server and gradually finishes the preprocessing for the next $Q$ queries. 
+Essentially, the client and the server can split the work (including computation and communication) of the preprocessing into $Q$ pieces.
+Whenever the client finishes a query, the client and the preprocessing server will finish the next piece of work about preprocessing.
+Once the client finishes the $Q$ queries, it can immediately start the next window of $Q$ queries because the preprocessing for the next window is done. 
+As stated above, the preprocessing phase needs ${O}_\lambda(\sqrt{n})$ communication and ${O}_\lambda(n)$ in total.  Thus, in our final scheme, we have a one-time preprocessing phase with ${O}_\lambda(n)$ communication, ${O}_\lambda(n)$ computation, while consuming only ${O}(\sqrt{n})$ client storage. After the one-time preprocessing,
+we can support an unbounded number of arbitrary queries. The communication and computation
+cost of each query is ${O}_\lambda({n}^{1/4})$ and the computation cost of each query is ${O}_\lambda(\sqrt{n})$.
+}
+
+
+
+
+
+
+\begin{theorem}
+    \label{thm:eff2srv} %Let $\lambda,\kappa\in \mathbb{N}$.
+    Let $\alpha(\kappa)$ be any superconstant function. 
+Suppose that $\PRF_1,\PRF_2$ are secure pseudorandom functions, and that 
+$n$ is bounded by $\poly(\lambda)$ and
+    $\poly(\kappa)$. The two-server scheme in~\Cref{fig:2server-new} 
+that supports
+    $Q = \sqrt{n}\log \kappa \cdot \alpha$ 
+random, distinct
+queries is private, and correct with probability
+    $1-\negl(\lambda)-\negl(\kappa)$ for some negligible function 
+$\negl(.)$. Further, it achieves the following performance
+    bounds:
+    \begin{itemize}
+        \item $O_\lambda(\sqrt{n}\log \kappa \alpha(\kappa))$ client storage and
+        no additional server storage;
+        \item \textbf{Pre-processing Phase}:
+        \begin{itemize}
+            \item $O_\lambda(n \log \kappa \cdot \alpha)$ 
+server time and $O_\lambda(\sqrt{n}\log \kappa \cdot \alpha)$ client time;
+            \item $O_\lambda(\sqrt{n} \log \kappa \cdot \alpha)$ communication;
+        \end{itemize}
+        \item \textbf{Query Phase}:
+        \begin{itemize}
+            \item 
+$O_\lambda(\sqrt{n})$ expected client time 
+and $O_\lambda(\sqrt{n})$ server
+            time per query; 
+            \item $O_\lambda(n^{1/4})$
+            communication per query.
+        \end{itemize}
+    \end{itemize} 
+Therefore, the amortized communication per query
+is %\elaine{FILL}  
+$O_\lambda(n^{1/4})$, and the amortized server computation
+and expected client computation
+per query is %$O_\lambda(\sqrt{n}\log \kappa \cdot \alpha)$, 
+$O_\lambda(\sqrt{n})$.
+\end{theorem}
+\begin{proof}
+We defer the privacy and correctness proofs to \Cref{sec:2server-priv}
+and \Cref{sec:2server-correct}
+respectively. Here, we focus on proving the efficiency claims.
+
+The client stores $M_1 = \sqrt{n} \log \kappa \cdot \alpha$ number
+of \ppps keys, and $M_2 = 3 \log \kappa \cdot \alpha$ number
+of replacement entries per chunk.
+Therefore, the space required is $O_\lambda(\sqrt{n} \log \kappa \cdot \alpha)$.
+
+During the offline phase, the client
+sends $M_1$ \ppps  
+keys to the right server, and sends $M_2$ indices per chunk
+to either server for constructing replacement entries.
+Therefore, the offline communication is bounded
+by $O_\lambda(\sqrt{n} \log \kappa \cdot \alpha)$. 
+The right server needs to expand the sets for each \ppps key received
+and evaluate the xor-sums.  
+Both servers need to return the bits for the replacement entries.
+Therefore, the total server computation is bounded
+by $O_\lambda(n \log\kappa \cdot \alpha)$.
+
+During the query phase, the client
+sends one programmed \ppps key to each server,
+and the size of a programmed key is at most $O_\lambda(n^{1/4})$.
+Each server sends back the xor-sums of $n^{1/4}$
+candidate sets.
+Each candidate set has size $n^{1/2}$, however, all
+$n^{1/4}$ candidate sets has a succinct representation
+of size only $n^{1/2}$, 
+and server can compute this succinct representation
+in time $O_\lambda(n^{1/2})$.
+Further, it is not hard to see that due to the structure
+of the candidate sets, the server can compute
+all $n^{1/4}$ xor-sums in time only $O(n^{1/2})$.
+Therefore, the servers' running time is
+bounded by $O_\lambda(n^{1/2})$
+during each query query.
+The client needs to find a matched hint, and compute
+$O(1)$ xor operations during each query.
+Its running time is 
+dominated by the cost of finding a matched hint, which
+can be done by invoking the set membership operation
+for each of the $M_1$ hints.
+Using \Cref{lem:2server-hintfresh}
+and the pseudorandomness property of the \ppps, the expected
+number of hints checked until a key $\sk$ such that $\Set(\sk)$ contains the current query is found is $O(\sqrt{n})$.
+The expected number of tries till success is $\sqrt{n}$.
+Therefore, the client's expected running time per query
+is upper bounded by $O_\lambda(\sqrt{n})$.
+\end{proof}
+
+
+
+\subsection{Privacy Proof}
+\label{sec:2server-priv}
+
+Suppose that the underlying \ppps scheme satisfies
+private programmability.
+Below, we prove the privacy of our two-server PIR scheme.
+
+In the pre-processing 
+phase, the server sends the sets $\Set(\sk_i)$ only to the right server, thereby no information about these sets is leaked to the left server. Similarly, no information about the indices $r_1$ is leaked to the right server and no information about the indices $r_2$ is leaked to the left server.
+We will first the lemma about the distribution of client's hint table, when the adversary controls either of the left or right server.
+\begin{lemma}
+ Recall that in each time step $t$, the adversary \algA 
+adaptively chooses a query $x_t \in \{0, 1, \ldots, n-1\}$ for the client.
+%The following statements are true:
+%\begin{enumerate}[leftmargin=5mm]
+%\item 
+At the end of each time step $t$, 
+the client's hint table  
+is distributed 
+as a table of size $M_1$
+where each entry is a freshly sampled \ppps key, even when
+conditioned on $\algA$'s view so far.  
+%\end{enumerate}
+\label{lem:2server-hintfresh}
+\end{lemma}
+\begin{proof}
+Suppose the above statement holds at the end of time step $t-1$.
+We prove that it still holds 
+at the end of time step $t$.
+Since the hint table is distributed as a fresh randomly sampled
+table even when conditioned on $\algA$'s view
+at the end of $t-1$, we may henceforth assume
+an arbitrary fixed query $x_t$.
+The distribution of the hint table 
+before the $t$-th query can be equivalently rewritten as:
+\begin{itemize}[leftmargin=5mm]
+\item First, 
+sample the decision whether any 
+of the $M_1$ entries contains the current query $x_t$,
+and if so, which is the first entry (denoted $i^*$) 
+that contains $x_t$. 
+If not found, we assume $i^* = M_1 + 1$. 
+\item 
+For each $i < i^*$, sample a random \ppps
+key subject to not containing $x_t$.
+\item 
+For each $i = i^*$, sample a random \ppps
+key subject to containing $x_t$.
+\item 
+For each $i > i^*$, sample a random \ppps key.
+\end{itemize}
+
+Using the above interpretation, it is easy to see 
+that the distribution of the hint table 
+after the $t$-th query is unaltered 
+no matter which of the two servers \algA controls.
+\end{proof}
+
+
+\subsubsection{Left Server Privacy}
+We first construct 
+the following simulator for proving left server privacy.
+
+\paragraph{Simulator construction.}
+\begin{itemize}[leftmargin=5mm]
+\item  
+During the pre-processing phase, 
+for each chunk $\ell$, sample $M_2$ 
+random indices belonging to $\ell$, send them to $\algA$.
+\item 
+During each query, 
+call the simulator of the \ppps scheme which outputs $\sk'$, 
+send $\sk'$ to $\algA$. 
+\end{itemize}
+
+\paragraph{Indistinguishability of ${\sf Real}$ and ${\sf Ideal}$.}
+We now prove the indistinguishability of the ${\sf Real}$ and
+${\sf Ideal}$ for both the servers
+assuming the 
+private programmability of the underlying \ppps scheme.
+
+First, due to \Cref{lem:2server-hintfresh}, 
+we can equivalently rewrite the ${\sf Real}$ experiment 
+for the right server as follows:
+at the end of each time step, resample the entire hint table
+freshly at random before continuing to answer more queries.
+As a result, 
+the view of $\algA$ who controls the right server is 
+distributed as: 
+\begin{itemize}[leftmargin=5mm]
+\item {\it Pre-processing phase}.
+%Sample $M_1$ random \ppps keys, and send them to $\algA$. 
+For each chunk $\ell$, send $M_2$ random indices
+in chunk $\ell$ to \algA.
+\item {\it Each time step $t$}.
+\begin{itemize}[leftmargin=5mm]
+\item 
+sample a \ppps key $\sk$
+ at random subject to containing the query $x_t$;
+sample $\delta$ at random
+from $\{0, \ldots, \sqrt{n}-1\}$.
+\item 
+call $\sk', \_ \leftarrow {\sf Program}(\sk, \chunk(x_t), \delta)$; 
+\item 
+send $\sk'$ to \algA.
+\end{itemize}
+\end{itemize}
+One way to see this is to think of the distribution of the table
+as the equivalent distribution
+in the proof of \Cref{lem:hintfresh}. 
+Further, observe that each $r_2\text{ mod }\sqrt{n}$ in the scheme 
+is distributed randomly from the perspective
+of the left server,  
+since they 
+were only sent to the 
+right server during the pre-processing phase.
+%because the right server has no information about $r_1$ during preprocessing.
+%For the right server, the distribution of $\sk'$ is the actual distribution and $r_1\text{ mod }\sqrt{n}$ is distributed randomly because the right server has no information about $r_2$ during preprocessing.
+
+Therefore, the rest of the proof follows
+due to a straightforward hybrid argument
+where we replace
+the programmed keys (denoted $\sk'$ earlier) 
+sent to the right server in all time steps one by one
+with a simulated key, 
+relying on the private programmability of the underlying \ppps. 
+
+
+
+
+
+
+\subsubsection{Right Server Privacy}
+
+We first construct 
+the following simulator for proving right server privacy.
+
+\paragraph{Simulator construction.}
+\begin{itemize}[leftmargin=5mm]
+\item  
+During the pre-processing phase, 
+send $M_1$ randomly sampled \ppps keys to $\algA$.
+Further, for each chunk $\ell$, sample $M_2$ 
+random indices in $\ell$, send them to $\algA$.
+\item 
+During each query, 
+call the simulator of the \ppps scheme which outputs $\sk'$, 
+%sample a random \ppps key $\sk$ subject to containing $x_t$, 
+%sample a random $\delta \in \{0, \ldots, \sqrt{n}-1\}$, 
+%call $\sk',\_ \leftarrow {\sf Program}(\sk, 
+%\chunk(x_t), \delta)$, 
+send $\sk'$ to $\algA$. 
+\end{itemize}
+
+
+\paragraph{Indistinguishability of ${\sf Real}$ and ${\sf Ideal}$.}
+We now prove the indistinguishability of the ${\sf Real}$ and
+${\sf Ideal}$ for both the servers
+assuming the 
+private programmability of the underlying \ppps scheme.
+\ignore{
+First, due to \Cref{lem:2server-hintfresh}, 
+we can equivalently rewrite the ${\sf Real}$ experiment 
+for the right server as follows:
+at the end of each time step, resample the entire hint table
+freshly at random before continuing to answer more queries.
+As a result, 
+}
+The view of $\algA$ who controls the right server is 
+distributed as: 
+\begin{itemize}[leftmargin=5mm]
+\item {\it Pre-processing phase}.
+Sample $M_1$ random \ppps keys, and send them to $\algA$. 
+Further, for each chunk $\ell$, send $M_2$ random indices
+in chunk $\ell$ to \algA.
+\item {\it Each time step $t$}.
+\begin{itemize}[leftmargin=5mm]
+\item 
+sample a \ppps key $\sk$
+ at random subject to containing the query $x_t$;
+sample $\delta$ at random
+from $\{0, \ldots, \sqrt{n}-1\}$.
+\item 
+call $\sk', \_ \leftarrow {\sf Program}(\sk, \chunk(x_t), \delta)$; 
+\item 
+send $\sk'$ to \algA.
+\end{itemize}
+\end{itemize}
+%One way to see this is to think of the distribution of the table
+%as the equivalent distribution
+%in the proof of \Cref{lem:hintfresh}. 
+To see the above, observe that each 
+$r_1\text{ mod }\sqrt{n}$ in the scheme 
+is distributed randomly from the perspective
+of the right server,  
+since they 
+were only sent to the 
+left server during the pre-processing phase.
+%because the right server has no information about $r_1$ during preprocessing.
+%For the right server, the distribution of $\sk'$ is the actual distribution and $r_1\text{ mod }\sqrt{n}$ is distributed randomly because the right server has no information about $r_2$ during preprocessing.
+
+Therefore, the rest of the proof follows
+due to a straightforward hybrid argument
+where we replace
+the programmed keys (denoted $\sk'$ earlier) 
+sent to the right server in all time steps one by one
+with a simulated key, 
+relying on the private programmability of the underlying \ppps. 
+
+
+
+
+\ignore{
+\paragraph{Simulator construction and the ${\sf Ideal}$ experiment.}
+Consider the following simulator construction for both the left server which does not make
+use of the queries: 
+in every time step $t$, call the simulator $\Sim$ of the \ppps
+scheme, and let the output be $\sk'$. 
+Send $\sk'$ to the server. 
+
+\paragraph{Indistinguishability of ${\sf Real}$ and 
+${\sf Ideal}$.}
+We now prove the indistinguishability of the ${\sf Real}$ and
+${\sf Ideal}$ for both the servers
+assuming the 
+private programmability of the underlying \ppps scheme.
+
+First, due to \Cref{lem:hintfresh}, 
+we can equivalently rewrite the ${\sf Real}$ experiment for the left and te right server as follows:
+at the end of each time step, resample the entire hint table
+freshly at random before continuing to answer more queries.
+As a result, the %distribution of the $\sk'$ received by 
+messages sent to 
+\algA in each time step $t$
+is distributed as 
+\begin{itemize}[leftmargin=5mm]
+\item[]
+\begin{itemize}[leftmargin=5mm]
+\item 
+sample a \ppps key $\sk$
+ at random subject to containing the query $x_t$;
+sample $\delta$ at random
+from $\{0, \ldots, \sqrt{n}-1\}$.
+\item 
+call $\sk', \_ \leftarrow {\sf Program}(\sk, \chunk(x_t), \delta)$; 
+\item 
+send $\sk'$ to \algA.
+\end{itemize}
+\end{itemize}
+One way to see this for the left server is to think of the distribution of the table
+as the equivalent distribution
+in the proof of \Cref{lem:hintfresh}. Moreover, $r_1\text{ mod }\sqrt{n}$ is distributed randomly because the right server has no information about $r_1$ during preprocessing.
+For the right server, the distribution of $\sk'$ is the actual distribution and $r_1\text{ mod }\sqrt{n}$ is distributed randomly because the right server has no information about $r_2$ during preprocessing.
+
+Therefore, the rest of the proof follows
+due to a straightforward hybrid argument
+where we replace
+the programmed keys (denoted $\sk'$ earlier) 
+sent to the server in all time steps one by one
+with a simulated key, 
+relying on the private programmability of the underlying \ppps. 
+}
+
+
+\subsection{Correctness Proof}
+\label{sec:2server-correct}
+
+We show that with $Q = \sqrt{n} \log \kappa \cdot \alpha$ 
+random, distinct queries,
+the probability of ever having correctness error is negligibly small. 
+An error can happen 
+if one of the following bad events take place:
+\begin{itemize}[leftmargin=5mm]
+\item 
+{\it No matched hint}. 
+During some query for $x$, 
+no hint is found that contains the query $x$.
+\item 
+{\it Depleting replacement entries}. 
+During some query for $x$, there is no more replacement
+entry of the form $(r_1, \DB[r_1])$ 
+or $(r_2, \DB[r_2])$ 
+corresponding to $\chunk(x)$. 
+\end{itemize}
+
+Below, we show 
+that the probability of each bad event during a window
+of $Q$ random, distinct queries 
+is negligibly small. 
+
+\paragraph{Probability of no matched hint.}
+Due to \Cref{lem:2server-hintfresh}, for any fixed time step $t$, 
+we can assume the client's hint table
+contains freshly sampled \ppps keys and is independent of 
+the current query $x_t$.
+Due to the pseudorandomness property of the \ppps,
+the sets generated by the keys 
+in the hint table are computationally indisintinguishable
+from 
+$M_1$ sets independently sampled from the distribution $\mcal{D}_n$.
+Below we 
+calculate the probability that a fixed  
+element $x_t$ is not in any of the $M_1$ sets 
+sampled independently from 
+$\mcal{D}_n$ --- the probability that $x_t$ is not contained in any entry in the
+client's hint table can only be negligibly different.
+
+The probability that one set 
+sampled from $\mcal{D}_n$ contains $x_t$ is $1/\sqrt{n}$. 
+Therefore, the probability that 
+none of the $M_1$ sets contains $x_t$ is
+$(1-1/\sqrt{n})^{M_1}$, and given the choice
+of $M_1 = \sqrt{n} \log \kappa \alpha(\kappa)$ where $\alpha(\kappa)$
+is a super-constant function,
+this probability is negligibly small in $\kappa$.
+
+Finally, taking a union bound over all polynomially many time steps,
+the probability of ever not having a matched hint
+is negligibly small in $\kappa$. 
+
+
+\paragraph{Probability of depleting replacement entries.} 
+One can only deplete the replacement 
+entries of some chunk $\ell$ if the chunk $\ell$
+is encountered more than $M_2$ times.
+With $Q$ random distinct queries, 
+each query will hit a random chunk.
+The expected number of hits per chunk
+is therefore $Q/\sqrt{n} = \log \kappa \cdot \alpha$.
+By the Chernoff bound, 
+the probability that the number of visits to some fixed chunk $\ell$
+exceeds $M_2 = 3 \log \kappa \cdot \alpha$ is negligibly small
+in $\kappa$ as long as $\alpha(\kappa)$ is a super-constant function.
+
+Finally, taking a union bound over 
+all chunks and 
+all polynomially many time steps,
+the probability of ever 
+depleting replacement entries of any chunk
+is negligibly small in $\kappa$. 
+
+
+

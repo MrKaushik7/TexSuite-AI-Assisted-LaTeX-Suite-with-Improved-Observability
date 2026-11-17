@@ -1,0 +1,91 @@
+\section{Definitions and Case Classifications}\label{app:def}
+\heading{Definitions.}
+Below, we summarize the definitions we use in this paper.
+\begin{itemize}
+\item $\Queries(a)$: For $a\in [N]$,
+\begin{align*}
+\Queries(a) = \left\{ (a',\alpha') \in [N]\times [M] \mid \advA_2(\sigma,a) \text{  queries $h$ on   $(a',\alpha')$}\right\}\;.
+\end{align*}
+\item $\Salts(a)$: We say that $a'\in \Salts(a)$ if there is some $\alpha'\in [M]$ such that $(a',\alpha')$ is an entry in $\Queries(a)$. Namely, for $a,a'\in [N]$, 
+\begin{align*}
+a'\in \Salts(a) \Longleftrightarrow \exists \alpha' \in [M] \text{ s.t. } (a',\alpha') \in \Queries(a).
+\end{align*}
+\item Fresh salts: A salt $a_i$ for $i \in [u]$ is called fresh if it was never used as the salt in any query performed by $\advA_2$ while being executed on salts $a_j$ for $j\le i-1$ which are fresh. The first salt $a_1$ is always fresh. A salt $a_i$ for $i \ge 2$ is fresh if for any fresh $a_j$ for $j \le i-1$, $a_i \notin \Salts(a_j)$. Namely, denoting the set of fresh salts by $\uf$, we have the following inductive (on $i\in [u]$) definition:
+ \begin{align*}
+a_i\in \uf \Longleftrightarrow \forall j\le i-1,  a_j \in \uf\colon a_i \not \in \Salts(a_j).  
+\end{align*}
+\item $\q_i,\qf$: We define $\q_i,\qf$ as follows.
+\begin{align*}
+ \forall i\in [F]\colon \q_i:=\Queries(a_i') \quad \text{ and } \quad \qf:=\q_1\concat\ldots\concat \q_F,
+ \end{align*}
+ where $\concat$ is the concatenation operator. $\qf[r]$ denotes the $r$th query in the list $\qf$.
+ \item $t_a$: 
+ For every $a\in U\setminus \uf$, let $t_a$ be the minimum value such that $\qf[t_a]$ is a query with salt $a$. 
+ \item $\Pred$: 
+ Define the set $\Pred$ as 
+ \begin{align*}
+ \Pred:=\{t_a\mid a\in U\setminus \uf\}.
+ \end{align*}
+\item Function graph:
+    For a function $h:[N]\times [M]\to [N]$, consider the following directed graph: it has $N$ nodes labelled with elements of $[N]$ and each node has exactly $M$ outgoing edges, each labelled with elements of $[M]$. There is an edge from node $a_i$ to $a_j$ labelled $\alpha$ if and only if $h(a_i,\alpha)=a_j$.
+\item Query graph:
+    Execution of an adversary $\advA_2$ on salts $a_1',\ldots,a_F'$ defines a query graph as follows. Initially the graph is empty. Whenever  $\advA_2$ queries $(a,\alpha)$ to $h$, we add a node with label $a$ if not already present and add an edge $(a,h(a,\alpha))$ with label $\alpha$ if not already present.
+    \item Mouse structure:
+    The evaluations of $h$ in order to compute $\MD_h(a_j',\alpha_j)$ and $\MD_h(a_j',\alpha_j')$ induce a structure that we call a \emph{mouse structure} for the salt $a_j'$.
+    \item $\uq_j$: We define $\uq_j$ to be the set of queries in the mouse structure. Similarly, we define  $\us_j$ as the set of salts that comprise the mouse structure. By definition, $1\leq |\uq_j|, |\us_j|\leq 2B$. 
+    
+    \item \new\ query: A \new\ query is a query in $\qf$ that did not appear in any previous block of $\qf$, i.e., a query with index $r\in [F\cdot T]$ is \new\ if there does not exist $r'<r$ such that $\qf[r']=\qf[r]$. 
+    Non-\new\ queries are called \emph{repeated}
+    \item \frep\ query: A query $(a,\alpha)$ would be a \frep\ query if it was made as part of a mouse structure during some earlier salt in $\uf$, i.e., a query in $\q_j$ with index $s\in [T]$ such that $h(\q_j[s])=a$ is \frep\ if it is not \new\ and $\q_j[s]\in \uq_i$ for some $i<j$.
+    \item \urep\ query: A \urep\ query is one that was made before but is not part of any mouse structure, i.e., a query in $\q_j$ with index $s\in [T]$ such that $h(\q_j[s])=a$ is  \urep\  if it is not \new, $\q_j[s]\not\in \uq_i$ for all $i<j$.
+    \item Large multi-collision: We say that queries $q_1,\cdots,q_m$ form an $m$-way multi-collision if all the $q_i$'s are distinct and all the $h(q_i)$ are equal. %How a multi-collision looks like has been shown in Fig.~\labelcref{fig:mulcol}. 
+    We say that the multi-collision is \emph{large} if $m\geq m_0$, where $m_0:=3e\log u/ \log \log u $. %(We shall justify this choice in Section~\labelcref{sec:multcol}).
+    \item $d$-neighborhood of a vertex: Let $G=(V,E)$ be  a directed graph. We say that a node $v_1\in V$ is in the $d$-neighborhood of $v_2\in V$ if the shortest directed path from $v_1$ to $v_2$ in $G$ consists of (exactly) $d$ edges.
+    \item Multi-collision of edges in a graph: 
+        For an edge $e=(a,b)$, we refer to $b$ as the target of the edge.
+        We say that for $m\geq 2$, edges $e_1,\cdots,e_m$ form a $m$-multi-collision if all of them share a common target. We refer to the common target as the center of the multi-collision. We refer to~$m$ as the size of the multi-collision.
+\end{itemize}
+
+\heading{Case classifications.}
+
+We write down the exhaustive case classification that we do for the mouse structures in the paper.
+    We classify the $j$th mouse structure for each $j\in[F]$ into the first of the following six cases it satisfies, e.g., if a mouse structure satisfies both cases~\labelcref{case:newcol,case:repnew}, we categorize it into~\labelcref{case:newcol}. 
+\begin{enumerate}
+\item In the mouse structure, there is a \new\ query $(a,\alpha)$ such that $h(a,\alpha)=a$.
+\item In the mouse structure, there are two distinct \new\ queries $(a_1,\alpha_1)$, $(a_2,\alpha_2)$ such that $h(a_1,\alpha_1)=h(a_2,\alpha_2)$.
+\item In the mouse structure, there is a \new\ query $(a,\alpha)$ such that $h(a,\alpha)=a'$ and $a'\in \us_i$ for some $i<j$. 
+\item In the mouse structure, there is a \urep\ query $(a,\alpha)$ such that $h(a,\alpha)=a$. 
+\item In the mouse structure, there is at least one salt $a$ such that $a\in \us_i$ for some $i<j$ and there is a path of at most $B-2$ edges in the mouse structure from $a$ back to $a'$ where $a'$ is an answer to a \new\ query.
+We further classify this case into the two following cases.
+\begin{enumerate}
+    \item Large multi-collisions: when the mouse structure contains a large multi-collision
+    \item No large multi-collision: when the mouse structure does not contain a large multi-collision
+\end{enumerate}
+\item \label{case:norep}There are no \frep\ queries in the mouse structure.
+We further classify this case into the two following cases.
+\begin{enumerate}
+    \item Large multi-collisions: when the mouse structure contains a large multi-collision
+    \item No large multi-collision: when the mouse structure does not contain a large multi-collision. We further classify this into these sub-cases.
+    \begin{enumerate}
+        [label=(\alph*)]
+  \item \label{case:norepa} The body of the mouse structure has at least one \new\ query, and there is a \new\ query at the tip of the mouse structure 
+  \item \label{case:norepb} The body of the mouse structure has at least one \new\ query, but there are no \new\ queries at the tip of the mouse structure 
+  \item \label{case:norepc} The body of the mouse structure has no \new\ queries, and the body of the mouse structure is a directed cycle.
+  We further classify this sub-case into the following scenarios.
+  \begin{enumerate}
+      \item the body of the mouse structure is formed in sequence
+      \item the body of the mouse structure is not formed in sequence
+  \end{enumerate}
+  \item \label{case:norepd} The body of the mouse structure has no \new\ queries, but the body of the mouse structure is not a directed cycle. We further classify this sub-case into the following scenarios.
+  \begin{enumerate}
+      \item The last query to be made for the first time among the queries in the body of the mouse structure and the frontal tail queries is $q_3$.
+      \item There is a query $q_4$ in the body that is not at the tip of the mouse structure, and it was the last query to be made for the first time among the body queries and the frontal tail queries. 
+      \item One of the queries $q_2,q_3$ at the tip of the mouse structure is the last to be made for the first time among the body queries.
+      \item A different query $q_5$ (without loss of generality in the same body curve as $q_2$) which is not at the tip of the mouse structure is the last query to be made for the first time among the body queries.
+  \end{enumerate}
+    \end{enumerate}
+\end{enumerate}
+
+\end{enumerate}
+
+

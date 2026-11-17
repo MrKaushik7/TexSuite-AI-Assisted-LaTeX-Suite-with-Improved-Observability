@@ -1,0 +1,143 @@
+\section{Attack}
+% In this section we present an attack that scales with $B^2$ for values of $B$ upto $\log N$.
+\Anote{Give an appropriate title}
+For simplicity, we assume that $f:[N]\times [N]\to [N]$ -- the attack can be generalized for $f:[N]\times [N]\to [N]$. For $i\in [N]$, define $f_i(x):=f(i,x)$.
+
+\heading{Layered narrow tree.} We define a $(S,B)$ layered narrow tree in the functional graph of $f$ as follows. 
+Let $i_1,\ldots,i_{B-1}\in [N]$ and sets $L_1,\ldots,L_B\subseteq [N]$ such that 
+\begin{itemize}
+\item for all $i\in [B]$, $|L_i|=S\cdot i$ 
+\item for all $i\in [B-1]$, for all $a\in L_{i+1}$, $f_{i}(a)\in L_{i}$
+\end{itemize}
+Then we say that the tree formed by the nodes in $L_1,\ldots,L_B$ and the edges between layers $L_{i+1}$ and $L_{i}$ for $i=B-1,\ldots,1$ in the functional graph of $G$ to be the $(S,B)$ layered narrow tree. We say that $\left((f_1,\ldots,f_{B-1}),(L_1,\ldots,L_B)\right)$ form a $(S,B)$ layered narrow tree in the functional graph of $f$.
+\begin{lemma}
+    There exists a $(S,B)$-layered narrow tree in the functional graph of $f$ with probability at least \blah.
+\end{lemma}
+We first define the following sets
+\begin{align*}
+&\mathcal{F}_{f,B} :=\{(f_{i_1},f_{i_2},\ldots,f_{i_{B-1}})|~ |\{i_1,i_2,\ldots,i_{B-1}\}|=B-1\}\\
+&\mathcal{L}_{B,S}  :=\{(L_1,L_2,\ldots,L_B)|~ |L_i|=S\cdot i\}\\
+&\mathcal{D}_{f,B,S}  := \mathcal{F}_B \times \mathcal{L}_{B,S}\;.
+\end{align*}
+For all $D\in \mathcal{D}_{f,B,S}$ we define the indicator random variable $X_{f,D}$ to be $1$ if $D$ forms $(S,B)$-layered narrow tree in the functional graph of $f$. 
+Define the random variable $X_f=\sum_{D\in \mathcal{D}_{f,B,S}}X_{f,D}$.
+We need to prove that 
+\[
+    \Pr_{f}\left[X_f >0 \right]\geq \blah\;.
+\]
+From Proposition~\labelcref{prop:cheby}, we have that 
+\[
+    \Pr_{f}\left[|X_f-\Exp{X_f}|\geq k\right]\leq \frac{\Var{X_f}}{k^2}\;.
+\]
+Setting  $k=\Exp{X_f}$, we can get that 
+\[
+    \Pr_{f}\left[{X_f=0}\right]\leq \frac{\Var{X_f}}{\Exp{X_f}^2}\;.
+\]
+In other words
+\[
+    \Pr_{f}\left[{X_f>0}\right]\geq 1-\frac{\Var{X_f}}{\Exp{X_f}^2}\;.
+\]
+Hence it suffices to prove that $\frac{\Var{X_f}}{\Exp{X_f}^2}\leq \blah$.
+
+We first compute $\Exp{X_f}$. 
+\begin{align*}
+    \Exp{X_f}&=\sum_{D\in \mathcal{D}_{f,B,S}}\Exp{X_{f,D}}\\
+    &=\left(\binom{N}{B-1}\prod_{i=1}^B \binom{N}{S\cdot i}\right) \Pr_{f}[X_{f,D}=1]\\
+    &=\binom{N}{B-1}\prod_{i=1}^B \binom{N}{S\cdot i} \prod_{i=1}^{B-1} \left(\frac{S\cdot j}{N}\right)^{S\cdot(j+1)}
+\end{align*}
+The first equality above follows from the linearity of expectation, the second equality follows since $\Exp[X_{f,D}]=\Pr_{f}[X_{f,D}=1]$ and the third equality follows from the definition of $X_{f,D}$.
+
+Next $\Var{X_f}$. 
+
+
+
+% \begin{theorem}
+%     Let $N\geq 2^{60}$. Let $S\in$ and let $B=O(\log \log N/\log \log \log N)$ such that $B>1$. Let $0<\epsilon<1$ be such that $\epsilon B$ is an integer. Let $T\in \mathbb{N}_{>0}$ be such that $B$ divides $T$. There exists an $(S,T,B)$ adversary $\advA=(\advA_1,\advA_2)$ such that 
+%     \[\Adv^{\aicr}_{\MD,N,N}(\advA)\geq O\left(\frac{\epsilon ST(\log S/\log \log S)^{(1-\epsilon)B-1}}{N\log N}\right)\;.\] 
+% \end{theorem}
+% The adversary $\advA_1$ in the preprocessing phase works as follows. It computes sets of salts $L_1,\ldots,L_B$ such that 
+% \begin{itemize}
+% \item for all $i\in [B]$, $|L_i|=S\cdot i$ 
+% \item for all $i\in [B-1]$, for all $a\in L_{i+1}$, $f(a,0)\in L_{i}$
+% \item for all $a_j\in L_1$, compute $b_j,c_j$ such that $f(a_j,b_j)=f(a_j,c_j)$ but $b_j\neq c_j$.
+% \end{itemize}
+
+% The online phase $\advA_2$ on input $a$ and the output of $\advA_1$ does the following:
+% \ifnum\eprintversion=0
+% 	\renewcommand{\len}{0.55}
+% 	\renewcommand{\lenn}{0.55}
+% 	\renewcommand{\lennn}{}
+% \else
+% 	\renewcommand{\len}{0.55}
+% 	\renewcommand{\lenn}{0.55}
+% 	\renewcommand{\lennn}{}
+% \fi
+%     \oneCol{\len}
+%     {
+%     \underline{Algorithm $\advA_2(a,\sigma)$}\\[0.2ex]
+%     Parse $\sigma$ as $(a_i,b_i,c_i)_{i=1}^t$\\
+%     If $\exists i\in [t]: a_i=a$: return $(b_i,c_i)$\\
+%     For $i=1,\ldots,T/B$:\\
+%     \ind $x_{i,0}\gets h(a,i)$\\
+%     \ind For $j=1,\ldots,B-1$:\\
+%     \ind \ind If $ x_{i',j'}=x_{i,j-1}$ for some $i'<i$ and $j\leq B-1$:\\
+%     \ind \ind Return $(i'\concat 0^{j'},i \concat 0^{j-1})$\\
+%     \ind \ind If $ x_{i,j'}=x_{i,j-1}$ for some $j'<j-1$:\\
+%     \ind \ind Return $(i\concat 0^{k},i \concat 0^{j-1})$\\
+%     \ind \ind If $ x_{i,j-1}=a_{k}$ for some $k\in [t]$:\\
+%     \ind \ind Return $(i\concat 0^{k-1}\concat b_k,i\concat 0^{k-1}\concat c_k)$\\
+%     \ind $x_{i,j}\gets f(x_{i,j-1})$  
+%     }
+    
+
+%     First we use the following lemma to argue that the preprocessing phase finds a $\mtal$ special forest with probability at least $1/2$. 
+
+%     \begin{lemma}\label{lem:comb}
+%         Let $f:[N]\to [N]$ be a random function. Let $G_f$ be the functional graph of $g$. With probability at least $1/2$, there exists a $\mtal$ forest in $G_f$ if $N>2^{60}$ and $t(\alpha^{m+1}-1)/(\alpha-1)\leq \log N/\log \log N$.
+%         \end{lemma}
+
+%         We observe that for $S=t\log N$, $t=O(1)$, $\alpha=\log S/\log \log S$ and $m=O(\log \log N/\log \log \log N)$, the inequality $t(\alpha^{m+1}-1)/(\alpha-1)\leq \log N/\log \log N$ holds.
+
+
+%     Given that it finds a $\mtal$ special tree, the probability that it returns $\bot$ is at most $tN!/N^N$. Using $N!\leq eN(N/e)^N$, we have that this probability is at most $teN/e^N$. 
+
+% Now we compute the probability that $\advA_2$ succeeds in finding a collision. Let $R$ be the event that the adversary $\advA_2$ returns due to the first two if statements and let $Q$ be the event that it returns due to the third if statement. Clearly, adversary $\advA_2$ succeeds with probability $\Pr[R]+\Pr[Q]$.
+% We have that 
+% \[
+% \Pr[Q]+\Pr[R]\geq \Pr[Q|\neg R](1-\Pr[R])+\Pr[R]\geq \Pr[Q|\neg R]+\Pr[R](1-\Pr[Q|\neg R])\geq \Pr[Q|\neg R]\;.
+% \]
+% Now we shall show a lower bound on $\Pr[Q|\neg R]$. The event $\neg R$ implies that all the $x_{i,j}$'s are distinct. 
+
+% Define $A$ to be the set of all nodes in the $\mtal$ special forest found in the preprocessing. Clearly $|A|=t(\alpha^{m-1}-1)/(\alpha-1)$ where $m=(1-\epsilon)B$. Let $F_{i,j}$ be the event that $x_{i,j}\in A$ and for all $i'<i,j'<B-1$, $x_{i',j'}\not\in A$ and for all $j'<j$, $x_{i,j'}\not\in A$. 
+% We have that 
+% \[
+% \Pr[F_{i,j}|\neg R]=\frac{|A|}{N-((i-1)B+j)}\prod_{k=1}^{(i-1)B+j}\left(1-\frac{|A|}{N-k+1}\right)\;.
+% \]
+% Using $T<N/2$ we have that $N-k+1\geq N/2$. Therefore
+% \[
+% \Pr[F_{i,j}|\neg R]\geq \frac{|A|}{N}\left(1-\frac{2|A|}{N}\right)^{(i-1)B+j}\geq \frac{|A|}{N}\left(1-\frac{2|A|((i-1)B+j)}{N}\right)\geq |A|/2N\;.
+% \]
+% It is clear that $F_{i,j}$ are disjoint, and given that $R$ happens $Q$ happens if for any $i\in [T/B]$, in the first $(1-\epsilon)B$ iterations of the loop in $j$, $x_{i,j}\in A$. Therefore
+% \[
+%     \Pr[Q|\neg R] \geq \sum_{i=1,\ldots, T/B; j=0,\ldots, (1-\epsilon)B}\Pr[F_{i,j}|\neg R]\geq  \epsilon B (T/B)(|A|/2N)=\epsilon T|A|/2N\;.
+% \]
+% Therefore, using $S=t\log N$ we have that 
+% \[
+%     \Pr[Q|\neg R]\geq Tt(\alpha^{m+1}-1)/(\alpha-1)/2N \geq  \epsilon ST{\left(\log S/\log \log S\right)}^{(1-\epsilon)B-1}/2N\log N\;.
+% \]
+% Hence advantage of $\advA$ is at least
+% \[
+%     1/2(1-teN/e^N)(\epsilon ST{\left(\log S/\log \log S\right)}^{(1-\epsilon)B-1}/2N\log N)\geq \epsilon ST{\left(\log S/\log \log S\right)}^{(1-\epsilon)B-1}/4N\log N -SeN/\log N e^N\;.
+% \]
+% For $S=\O(\log N)$, $B=\log \log N/\log \log N$, this advantage is $O(ST{\left(\log S/\log \log S\right)}^{(1-\epsilon)B-1}/4N\log N)$
+% We conclude by proving Lemma~\labelcref{lem:comb}.
+
+
+% First, let the total number of nodes the in a $\mal$ tree be $\beta$, it follows that
+% $\beta=(\alpha^{m+1}-1)/(\alpha-1)$.
+
+
+% We denote by random variable $X$ the number of $\mtal$ special forests in the functional graph of $f$. 
+% We want to show that lower bound on $\Pr[X>0]\geq 1/2$. We shall do this by using establishing a lower bound on $\Exp{X}$ and an upper bound on $\Var{X}$ and use Proposition~\labelcref{prop:cheby}.
+
+

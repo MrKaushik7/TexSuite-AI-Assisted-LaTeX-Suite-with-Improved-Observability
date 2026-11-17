@@ -1,0 +1,658 @@
+\section{Removing the Repetition Overhead in the Single-Server Scheme}
+\label{sec:optimized}
+
+%In the schemes mentioned in~\Cref{sec:main-scheme}, 
+Since our earlier single-server scheme in \Cref{sec:one-server}
+employs the broken hints technique, 
+there is a superlogarithmic factor multiplicative overhead
+due to the repetition needed for correctness compared to the two-server scheme in~\Cref{sec:two-server}.
+In this section, we
+describe an improved single-server pre-processing PIR
+scheme that avoids this super-logarithmic repetition 
+overhead. 
+For this optimized version, we cannot use the \ppps scheme
+in a completely blackbox manner. 
+
+\elaine{TODO: remove the reference to SingleQuery, we don't 
+have that any more}
+
+\elaine{TODO: change O(lambda  * ) to $O_\lambda()$} 
+
+
+
+
+\paragraph{Why previous schemes do not worry about broken hints.} First, we need
+to understand why in the previous single-server schemes like $\Piano$~\cite{piano}, the client
+does not have to worry about broken hints. 
+Notice that in the two-server scheme, the client will replace the consumed hint with a resampled hint that contains the current query, and interact with another server to fetch the correct parity for this new hint.
+This ensures that all hints are useful.
+In the single-server setting, the client cannot rely on the additional server to dynamically fetch the parity for the resampled hint.
+To fix this, $\Piano$ requires the client to prepare polylogarithmic \textit{backup} hints for each of the $\sqrt{n}$
+chunks.  
+The backup hints for the $i$-th chunk will record the parity of the set
+and also the value of the item in the $i$-th chunk. After querying for $x$, the
+client will replace the consumed hint with a backup hint from $x$'s chunk and
+lazily mark that $i$-th element of the hint to be the current query $x$, which
+maintains the distribution of the hint table. Since the values for the original
+$i$-th element and $x$ are known to the client, the correct parity for this
+edited hint can be derived by the client locally, avoiding the issue of broken hints. Then, the client only needs to find the first hint that contains $x$,
+instead of finding all matched hints and making multiple queries based on those
+hints, hoping that one of them will be good.~\footnote{A natural question is why
+the client cannot simply pick the first good hint. Observe that it would be
+equivalent to deleting a consumed hint from the table because a broken hint will
+never be used again. Then, it would skew the distribution of the hint table
+because the remaining hints are  less likely to contain the past queries, which
+leads to privacy leakage.}
+Now, after the client expands the key to a whole set, the client can easily enforce the marking (if necessary) by just changing the corresponding element.
+
+We will try to follow the backup hint and the lazy-marking idea.
+There is one challenge remaining: in $\Piano$, the client can expand the whole set and \textit{possibly change two elements obliviously} before sending the set to the server. 
+The client not only needs to change the offset in the current query's chunk to ensure the privacy, it also needs to change the offset in the lazy marked element's chunk to reflect the correct history. 
+Our main construction in~\Cref{sec:ppps} only allows us to program one location. 
+How should we modify the scheme to support programming at two points?
+
+
+%Unfortunately, this is not straightforward if use the PPPS technique, where the PPPS construction does not allow us to program two points. 
+%Remember that the client will send $n^{1/4}$ sub-keys to the server.
+One way to achieve that is by privately programmable
+pseudorandom function (PPPRF). PPPRF allows us to directly program on the key.
+This is nearly the same idea in
+two previous single-server PIR schemes~\cite{pir-ec23,lazza-pir}.
+Unfortuantely, this primitive is only known under strong cryptographic assumptions like LWE, and still only exists in theoretical literatures -- it is completely impractical at the current stage.
+
+\paragraph{Our solution: rejection sampling.} 
+We observe that all we need to do is just to ``maintain'' the right distribution
+of the hint table and the keys sent to the server. 
+If we can monitor the change in the distribution, we can rejection-sample
+the PRF keys according to the right distribution and avoid the 
+difficulty of doing private programming on the key level.
+
+Maintaining the distribution for the local hint table is relatively simple and is already achieved by the lazy-marking technique.
+For the local hint table, what we actually care about is the distribution of the
+actual sets, regardless how we represent them. Assume that the client already
+queries for $y$ and knows $\DB[y]$. Now the client consumes a hint that contains
+$y$, and replaces it with a hint from those backup hints prepared for
+$\chunk(y)$. Suppose the key for the backup hint is $\sk$. $\Set(\sk)$ may not contain
+$y$, but we can mark $y$ alongside the key, such that whenever we need to do membership testing on this key, we will consider $y$ is already programmed into the set.
+This maintains the local table's distribution.
+
+\begin{figure}
+    
+    \begin{minipage}{\textwidth}
+        \begin{mdframed}
+            \label{alg:one-query}
+            \begin{center}
+                {\bf Augmented Query Protocol Based on a Single Hint\footnote{The augmented part is highlighted in \red{red}.}
+                    %\andy{Is it not $O(\sqrt{n})$?}
+                }
+            \end{center}
+            
+            \parhead{Client's input:}
+            %Suppose the client has the following inputs:
+            \begin{itemize}
+                \item A master PPPS key $\sk$ assuming $x\in \Set(\sk)$;
+                \item The parity of $\Set(\sk)$ is assumed to be $p_{\sk}$;
+                \item A random index $r$ in $x$'s chunk such that the  $\DB[r]$
+                is assumed to be known.
+            \end{itemize}
+            
+            %\parhead{Suppose the client has a hint $$} When a query $x \in \{0,
+            %1, \ldots, n-1\}$ arrives, \Client performs the following: 
+            \begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+                \item 
+                {\bf Step 1: (Client)}
+                
+                \begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+                    
+                    %\item Let $i=\superblock(x)$. 
+                    \item Let $(\sk', i)\get \Program(\sk, \chunk(x), r \bmod \sqrt{n})$ and send $\sk'$ to the server;
+                    %\item Send $\sk'$ to the server;
+                    
+                    
+                \end{enumerate}
+                
+                \newpage
+                
+                \item 
+                {\bf Query Step 2: (Server)}             
+                Upon receivin $\sk'$: 
+                \begin{enumerate}
+                    \item Parse $\sk'$ as  
+                    \begin{align*}
+                        (k_{0},\dots,k_{n^{1/4}-1}),
+                        (\delta_{0},\dots,\delta_{n^{1/4}-1}).
+                    \end{align*}
+                    
+                    \item Let $S_0,\dots,S_{n^{1/4}-1}\get \ListDecode(\sk')$;  
+                    \item For $i\in \{0,\dots,n^{1/4}-1\}$:
+                        
+                        \begin{enumerate}
+                            \item Let $\beta_i = \xor_{x\in S_i} \DB[x]$;
+                            \item \red{Expand $k_i$ to $n^{1/4}$ offsets and consider
+                            them being the corresponding index offsets in chunk $\{i
+                            \cdot n^{1/4}, \ldots, (i + 1)\cdot n^{1/4} -1\}$.
+                            Compute the xor-sum of the database values for those
+                            indices as 
+                            \[
+                            \alpha_i=\xor_{j\in \{0,\dots,n^{1/4}-1\}} \DB[(j + in^{1/4})\sqrt{n} + \PRF_2(k_i, j)].
+                            \]}
+                        \end{enumerate}
+
+                    \item Return \red{$(\alpha_0,\dots,\alpha_{n^{1/4}-1})$},
+                    $(\beta_0,\dots,\beta_{n^{1/4}-1})$ to the client.
+                \end{enumerate}
+                
+                \item 
+                {\bf Step 3: (Client)}
+                
+                Upon receiving \red{$(\alpha_0,\dots,\alpha_{n^{1/4}-1})$},
+                $(\beta_0,\dots,\beta_{n^{1/4}-1})$:
+                \begin{itemize}[leftmargin=5mm,itemsep=1pt]
+                    \item \red{Save $(\alpha_0,\dots,\alpha_{n^{1/4}}-1)$ if the answer needs to be corrected later.}
+                    \item Return $p_\sk \xor \beta_i \xor \DB[r]$ as the answer.
+                \end{itemize}
+            \end{enumerate}
+        \end{mdframed}
+    \end{minipage}
+    \caption{The augmented query protocol based on a single hint. The augmentation is mainly about returning the the parities of those superblocks corresponding to the $n^{1/4}$ sub-keys and will be used in~\Cref{fig:optimized:single-server}.}
+    \label{fig:augmented}
+\end{figure}
+
+
+
+
+
+
+
+\begin{figure}[p]
+    
+    \begin{minipage}{\textwidth}
+        \begin{mdframed}
+            \label{alg:optimized:full}
+            \begin{center}
+                {\bf Optimized Single-Server Scheme for $Q=\sqrt{n}\log \kappa \cdot \alpha$ Queries
+                    \footnote{For clarity, we present the scheme supporting distinct and random queries.}
+                }
+            \end{center}
+            \parhead{Notation.}
+            $\kappa$ denotes a {\it statistical} security parameter, $\lambda$
+            denotes a computational security parameter. We use $\alpha(\kappa)$
+            to denote an arbitrarily small super-constant function.
+            
+            
+            \parhead{Preprocessing.} 
+            %\ \\[-6pt]
+            \begin{itemize}[leftmargin=3mm,itemsep=1pt]
+                \item In addition to the previous algorithm:
+                \begin{itemize}
+                    \item \Client samples $M_2=3\log \kappa \alpha(\kappa)$
+                    backup keys $\sk_{i,1},\dots,\sk_{i,M_2}$ for chunk $i$;
+                    \item For each backup hint, \Client stores $\sk_{i, j}$ and
+                    the following information:
+                    \begin{itemize}
+                        \item The parity for the whole set: $p_{i,j}=\xor_{x\in
+                        \Set(\sk_{i,j})} \DB[x]$;
+                        \item The parity for those items within the superblock
+                        that contains the $i$-th chunk: $b_{i,j}=\xor_{x\in
+                        \Set(\sk_{i,j})} \I\left[\superblock(x) = \left\lfloor
+                        \frac{i}{n^{1/4}} \right\rfloor
+                        \right]\DB[x]$\footnote{$\I[A]$ is 1 when $A$ is true
+                        and 0 otherwise.}
+                       
+                        \item The DB-value of the $i$-th item:
+                        $\DB[\Set(\sk_{i,j})[i]]$. 
+                    \end{itemize}
+                \end{itemize}  
+                
+                             
+                %\item At this moment, let $T := \{(\psk_i, p_i )\}_{i \in
+                %[M_1]}$ denote the client's {\it hint table}. Mark all the
+                %hints as ``good''.
+            \end{itemize}
+            
+            
+            
+            
+            \parhead{Query for index $x \in \{0, 1, \ldots, n-1\}$.}
+            %When a query $x \in \{0, 1, \ldots, n-1\}$ arrives, \Client
+            %performs the following: 
+            \begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+                \item 
+                {\bf Query:}
+                \begin{enumerate}[leftmargin=5mm,itemsep=1pt]
+                    %\item Let %$i^*=\left\lfloor
+                    %\frac{x}{\sqrt{n}}\right\rfloor$ be the index of $x$'s
+                    %chunk.
+                    \item 
+                    \Client finds {the first} matched hint $(\sk_i, p_i)$
+                    such that $x\in \Set(\sk_i)$ and the hint does not have a
+                    positive constraint $y$ that $\chunk(y)=\chunk(x)$.
+                    
+
+                        \item If there is no positive constraint on this hint:
+                        proceed the subroutine~\Cref{fig:augmented} as usual. 
+                        
+                        \item  If there is a positive constraint $+y$ on this
+                        hint: 
+                        \begin{enumerate}
+                            \item If $\superblock(y)=\superblock(x)$, 
+                            execute the subroutine, except that
+                            \begin{itemize}
+                                \item After the client programs the key and gets $n^{1/4}$ sub-keys and offsets, replaces the $(\chunk(y) \mod
+                                n^{1/4})$-th offset with $y$'s offset; 
+                                \item Let the return value be $v$, mark the
+                                answer as $v\xor\DB[y]\xor
+                                \DB[\Set(\sk_i)[\chunk(y)]]$. 
+                            \end{itemize}
+
+                           \item If $\superblock(y) \ne \superblock(x)$, execute
+                           the subroutine, except that:
+                           \begin{itemize}
+
+                               \item After the client has the programmed key of $n^{1/4}$ sub-keys and offsets, replace the $\superblock(y)$-th key
+                               with a rejection-sampled key $k'$. The rejection
+                               sampling key $k'$ should satisfy all constraints
+                               related to the matched hint $(+y,
+                               -z_1,\dots,-z_t)$ if $k'$ controls
+                               $\superblock(y)$ (as specified in
+                               Section~\labelcref{sec:optimized}).
+                               
+                               \item Let the return value be $v$, mark the answer
+                               as $v\xor\alpha_{\superblock(y)}\xor b$, where
+                               $\alpha_{\superblock(y)}$ is the corresponding
+                               parity of superblock controled by the
+                               rejection-sampled sub-key and $b$ is the original
+                               parity for that superblock, known by
+                               preprocessing. 
+                           \end{itemize}
+                           
+                            
+                        \end{enumerate}
+                                    
+                \end{enumerate}
+                
+                \item 
+                {\bf Refresh:}
+                \begin{itemize}
+                    \item \Client adds the constraint $-x$ for the first $i-1$
+                    entries.
+                    \item \Client replaces the matched hint with an unconsumed
+                    hint from the $\chunk(x)$'s backup hint group. Clean all
+                    other constraints and only mark $+x$ for the $i$-th entry.
+                \end{itemize}
+                
+            \end{enumerate}
+        \end{mdframed}
+    \end{minipage}
+    \caption{The optimized sublinear single server preprocessing PIR protocol
+    introduced in Section ~\labelcref{sec:optimized}. The protocol uses
+    a subroutine defined in Fig.~\labelcref{fig:augmented} as a
+    sub-routine.}
+    \label{fig:optimized:single-server}
+\end{figure}
+
+
+The more tricky case is how we handle the keys that the client sends to the
+server. Suppose client is now querying for $x$, and it finds the first hint that
+contains $x$. Also, it notices that the hint is marked with $y$. Recall that in
+the PPPS programming algorithm, the client will expand the master key into
+$n^{1/4}$ keys and expand the keys corresponding to the superblock of $x$ to
+$n^{1/4}$ offsets. Now there are two cases:
+\begin{enumerate}
+    \item \textit{$x$ and $y$ are in the same superblock.} This is a relatively
+    simple case. As the normal programming step in the PPPS, we will replace the sub-key corresponding to the
+    superblock of $x$ (the same as $y$) with a uniformly random sub-key. However,
+    when we expand the original sub-key to $n^{1/4}$ offsets, we need to replace
+    $x$'s offset with a random one, and also manually set the offset
+    corresponding to $y$'s chunk to $y$'s offset, reflecting that we enforce $y$
+    to be included. No rejection sampling is required in this case.
+    
+    For the answer, since we are just replacing the original element in $y$'s chunk to
+    $y$, the influence of such change should be corrected. We can require the
+    client to store the database value for the $i$-th element for all the backup
+    hints dedicated for the $i$-th chunk. Then, if this promoted hint $\sk$ is
+    used, we can correct the answer by xoring the influence value,
+    $\DB[\Set(\sk)[\chunk(y)]]\xor\DB[y]$.
+    
+    \item \textit{$x$ and $y$ are in the different superblocks.} This is the
+    more involved case. In the programming, we will again replace the sub-keys corresponding to
+    $x$'s superblock with a uniformly random sub-key and replace the offsets in
+    $x$'s chunk with a random one. However, we need to ensure that the key
+    corresponding to $y$'s superblock will expand to the correct offset for
+    $y$'s chunk, to ensure that $y$ is included. Now, we will rejection-sample a
+    sub-key $k$ for $y$'s superblock, such that it expands to the correct offset
+    of $y$. This is what we refer to as a \textbf{positive} constraint, and we
+    write this constraint as $+y$.
+    %We identify that this is \textbf{not enough} to ensure privacy.
+    Additionally, to maintain the right distribution, there are also
+    \textbf{negative} sampling constraints. Observe that if the $i$-th hint
+    entry is the first one to contains $x$, it means that from the client's
+    perspective, the first $i-1$ entries do not contain $x$. Suppose between
+    the query $y$ and query $x$, there are some other queries. After making
+    those queries, the client also knows that the current hint entry does not contain
+    some queries $z_1,\dots,z_t$. We write down the negative
+    constraints as $-z_1,\dots,-z_t$. Then, when we do the rejection sampling
+    for the sub-key for $y$'s superblock, we will consider all the constraints:
+    $+y, -z_1,\dots,-z_t$, until we find a sub-key $k$ that satisfies all the
+    constraints. This ensures that the resampled sub-key for $y$'s superblock has the
+    right distribution.
+    
+    We also need to argue that the rejection-sampling is efficient. The positive
+    constraint is satisfied with probability $1/\sqrt{n}$. Conditioned on the
+    positive constraint being satisfied, for each negative constraint, it is
+    satisfied with probability at least $1-1/\sqrt{n}$. We only need to focus on 
+    the negative constraints related to the $n^{1/4}$ chunks in that particular 
+    superblock. Due to a simple balls-into-bins argument, the maximum queries in
+    each chunk is bounded by $3\log\kappa\cdot(\alpha(\kappa))$ with high probability, 
+    and the same bound holds for the
+    the maximum number of negative constraints in each chunk.
+    Therefore, the rejection sampling can satisfy the all negative constraints
+    in those $n^{1/4}$ chunks with probability at least $1-n^{1/4}\cdot\frac{3\log\kappa\cdot(\alpha(\kappa))}{\sqrt{n}}$,
+    which is at least $1/2$ given a sufficiently large $n$. Therefore, we conclude
+    that a freshly sampled sub-key satisfies all the constraints with
+    probability at least $1/2\sqrt{n}$, and the expected sample time is
+    $O(\sqrt{n})$. 
+    
+    A noticable detail is that when we draw a new fresh key,
+    we first check the positive constraint. Only when the positive constraint is
+    satisfied, we check the negative constraints. The positive constraint is
+    satisfied with probability $1/\sqrt{n}$ but only takes $O(1)$ time to check.
+    Conditioned on the positive constraint being satisfied, the negative
+    constraints take $O(\sqrt{n})$ to check, but they are satisfied with probability
+    at least $1/2$. So even including the constraint checking time, the expected
+    sampling time is still $O(\sqrt{n})$.
+    
+    For the answer, since we are essentially replacing the original superblock
+    to a rejection-sampled one. To remove the influence of this step, we can
+    require the client to store the parity for the corresponding superblock
+    controlling the $i$-th chunk for all the backup hints dedicated for the
+    $i$-th chunk. Then, if this promoted hint $\sk$ is used, we can correct the
+    answer by xor-ing the parity for the original superblock (known by preprocessing) and the parity for the
+    rejection-sampled superblock.
+    This is why we need an augmented version of the response protocol for the server~\Cref{fig:augmented} -- we need the server to tell the client about the parity of the rejection-sampled superblock.
+    %$\DB[\Set(\sk)[\chunk(y)]]\xor\DB[y]$.    
+    
+\end{enumerate}
+
+
+We provide the pseudocode of this construction in
+Figure~\labelcref{fig:optimized:single-server}.
+
+\begin{theorem}
+    \label{thm:main2}
+    Let $\alpha(\kappa)$ be any superconstant function. Assume $n$ is bounded by
+    $\poly(\lambda)$ and $\poly(\kappa)$. The PIR scheme
+    in~\Cref{fig:optimized:single-server} that supports $\sqrt{n}\log \kappa \alpha(\kappa)$ queries is
+    private, correct with probability $1-\negl(\lambda)-\negl(\kappa)$ and
+    achieves the following performance bounds (\underline{the optimized parts
+    are underlined}):
+    \begin{itemize}
+        \item $O_\lambda(\sqrt{n}\log \kappa \alpha(\kappa))$ client storage and
+        no additional server storage;
+        \item \textbf{Pre-processing Phase}:
+        \begin{itemize}
+            \item $O_\lambda(n\log \kappa \alpha(\kappa))$ client time and
+            $O(n)$ server time;
+            \item $O(n)$ communication;
+        \end{itemize}
+        \item \textbf{Query Phase}:
+        \begin{itemize}
+            \item \underline{$O_\lambda(\sqrt{n})$ expected client time} and
+            \underline{$O_\lambda(\sqrt{n})$ server time} per query; 
+            \item \underline{$O_\lambda(n^{1/4})$ communication} per query.
+        \end{itemize}
+    \end{itemize} 
+    
+    Therefore, the amortized online communication per query is $O_\lambda(n^{1/4})$, the amortized offline communication per query is $O(\sqrt{n})$, the amortized client computation is $O_\lambda(\sqrt{n}\log \kappa \alpha)$ and the server computation is $O_\lambda(\sqrt{n})$.
+\end{theorem}
+
+\begin{proof}
+    The correctness proof will be similar to the correctness proof for the main scheme described in~\Cref{sec:2server-correct}.
+    
+    We defer the privacy proof to later.
+    
+    The additional storage for the client will be those $M_2$ backup hints per
+    chunk, which results in total of $O(\lambda\sqrt{n}\log \kappa
+    \alpha(\kappa))$ space. Notice that the client does not directly store the
+    negative constraints, otherwise the storage will be blown up. The client can
+    directly store the history of those matched hint entry index (which takes
+    $O(\sqrt{n}\log n)$ space) and also the generation time label of each hint.
+    Whenever the client finds the first matched hint, say entry $i$, it finds
+    all the previous queries that are older than the current hint's generation
+    time and whose matched hint entry indices are larger than $i$. Those history
+    queries will be the negative constraints. By doing this, maintaining all the
+    constraints only takes $O(\sqrt{n}\log n)$ space.
+    
+    %The client only stores $M_1=\sqrt{n}\log \kappa\alpha(\kappa)$
+    %$\lambda$-bit keys and store in total $\sqrt{n}\cdot M_2=\sqrt{n}\log
+    %\kappa\alpha(\kappa)$ index-value pairs. So the storage is
+    %$O(\lambda\sqrt{n}\log \kappa \alpha(\kappa))$.
+    
+    The pre-processing phase's performance bounds are obvious by the algorithm description.
+    
+    For the query phase, the client first finds the first hint that contains
+    $x$. Each hint contain $x$ with probability $1/\sqrt{n}$, so the expected
+    time is $O(\lambda\sqrt{n})$. The subroutine in~\Cref{fig:augmented} takes $O(\lambda
+    n^{1/4})$ client computation and $O(\lambda \sqrt{n})$ server computation,
+    while consuming $O(\lambda n^{1/4})$ communication cost. The refresh phase
+    takes only $O(1)$ time (if the client maintains the negative constraint
+    using the technique mentioned above). So the expected client time is
+    $O(\lambda\sqrt{n})$ per query. The server time is
+    $O(\lambda\sqrt{n})$ per query. The online communication per query is
+    $O(\lambda n^{1/4})$ per query.
+\end{proof}
+
+
+\subsection{Privacy Proof}
+
+
+%\begin{theorem}[Privacy]
+%    The PIR scheme in~\Cref{fig:optimized:single-server} statisfies privacy assuming $\PRF$ is a secure pseudorandom function.
+%\end{theorem}
+
+\begin{proof}
+    \mingxun{TODO: going over}
+    
+    \ashrujit{some notes about this proof:
+        \begin{itemize}
+            \item the paragraph beginning ``In $\Hyb_1$, we can equivalently ...'' is unclear -- specifically what the $Q$ hints are (are they among the $M_1$ primary ones)?
+            \item The following paragraph: if the primary hints are defined and $x_1,\ldots,x_Q$ are defined how can $I$ be sapled again, is it not fixed? This needs rephrasing
+            \item Definition of $\Hyb_4$- specify what ``processing steps'' are
+            \item Are hints/entries used interchangably? Better to stick to one
+            \item round has not been defined -- better to specify it means on a particular online query
+        \end{itemize}
+    }
+    We will prove this theorem via a sequence of hybrids. The first hybrid in the sequence will capture the real experiment in the privacy definition of single server PIR, and the last hybrid will capture the ideal experiment.
+    We first define the hybrid ${\sf Real^*}$:
+    
+    \begin{itemize}
+        \item \textit{Pre-processing phase.} $\adv$ receives the streaming signal. The client samples $\sk_1,\dots,\sk_{M_1}\getr\{0,1\}^\lambda$. % and backups $\sk_{}$
+        \item \textit{Query phase.} For each round $t$, $\adv$ chooses a query $x_t$:
+        \begin{itemize}
+            \item The client finds the first matched key $\sk_i$ in the hint table, that is, $x\in\Set(\sk_i)$ and if there's a positive constraint $+y$ on this entry, $x$ is not in the same chunk as $y$. 
+            
+            \item If the entry $i$ has no positive constraint: execute the subroutine.
+            
+            \item If the entry $i$ has a positive constraint $+y$:
+            \begin{itemize}
+                \item If $y$ and $x$ are in the same superblock: execute the subroutine, with the difference that when the client is expanding the sub-key corresponding to the superblock of $x$ to $n^{1/4}$ offsets, replace the offset of $y$'s location to $y$'s offset.
+                
+                \item If $y$ and $x$ are not in the same superblock: execute the subroutine with the difference that when the client is expanding the master key to $n^{1/4}$ sub-keys, replace the sub-key corresponding to $y$'s superblock to a rejection sampled key $k'$, such that when $k'$ is considered as the key for that superblock, the expanded set should satisfy all constraints related to entry $i$;
+            \end{itemize}
+            
+            \item Then, the client replaces the entry $\sk_i$ with a freshly-sampled key $\sk'$, but deletes other constraints and marks constraint $+x$ for entry $i$;
+            
+            \item The client also marks constraints $-x$ for entry $1$ to entry $i-1$.
+            
+        \end{itemize}
+        
+    \end{itemize}
+    
+    This hybrid is identically distributed as the actual experiment that we just remove all parts unrelated to the privacy proof.
+    
+    
+    We define $\Hyb_1$ by removing $\PRF_1$ from $\Real^*$: for each sampled master key $\sk$, the client will directly sample $n^{1/4}$ random sub-keys and store them in the local storage. 
+    When the client executes the programming step in the subroutine, it no longer has to expand the master key to $n^{1/4}$ sub-keys. 
+    
+    $\Hyb_1$ is computationally indistinguishable from $\Real^*$ due to a straightforward reduction to the pseudorandomness of $\PRF_1$.
+    
+    Since we already replaces all master keys with $n^{1/4}$ sub-keys, the later hybrids no longer need to expand a master key to $n^{1/4}$ sub-keys in the subroutine. 
+    
+    We define $\Hyb_2$ as following: $\Hyb_2$ is the same as $\Hyb_1$, except that whenever the client finds the matched hint for query $x$, it will resample all those $n^{1/4}$ sub-keys \textbf{according to all the marked negative constraints and also the new constraint $+x$.} Notice that the history-dependent positive constriaint (usually written as $+y$) is not considered in this new resample step and only enforced just before the client sending messages to the server. 
+    
+    Now we argue that $\Hyb_2$ is identically distributed as $\Hyb_1$. 
+    
+    \begin{myclaim}
+        The view of the adversary in $\Hyb_2$ is identically distributed as in $\Hyb_1$. 
+        \label{clm:resamp-const}
+    \end{myclaim}
+    
+    \begin{proof}
+        For all $Q$ queries, lets consider the matched hint index vector ${\bf I}=(i_1,\dots,
+        i_Q)$ where $i_t$ denotes the client finds $i_t$ as the matched hint in the $t$-th round. Notice that the recorded constraints at $t$-th round are completely determined by $i_1,\dots,i_{t-1}$.
+        
+        Now we add the matched index vector to the view of the adversarys, and we will argue that even with the augmented view, the view of the adversary are still identically distributed in the two experiments.
+        
+        First, observe that the two experiments have exactly the same way to generate the matched index vector.
+        We only need to argue that, the selected entry in each round has the same distribution in both experiments, and then the messages observed by the adversary should have the same distribution.
+        
+        We claim that conditioned on the same $i_1,\dots,i_{t-1}$, the selected entry in round $t$ have the same distributions in the two experiments.
+        
+        In $\Hyb_1$, we can equivalently consider the client first uniformly sample the $M_1$ primary hints and extra $t-1$ replaced hints.
+        Then, given the queries $x_1,\dots,x_{t-1}$, the client finds the matched hint and hence derives $i_1,\dots,i_{t-1}$ and those selected entry.
+        
+        In $\Hyb_2$, we can equivalently consider the client first observes the queries $x_1,\dots,x_{t-1}$ and samples $i_1,\dots,i_{t-1}$ from the marginal distribution (conditioned on $x_1,\dots,x_{t-1}$ and all the initial $M_1$ hints and the $t-1$ replacement hints are random).
+        Then, the client samples the selected entry for each round by deriving the constraints from $i_1,\dots,i_{t-1}$ and does rejection sampling.
+        
+        A key observation is that in $\Hyb_1$, the adversary cannot observe what the  hint table is before round $t$. 
+        Then, from the adversary's perspective, the selected entry's distribution is the \textit{posterior} distribution of them after observing $i_1,\dots,i_{t-1}$. 
+        Moreover, that \textit{posterior} distribution is exactly the same as the distribution the client uses to generate the selected entry (and even the whole table) in round $t$ (i.e., containing the query $x_t$ and some negative constraints $-z_1,-z_2,\dots$) in $\Hyb_2$.
+        Therefore, from the adversary's perspective, the selected hints in the two experiment share the same distribution, and thus the views are identically distributed.
+        
+        
+    \end{proof}
+    
+    
+    We define $\Hyb_3$ as following: $\Hyb_3$ is the same as $\Hyb_2$, except that whenever the client finds the matched hint for query $x$, it will resample that entry also considering the history-dependent positive constraint. $\Hyb_2$ does not consider the history-dependent positive constraint because the history-dependent constraint is only marked locally and is only enforced before sending the message. That is, it will include the positive constraints of including the current query $x$ and a history query $y$ (if necessary) and all other negative constraints.
+    We will prove that $\Hyb_3$ is computationally indistinguishable from $\Hyb_2$. 
+    
+    \begin{myclaim}
+        $\Hyb_3$ is computationally indistinguishable from $\Hyb_2$.
+    \end{myclaim}
+    
+    \begin{proof}
+        
+        For each query $x_t$, there are three cases for the selected hint entry: 1) it does not have a history-dependent positive constraint; 2) it has a history-dependent positive constraint $+y$, but $y$ and $x$ are not in the same superblock; 
+        3) it has a history-dependent positive constraint $+y$ such that $y$ and $x$ are in the same superblock.
+        
+        The first case is trivially identical in the two experiments. 
+        For the second case, since the client will always resample the sub-key for $y$'s superblock before sending messages to the server, it does not matter whether the original hint contains $y$ or not (which only affect the sub-key for $y$'s superblock).
+        The final case is that the current query $x$ and the positive constraint $y$ are in the same superblock.
+        We can view $\Hyb_2$ and $\Hyb_3$ be the case where we sample the sub-key in that particular superblock according to the same constraints, except that $\Hyb_3$ will have one additional constraint that the offset in $y$'s chunk should be $y$'s offset.
+        Then the client will expand the sampled sub-key to $n^{1/4}$ offsets and change the offset in $y$'s chunk to $y$'s offset.
+        Due to the pseudorandomness of $\PRF_2$, the two distributions are computationally indistinguishable.
+        
+    \end{proof}
+    
+    Now, define $\Hyb_4$ the same as $\Hyb_3$, except that in the query phase, after the client resample the selected hint entry, the client will not do the processing steps related to the history-dependent positive constraint.
+    
+    For clarity, we write the full definition of $\Hyb_4$:
+    
+    \begin{itemize}
+        \item \textit{Pre-processing phase.} $\adv$ receives the streaming signal. The client samples $\sk_1,\dots,\sk_{M_1}\getr\{0,1\}^\lambda$. % and backups $\sk_{}$
+        \item \textit{Query phase.} For each round $t$, $\adv$ chooses a query $x_t$:
+        \begin{itemize}
+            \item The client finds the first matched keys $\sk_i$ in the hint table, that is, $x\in\Set(\sk_i)$ and if there's a positive constraint $+y$ on this entry, $x$ are not in the same chunk as $y$.
+            
+            \item Resample a key $\sk$ subject to all the constraints recorded for this entry (e.g. including the current query $x$ and the history query $y$, while satisfying some negative constraints $-z_1,\dots$). 
+            
+            \item Execute the subroutine based on this resampled key. 
+            
+            \item Then, the client replaces the entry $\sk_i$ with a freshly-sampled key $\sk'$, but deletes other constraints and marks constraint $+x$ for entry $i$;
+            
+            \item The client also marks constraints $-x$ for entry $1$ to entry $i-1$.
+            
+        \end{itemize}
+        
+    \end{itemize}
+    
+    
+    $\Hyb_4$ is identically distributed as $\Hyb_3$. There are only two different cases in $\Hyb_4$ and $\Hyb_3$:
+    
+    \begin{itemize}
+        
+        \item The history-dependent positive constraint $y$ is in the same superblock as the current query $x$. 
+        Notice that the client already resamples the sub-key subject to $y$ is included, so the offset in $\chunk(y)$ is already $y$'s offset;
+        
+        \item The history-dependent positive constraint $y$ are not in the same superblock as the current query $x$. In $\Hyb_3$, we already have another step to resample the sub-key correponding to $y$'s superblock. However, notice that the two resampling steps are independent and subject to exactly the same constraints, so removing the latter one preserves the distribution.
+        
+    \end{itemize}
+    
+    
+    Now we define $\Hyb_5$ as following:
+    
+    \begin{itemize}
+        \item \textit{Pre-processing phase.} $\adv$ receives the streaming signal. The client samples $\sk_1,\dots,\sk_{M_1}\getr\{0,1\}^\lambda$. % and backups $\sk_{}$
+        \item \textit{Query phase.} For each round $t$, $\adv$ chooses a query $x_t$:
+        \begin{itemize}
+            \item The client finds the first matched keys $\sk_i$ in the hint table, that is, $x\in\Set(\sk_i)$.
+            
+            \item Execute the subroutine with this matched key.
+            
+            \item Then, the client replaces the entry $\sk_i$ with a freshly-sampled key $\sk'$ subject to $x\in\Set(\sk')$.
+            
+        \end{itemize}
+        
+    \end{itemize}
+    
+    Notice that in $\Hyb_5$, the client does not record any constraint and does not resample the matched hint.
+    
+    \begin{myclaim}
+        The adversary's views in $\Hyb_4$ and $\Hyb_5$ is computatonally indistinguishable.
+    \end{myclaim}
+    
+    \begin{proof}
+        This argument is similar to the argument for Claim~\ref{clm:resamp-const}. 
+        We can still consider adding the matched index vector ${\bf I}$ to the adversary's views and prove the augmented views are indistinguishable.
+        
+        We first argue that the distributions of ${\bf I}$ are computationally indistinguishable in the two experiments.
+        Observe that given any time, if we expand all the local hints to sets, the distributions of those sets are computationally indistinguishable. 
+        The only difference between the two experiments is that in $\Hyb_4$, the client replaces the matched hint with a uniformly random new hint and lazily marks the current query $x$ to the entry in $\Hyb_4$, while in $\Hyb_5$, the client directly does rejection-sampling to sample a new hint containing $x$. 
+        These two sets are computationally indistinguishable due to the pseudorandomness of the $\PRF_2$.
+        
+        Conditioned on the same matched indices $i_1,\dots,i_t$, we only need to argue the selected entry in round $t$ has the same distribution in both experiments, and then the messages observed by the adversary should have the same distribution.
+        
+        In $\Hyb_4$, we can equivalently consider the client first observes the queries $x_1,\dots,x_{t-1}$ and sample $i_1,\dots,i_t$ from the marginal distribution (conditioned on $x_1,\dots,x_t$, those initial $M_1$ hints are uniformly random, and the extra $t-1$ replacement hints are sampled conditioned on containing the corresponding queries).
+        Then, the client samples the selected entry for this round by deriving the constraints from $i_1,\dots,i_t$ and does rejection sampling.
+        
+        In $\Hyb_5$, we can equivalently consider the client first generates $M_1$ primary hints and also the $t-1$ replacement hints given the queries $x_1,\dots,x_{t-1}$. 
+        Then, the client finds the matched hint in each round and hence derives $i_1,\dots,i_t$ and chooses those selected entries.
+        
+        Again, the key observation is that in $\Hyb_5$, the adversary cannot observe what the hint table is before round $t$. 
+        Then, from the adversary's perspective, the whole table's distribution is the \textit{posterior} distribution after observing $i_1,\dots,i_{t}$. 
+        Moreover, that \textit{posterior} distribution is exactly the same as the distribution the client recorded as the form of constraints.
+        
+        Therefore, from the adversary's perspective, the selected entries in the two experiment share the same distribution conditioned on the same matched indice $i_1,\dots,i_t$.
+        So we can conclude that the adversary's view in the two experiments are computationally indistinguishable. 
+    \end{proof}
+    
+    
+    Finally, we define the hybrid $\Ideal$:
+    
+    \begin{itemize}
+        \item \textit{Pre-processing phase.} $\adv$ receives the streaming signal. 
+        \item \textit{Query phase.} For each round $t$, $\adv$ chooses a query $x_t$:
+        \begin{itemize}
+            \item The client will
+            \begin{itemize}
+                \item Independently sample $k_0,\dots,k_{n^{1/4}-1}\getr\{0,1\}^\lambda$;
+                \item Independently sample $r_0,\dots,r_{n^{1/4}-1}\getr\{0,\dots,\sqrt{n}-1\}$.
+                \item Send $(k_0,\dots,k_{n^{1/4}-1}),
+                (r_0,\dots,r_{n^{1/4}-1})$ to the server.
+            \end{itemize}
+        \end{itemize}
+    \end{itemize}
+    
+    The argument that $\Ideal$ and $\Hyb_5$ are computationally indistinguishable is nearly the same as the proof in~\Cref{sec:1server-priv}
+\end{proof}
+
